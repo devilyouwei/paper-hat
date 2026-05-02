@@ -1,0 +1,40 @@
+% ============================================================
+% Section 2 — Related Work
+% ============================================================
+\section{Related Work}
+\label{sec:related_work}
+
+\subsection{Continual Learning for Language Models}
+
+Continual learning (CL) aims to update model parameters on a stream of tasks without catastrophic forgetting~\citep{kirkpatrick2017overcoming,zenke2017continual}.
+Regularisation-based methods penalise changes to important weights~\citep{kirkpatrick2017overcoming,li2017learning}, while replay-based methods store or generate past examples for interleaved training~\citep{de2021continual,scialom2022fine}.
+Recent work has extended CL to large language models, studying instruction tuning across sequential tasks~\citep{wu2024continual} and domain-incremental adaptation~\citep{ke2023continual}.
+However, existing CL methods assume a \emph{given} data stream and do not address the problem of \emph{which} experiences should be retained.
+HAT complements CL by introducing a principled experience selection mechanism upstream of parameter updates.
+
+\subsection{Memory-Augmented Neural Networks}
+
+Memory-augmented architectures equip neural networks with external memory stores that can be read from and written to~\citep{graves2014neural,sukhbaatar2015end}.
+More recent work combines retrieval mechanisms with language models~\citep{borgeaud2022improving,zhong2022training}, enabling access to a large knowledge base at inference time.
+While these approaches augment \emph{inference}, they do not leverage memory for \emph{learning}: retrieved information is used contextually but does not update the model's parameters.
+In contrast, HAT uses its memory store (the Neocortex) as a curated training set that feeds back into parameter optimisation.
+
+\subsection{Retrieval-Augmented Generation}
+
+Retrieval-augmented generation (RAG) methods prepend retrieved passages to the model's input context~\citep{lewis2020retrieval,guu2020realm,izacard2022atlas}.
+RAG is effective for knowledge-intensive tasks but inherits the limitations of fixed-context approaches: the model cannot \emph{learn} from retrieved content, context windows are bounded, and retrieval quality degrades when the knowledge base is noisy.
+HAT can be seen as going beyond RAG by closing the loop from retrieval to training: high-value interactions—including oracle-provided corrections—are not only used at inference time but are consolidated into the model's parameters.
+
+\subsection{Knowledge Distillation and Self-Improvement}
+
+Knowledge distillation transfers knowledge from a teacher model to a student~\citep{hinton2015distilling,sanh2019distilbert}.
+Recent work explores \emph{self-improving} language models that generate their own training data~\citep{huang2023large,yuan2024self,chen2024self} or use reinforcement learning from human/AI feedback~\citep{ouyang2022training,bai2022constitutional}.
+These methods typically apply distillation or self-play uniformly, without selecting \emph{which} experiences are most informative.
+HAT's Oracle consultation mechanism is a form of selective, on-demand distillation: the teacher is queried only when the student model is uncertain or has been corrected by the user, ensuring efficient use of the oracle's capacity.
+
+\subsection{Complementary Learning Systems Theory}
+
+Complementary learning systems (CLS) theory posits that the brain uses two interacting memory systems: the hippocampus for rapid encoding of specific episodes and the neocortex for slow extraction of statistical regularities~\citep{mcclelland1995there,kumaran2016learning}.
+Sleep replay, particularly during slow-wave sleep, is hypothesised to mediate the transfer from hippocampus to neocortex~\citep{rasch2013sleep,walker2017sleep}.
+Several works in machine learning have drawn on CLS for continual learning~\citep{shin2017continual,van2020brain,arani2022learning}, but they focus on image classification and do not address the unique challenges of language model self-improvement from interactive experience.
+HAT directly operationalises the CLS framework for LLMs, with an explicit hippocampal selection stage, a neocortical memory store, and an offline SWS training phase.

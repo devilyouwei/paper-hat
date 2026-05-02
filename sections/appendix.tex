@@ -1,0 +1,122 @@
+% ============================================================
+% Appendix
+% ============================================================
+
+\section{Algorithm Pseudocode}
+\label{app:algorithm}
+
+\begin{algorithm}[h]
+\DontPrintSemicolon
+\SetKwInOut{Input}{Input}
+\SetKwFor{For}{for}{do}{end}
+\SetKwIF{If}{ElseIf}{Else}{if}{then}{else if}{else}{end}
+\caption{HAT --- Hippocampus-Augmented Transformer Self-Improvement Loop}
+\label{alg:hat_appendix}
+\Input{Base model $\modeltheta$ (Cortex), Hippocampus Agent $\hippocampus$, Oracle $\oracle$, empty Neocortex $\neocortex \leftarrow \emptyset$}
+\Input{SWS interval $N$, write threshold $\tau$, oracle threshold $\tau_\oracle$, selection weights $\alpha, \beta, \gamma$}
+$t \leftarrow 0$\;
+\For{each user interaction $(\context, \seq)$}{
+  $\seqy \leftarrow \modeltheta(\context, \seq)$ \tcp*{Cortex generates response}
+  $\uncertainty \leftarrow \entropy\!\big(p_\params(\seqy \mid \context, \seq)\big)$ \tcp*{Estimate uncertainty}
+  Observe user feedback $\feedback$ (correction signal, if any)\;
+  \tcp{--- Hippocampus Agent ---}
+  $\memtrace \leftarrow \hippocampus_{\mathrm{abs}}(\context, \seq, \seqy)$ \tcp*{Abstraction}
+  \If{$\uncertainty > \tau_\oracle$ \textbf{or} $\feedback = 1$}{
+    $\seqy^\oracle \leftarrow \oracle(\context, \seq)$ \tcp*{Consult Oracle}
+    Update $\memtrace$ with oracle response $\seqy^\oracle$\;
+  }
+  Compute novelty: $\novelty \leftarrow \mathrm{NoveltyScore}(\memtrace, \neocortex)$\;
+  Compute selection score: $\selectscore \leftarrow \alpha\,\uncertainty + \beta\,\feedback + \gamma\,\novelty$\;
+  \If{$\selectscore > \tau$}{
+    $(\seq^{\mathrm{train}}, \seqy^{\mathrm{train}}) \leftarrow \hippocampus_{\mathrm{replay}}(\memtrace)$ \tcp*{Replay Builder}
+    $\neocortex \leftarrow \neocortex \cup \{(\seq^{\mathrm{train}}, \seqy^{\mathrm{train}}, \selectscore)\}$ \tcp*{Write to Neocortex}
+  }
+  $t \leftarrow t + 1$\;
+  \tcp{--- Slow-Wave Sleep ---}
+  \If{$t \bmod N = 0$}{
+    Sample replay batch $\replaybuf \sim \neocortex$ (priority sampling by $\selectscore$)\;
+    $\params \leftarrow \params - \eta\,\nabla_\params\!\left[\losssws(\params; \replaybuf) + \lossreg(\params)\right]$ \tcp*{SWS update}
+    Update Fisher information $F$ for EWC\;
+  }
+}
+\Return Updated model $\modeltheta$\;
+\end{algorithm}
+
+\section{Hyperparameter Sensitivity}
+\label{app:hyperparameters}
+
+\begin{table}[h]
+  \centering
+  \caption{Hyperparameter sensitivity analysis on the NQ benchmark (Phi-3-3.8B).}
+  \label{tab:hyperparameters}
+  \small
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    \textbf{Hyperparameter} & \textbf{Range Tested} & \textbf{Best Value} & \textbf{Sensitivity} \\
+    \midrule
+    Write threshold $\tau$              & $\{0.1, 0.2, 0.3, 0.5, 0.7\}$ & 0.3 & Medium \\
+    Oracle threshold $\tau_\oracle$     & $\{0.5, 0.6, 0.7, 0.8, 0.9\}$ & 0.7 & Low \\
+    Uncertainty weight $\alpha$         & $\{0.2, 0.3, 0.4, 0.5, 0.6\}$ & 0.4 & Medium \\
+    Feedback weight $\beta$             & $\{0.2, 0.3, 0.4, 0.5, 0.6\}$ & 0.4 & Low \\
+    Novelty weight $\gamma$             & $\{0.1, 0.2, 0.3, 0.4\}$       & 0.2 & Low \\
+    LoRA rank                           & $\{4, 8, 16, 32\}$             & 16  & Low \\
+    SWS learning rate $\eta$            & $\{1, 2, 5\} \times 10^{-5}$   & $2 \times 10^{-5}$ & Medium \\
+    EWC coefficient $\mu$               & $\{0.01, 0.05, 0.1, 0.5, 1.0\}$ & 0.1 & Medium \\
+    SWS interval $N$                    & $\{100, 250, 500, 1000, 2000\}$ & 500 & Low \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% TODO: Add sensitivity curves (accuracy vs. each hyperparameter).
+
+\section{Additional Experimental Results}
+\label{app:additional_results}
+
+% TODO: Add per-task breakdowns, per-cycle learning curves, additional model sizes.
+
+\section{Prompts Used by the Hippocampus Agent}
+\label{app:prompts}
+
+% TODO: Include the exact prompts used for abstraction, replay construction, and oracle consultation.
+% This is important for reproducibility.
+
+\section{Computational Cost Analysis}
+\label{app:compute}
+
+\begin{table}[h]
+  \centering
+  \caption{Computational overhead of HAT components (Phi-3-3.8B on a single NVIDIA A100 GPU).}
+  \label{tab:compute}
+  \small
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    \textbf{Component} & \textbf{Time per Interaction} & \textbf{Time per SWS Cycle} \\
+    \midrule
+    Cortex inference             & --\,ms  & --- \\
+    Hippocampus (abstraction)    & --\,ms  & --- \\
+    Hippocampus (selection)      & --\,ms  & --- \\
+    Oracle consultation          & --\,ms  & --- \\
+    SWS training (3 epochs)      & ---     & --\,min \\
+    \midrule
+    \textbf{Total overhead}      & --\,ms  & --\,min \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% TODO: Fill in measured latencies.
+
+\section{Broader Impact Statement}
+\label{app:broader_impact}
+
+HAT enables on-device language models to improve from user interactions, which raises considerations in both positive and negative directions.
+
+\paragraph{Positive impacts.}
+HAT democratises model adaptation by allowing lightweight models on personal devices to improve without requiring cloud-based retraining.
+This can reduce reliance on centralised AI services and give users more control over their AI assistants.
+The selective memory mechanism also implies that not all data is stored, which can be beneficial for privacy.
+
+\paragraph{Potential risks.}
+Storing user interactions, even in abstracted form, poses privacy risks.
+If the Neocortex memory is compromised, sensitive information could be exposed.
+Additionally, a model that learns from user corrections could amplify biases if the corrections themselves are biased.
+We recommend deploying HAT with differential privacy mechanisms and content filtering to mitigate these risks.

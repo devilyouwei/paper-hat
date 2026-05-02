@@ -1,0 +1,127 @@
+# ============================================================
+# .gitignore for LaTeX projects
+# ============================================================
+
+## Core LaTeX auxiliary files
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+## Intermediate documents
+*.dvi
+*.xdv
+*-converted-to.*
+
+## Bibliography auxiliary files (BibTeX/Biber)
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+## Build tool auxiliary files (latexmk / latexrun)
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+## Index files
+*.idx
+*.ilg
+*.ind
+*.ist
+*.glg
+*.glo
+*.gls
+*.glsdefs
+*.lzo
+*.lzs
+*.acn
+*.acr
+*.alg
+
+## Hyperref / nameref
+*.brf
+*.nav
+*.pre
+*.snm
+*.vrb
+
+## listings
+*.lol
+
+## minted / pythontex
+_minted*/
+*.pyg
+pythontex-files-*/
+*.pytxcode
+
+## todonotes / changes
+*.tdo
+
+## algorithm2e / algorithmicx
+*.loa
+*.thm
+
+## glossaries-extra
+*.glstex
+
+## TikZ externalisation
+*.dpth
+*.md5
+*.auxlock
+*-tikzDictionary
+
+## SageTex
+sage-plots-for-*.tex
+*.sagetex.sage
+*.sagetex.scmd
+*.sagetex.sout
+*.sagetex.sout.sage
+
+## Knitr / R
+*-concordance.tex
+*.tikz
+*-tikzDictionary
+*.knit.md
+*.utf8.md
+
+## Beamer
+*.nav
+*.pre
+*.snm
+*.vrb
+
+## Output PDFs (uncomment if you don't want to track the built PDF)
+# *.pdf
+# !figures/**/*.pdf
+
+## OS / editor cruft
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+.#*
+\#*\#
+.vscode/
+.idea/
+
+## Backup files
+*.bak
+*.backup
+*.tmp

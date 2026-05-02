@@ -1,0 +1,9 @@
+% This directory holds figure files (PDF, PNG, or TikZ).
+% Place your architecture diagram, plots, and visualisations here.
+%
+% Recommended formats:
+%   - Vector graphics: PDF or TikZ (preferred for camera-ready)
+%   - Raster graphics: PNG at 300 DPI minimum
+%
+% Reference from LaTeX:
+%   \includegraphics[width=\textwidth]{figures/architecture.pdf}

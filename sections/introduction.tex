@@ -1,0 +1,31 @@
+% ============================================================
+% Section 1 — Introduction
+% ============================================================
+\section{Introduction}
+\label{sec:introduction}
+
+Large language models (LLMs) have demonstrated remarkable capabilities across a broad spectrum of natural language tasks~\citep{brown2020language,touvron2023llama,openai2023gpt4}.
+Yet a fundamental tension remains: once training concludes, a model's knowledge is \emph{frozen}, and adapting it to new domains, user preferences, or corrected information requires costly retraining on carefully curated data.
+This limitation is particularly acute for lightweight, on-device language models in the 0.5--10\,B parameter range, where users interact with a personal assistant that must evolve over time but lacks the infrastructure for large-scale retraining.
+
+Existing approaches to post-deployment adaptation fall broadly into two categories.
+\emph{Retrieval-augmented generation} (RAG) methods~\citep{lewis2020retrieval,guu2020realm} augment the model's context with external knowledge at inference time, but they do not update the model's parameters and thus cannot internalise corrections or new skills.
+\emph{Continual fine-tuning} methods~\citep{kirkpatrick2017overcoming,de2021continual} update model weights on new data, but they typically require hand-curated datasets and are susceptible to catastrophic forgetting when data is noisy or unbalanced.
+Neither paradigm addresses the upstream question: \emph{what should a model learn from?}
+
+In biological intelligence, this problem is solved elegantly.
+The mammalian hippocampus does not store all sensory experience; instead, it selectively encodes salient events and, during sleep, replays and consolidates them into long-term neocortical memory~\citep{mcclelland1995there,kumaran2016learning}.
+This process of \emph{selective memory consolidation} ensures that only high-value experiences---those that are novel, surprising, or corrective---are used to update long-term knowledge.
+
+Inspired by this principle, we propose \textbf{HAT (Hippocampus-Augmented Transformer)}, a multi-agent framework that equips a lightweight language model with the ability to \emph{learn what to learn} from its own interactions.
+HAT introduces a dedicated \emph{Hippocampus Agent} that monitors the base model's (the \emph{Cortex}) interactions with users, abstracts raw dialogues into structured memory traces, selects high-value experiences using uncertainty, feedback, and novelty signals, and constructs training-ready replay data.
+During offline phases---analogous to \emph{slow-wave sleep} (SWS) in the brain---curated experiences are replayed to fine-tune the Cortex, producing an improved model that re-enters the interaction loop.
+When the Cortex is uncertain or produces errors, HAT can also consult an external \emph{Oracle} (a stronger teacher model), enabling a form of on-demand knowledge distillation.
+
+\paragraph{Contributions.}
+Our contributions are three-fold:
+\begin{enumerate}[leftmargin=*,itemsep=2pt,topsep=3pt]
+  \item We formalise the problem of \emph{selective experience curation} for self-improving language models and propose HAT, a memory-centric framework that decouples experience acquisition from parameter optimisation.
+  \item We design a Hippocampus Agent with three composable stages---\emph{abstraction}, \emph{selection}, and \emph{replay construction}---that convert raw interactions into high-quality training signals using uncertainty estimation, user feedback, and novelty detection.
+  \item We conduct extensive experiments on knowledge-intensive QA, instruction following, and personalisation benchmarks, demonstrating that HAT achieves consistent improvements in sample efficiency, error-rate reduction, and long-horizon adaptation over strong fine-tuning and retrieval-augmented baselines.
+\end{enumerate}

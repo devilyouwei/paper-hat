@@ -1,0 +1,86 @@
+% ============================================================
+% Section 6 — Analysis & Ablations
+% ============================================================
+\section{Analysis}
+\label{sec:analysis}
+
+\subsection{Ablation Study}
+\label{sec:analysis:ablation}
+
+To understand the contribution of each component, we ablate key modules of HAT using the Phi-3-3.8B Cortex on the NQ benchmark.
+Results are summarised in Table~\ref{tab:ablation}.
+
+\begin{table}[t]
+  \centering
+  \caption{Ablation study on the NQ benchmark (Phi-3-3.8B).  Each row removes or replaces one component.  $\Delta$ indicates the accuracy change relative to the full HAT system.}
+  \label{tab:ablation}
+  \small
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    \textbf{Variant} & \textbf{Accuracy} & $\bm{\Delta}$ \\
+    \midrule
+    \textbf{HAT (full)}                      & -- & ---    \\
+    \midrule
+    \quad w/o Abstraction                     & -- & --     \\
+    \quad w/o Selection (random write)        & -- & --     \\
+    \quad w/o Novelty signal ($\gamma = 0$)   & -- & --     \\
+    \quad w/o Uncertainty signal ($\alpha = 0$)& -- & --    \\
+    \quad w/o Feedback signal ($\beta = 0$)   & -- & --     \\
+    \quad w/o Oracle consultation             & -- & --     \\
+    \quad w/o EWC regularisation              & -- & --     \\
+    \quad w/o Replay Builder (raw traces)     & -- & --     \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Abstraction is critical.}
+% TODO: Discuss impact of removing the abstraction stage.
+
+\paragraph{Selection outperforms random curation.}
+% TODO: Discuss random selection vs. write-policy-based selection.
+
+\paragraph{All three selection signals contribute.}
+% TODO: Discuss individual contribution of uncertainty, feedback, novelty.
+
+\paragraph{EWC prevents forgetting.}
+% TODO: Discuss forgetting rate with and without EWC.
+
+\subsection{Effect of SWS Cycle Frequency}
+\label{sec:analysis:frequency}
+
+We vary the number of interactions between SWS cycles ($N \in \{100, 250, 500, 1000, 2000\}$) and measure final accuracy and computational cost.
+
+\begin{figure}[t]
+  \centering
+  % TODO: Replace with actual plot
+  \fbox{\parbox{0.46\textwidth}{\centering\vspace{4em}\textbf{[SWS Frequency Plot Placeholder]}\vspace{4em}}}
+  \hfill
+  \fbox{\parbox{0.46\textwidth}{\centering\vspace{4em}\textbf{[Forgetting Rate Plot Placeholder]}\vspace{4em}}}
+  \caption{\textbf{Left:} Final accuracy as a function of SWS cycle frequency.  \textbf{Right:} Forgetting rate across SWS cycles for HAT vs.\ baselines.}
+  \label{fig:sws_frequency}
+\end{figure}
+
+% TODO: Discuss optimal cycle frequency and trade-offs.
+
+\subsection{Qualitative Analysis}
+\label{sec:analysis:qualitative}
+
+\paragraph{What does the Hippocampus select?}
+We analyse the distribution of memory traces written to the Neocortex across interaction types.
+% TODO: Add breakdown figure or table.
+% Expected: user corrections and high-uncertainty responses dominate, while routine interactions are filtered out.
+
+\paragraph{Memory evolution over time.}
+We visualise the Neocortex content across SWS cycles using t-SNE embeddings.
+% TODO: Add t-SNE figure showing how the memory distribution shifts.
+% Expected: early cycles accumulate broad knowledge; later cycles focus on edge cases and user-specific preferences.
+
+\paragraph{Case study: error correction propagation.}
+We trace a specific user correction through the HAT pipeline—from raw interaction to abstracted trace, selection, replay construction, and its effect on model behaviour after SWS training.
+% TODO: Add illustrative example.
+
+\subsection{Scaling Behaviour}
+\label{sec:analysis:scaling}
+
+We examine how HAT's gains vary with Cortex model size (1.5B, 3.8B, 8B).
+% TODO: Discuss whether smaller models benefit more from HAT (expected: yes, since they have more room for improvement and stronger models have less uncertainty).

@@ -1,0 +1,51 @@
+% ============================================================
+% Section 4 — Experimental Setup
+% ============================================================
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Benchmarks and Tasks}
+\label{sec:experiments:benchmarks}
+
+We evaluate HAT on three families of tasks that probe different aspects of self-improvement:
+
+\paragraph{Knowledge-intensive question answering.}
+We use Natural Questions (NQ)~\citep{kwiatkowski2019natural} and TriviaQA~\citep{joshi2017triviaqa} in a \emph{streaming} setup: questions arrive sequentially and the model must answer without access to a retrieval corpus.  After each answer, the model may receive a binary correctness signal or an explicit user correction.
+
+\paragraph{Instruction following.}
+We adopt a subset of the Alpaca-Eval benchmark~\citep{li2023alpacaeval} and MT-Bench~\citep{zheng2023judging}, where instructions are presented in temporal batches that gradually increase in complexity.  This tests HAT's ability to internalise and generalise from corrective feedback on instruction-following quality.
+
+\paragraph{Personalisation.}
+We construct a personalisation benchmark based on LaMP~\citep{salemi2024lamp}, where a simulated user provides preferences and corrections over successive interactions.  The model is evaluated on how well it adapts to individual user style and factual preferences over time.
+
+\subsection{Baselines}
+\label{sec:experiments:baselines}
+
+We compare HAT against the following approaches:
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Frozen}: the base Cortex model without any adaptation.
+  \item \textbf{RAG}~\citep{lewis2020retrieval}: retrieval-augmented generation using a dense retriever over the interaction history.
+  \item \textbf{Na\"ive Replay}: continual fine-tuning on all interaction logs without selection.
+  \item \textbf{EWC Replay}~\citep{kirkpatrick2017overcoming}: replay with elastic weight consolidation but without experience curation.
+  \item \textbf{DER++}~\citep{buzzega2020dark}: dark experience replay with knowledge distillation, a strong continual learning baseline.
+  \item \textbf{Self-Play}~\citep{chen2024self}: the model generates and filters its own training data via self-consistency.
+  \item \textbf{Full Distillation}: fine-tuning the student on the oracle's responses for \emph{all} queries (upper bound on oracle usage).
+\end{itemize}
+
+\subsection{Implementation Details}
+\label{sec:experiments:details}
+
+\paragraph{Base models.}
+We instantiate the Cortex with three model families at different scales: Qwen-2.5-1.5B, Phi-3-mini-3.8B, and LLaMA-3-8B.  All models are instruction-tuned variants.
+
+\paragraph{Oracle.}
+We use GPT-4o as the default oracle $\oracle$.  We also report results with a smaller oracle (LLaMA-3-70B) to study oracle quality sensitivity.
+
+\paragraph{Hippocampus Agent.}
+The abstraction and replay-builder modules reuse the Cortex itself (with dedicated prompts), making HAT lightweight and self-contained.  The selection scoring uses the Cortex's own predictive entropy for $\uncertainty$, cosine similarity in the model's embedding space for $\novelty$, and binary user-correction flags for $\feedback$.
+
+\paragraph{Hyperparameters.}
+We set $\alpha = 0.4$, $\beta = 0.4$, $\gamma = 0.2$ in Eq.~\eqref{eq:selection_score} based on validation-set tuning.  The write threshold is $\tau = 0.3$.  Oracle consultation is triggered when $\uncertainty > \tau_\oracle = 0.7$ or when $\feedback = 1$.  SWS training uses LoRA (rank 16) with AdamW ($\eta = 2 \times 10^{-5}$), batch size 32, and 3 epochs per cycle.  The EWC coefficient is $\mu = 0.1$.  A SWS cycle is triggered every 500 interactions.
+
+\paragraph{Evaluation protocol.}
+We report metrics averaged over 3 random seeds.  Each experiment simulates 5{,}000 sequential interactions (10 SWS cycles).  We measure: (1) \textbf{accuracy} (exact match or ROUGE-L depending on task), (2) \textbf{error rate} (fraction of incorrect responses), (3) \textbf{sample efficiency} (accuracy gain per training example), and (4) \textbf{forgetting rate} (performance drop on earlier tasks after adaptation).

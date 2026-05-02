@@ -1,0 +1,314 @@
+% ============================================================
+% References — HAT Paper
+% ============================================================
+% Seeded with key references; add more as the paper develops.
+
+% --- Foundational LLMs ---
+@inproceedings{brown2020language,
+  title={Language Models are Few-Shot Learners},
+  author={Brown, Tom and Mann, Benjamin and Ryder, Nick and Subbiah, Melanie and Kaplan, Jared D and Dhariwal, Prafulla and Neelakantan, Arvind and Shyam, Pranav and Sastry, Girish and Askell, Amanda and others},
+  booktitle={Advances in Neural Information Processing Systems},
+  volume={33},
+  pages={1877--1901},
+  year={2020}
+}
+
+@article{touvron2023llama,
+  title={LLaMA: Open and Efficient Foundation Language Models},
+  author={Touvron, Hugo and Lavril, Thibaut and Izacard, Gautier and Martinet, Xavier and Lachaux, Marie-Anne and Lacroix, Timoth{\'e}e and Rozi{\`e}re, Baptiste and Goyal, Naman and Hambro, Eric and Azhar, Faisal and others},
+  journal={arXiv preprint arXiv:2302.13971},
+  year={2023}
+}
+
+@article{openai2023gpt4,
+  title={{GPT-4} Technical Report},
+  author={{OpenAI}},
+  journal={arXiv preprint arXiv:2303.08774},
+  year={2023}
+}
+
+% --- Retrieval-Augmented Generation ---
+@inproceedings{lewis2020retrieval,
+  title={Retrieval-Augmented Generation for Knowledge-Intensive {NLP} Tasks},
+  author={Lewis, Patrick and Perez, Ethan and Piktus, Aleksandra and Petroni, Fabio and Karpukhin, Vladimir and Goyal, Naman and K{\"u}ttler, Heinrich and Lewis, Mike and Yih, Wen-tau and Rockt{\"a}schel, Tim and others},
+  booktitle={Advances in Neural Information Processing Systems},
+  volume={33},
+  pages={9459--9474},
+  year={2020}
+}
+
+@inproceedings{guu2020realm,
+  title={{REALM}: Retrieval-Augmented Language Model Pre-Training},
+  author={Guu, Kelvin and Lee, Kenton and Tung, Zora and Pasupat, Panupong and Chang, Mingwei},
+  booktitle={International Conference on Machine Learning},
+  pages={3929--3938},
+  year={2020}
+}
+
+@article{izacard2022atlas,
+  title={Atlas: Few-shot Learning with Retrieval Augmented Language Models},
+  author={Izacard, Gautier and Lewis, Patrick and Lomeli, Maria and Hosseini, Lucas and Petroni, Fabio and Schick, Timo and Dwivedi-Yu, Jane and Joulin, Armand and Riedel, Sebastian and Grave, Edouard},
+  journal={Journal of Machine Learning Research},
+  volume={24},
+  number={251},
+  pages={1--43},
+  year={2023}
+}
+
+@article{borgeaud2022improving,
+  title={Improving Language Models by Retrieving from Trillions of Tokens},
+  author={Borgeaud, Sebastian and Mensch, Arthur and Hoffmann, Jordan and Cai, Trevor and Rutherford, Eliza and Millican, Katie and Van Den Driessche, George Bm and Lespiau, Jean-Baptiste and Damoc, Bogdan and Clark, Aidan and others},
+  journal={arXiv preprint arXiv:2112.04426},
+  year={2022}
+}
+
+% --- Continual Learning ---
+@inproceedings{kirkpatrick2017overcoming,
+  title={Overcoming Catastrophic Forgetting in Neural Networks},
+  author={Kirkpatrick, James and Pascanu, Razvan and Rabinowitz, Neil and Veness, Joel and Desjardins, Guillaume and Rusu, Andrei A and Milan, Kieran and Quan, John and Ramalho, Tiago and Grabska-Barwinska, Agnieszka and others},
+  booktitle={Proceedings of the National Academy of Sciences},
+  volume={114},
+  number={13},
+  pages={3521--3526},
+  year={2017}
+}
+
+@inproceedings{zenke2017continual,
+  title={Continual Learning Through Synaptic Intelligence},
+  author={Zenke, Friedemann and Poole, Ben and Ganguli, Surya},
+  booktitle={International Conference on Machine Learning},
+  pages={3987--3995},
+  year={2017}
+}
+
+@inproceedings{li2017learning,
+  title={Learning without Forgetting},
+  author={Li, Zhizhong and Hoiem, Derek},
+  booktitle={IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume={40},
+  number={12},
+  pages={2935--2947},
+  year={2017}
+}
+
+@article{de2021continual,
+  title={A Continual Learning Survey: Defying Forgetting in Classification Tasks},
+  author={De Lange, Matthias and Aljundi, Rahaf and Masana, Marc and Parisot, Sarah and Jia, Xu and Leonardis, Ale{\v{s}} and Slabaugh, Gregory and Tuytelaars, Tinne},
+  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume={44},
+  number={7},
+  pages={3366--3385},
+  year={2021}
+}
+
+@article{wu2024continual,
+  title={Continual Learning for Large Language Models: A Survey},
+  author={Wu, Tongtong and Luo, Linhao and Li, Yuan-Fang and Pan, Shirui and Vu, Thuy-Trang and Haffari, Gholamreza},
+  journal={arXiv preprint arXiv:2402.01364},
+  year={2024}
+}
+
+@article{ke2023continual,
+  title={Continual Pre-training of Language Models},
+  author={Ke, Zixuan and Shao, Yijia and Lin, Haowei and Konishi, Tatsuya and Kim, Gyuhak and Liu, Bing},
+  journal={arXiv preprint arXiv:2302.03241},
+  year={2023}
+}
+
+@inproceedings{scialom2022fine,
+  title={Fine-tuned Language Models are Continual Learners},
+  author={Scialom, Thomas and Chakrabarty, Tuhin and Muresan, Smaranda},
+  booktitle={Proceedings of the 2022 Conference on Empirical Methods in Natural Language Processing},
+  pages={6fenêtre--6102},
+  year={2022}
+}
+
+@inproceedings{buzzega2020dark,
+  title={Dark Experience for General Continual Learning: A Strong, Simple Baseline},
+  author={Buzzega, Pietro and Boschini, Matteo and Porrello, Angelo and Abati, Davide and Calderara, Simone},
+  booktitle={Advances in Neural Information Processing Systems},
+  volume={33},
+  pages={15920--15930},
+  year={2020}
+}
+
+% --- Complementary Learning Systems / Neuroscience ---
+@article{mcclelland1995there,
+  title={Why There Are Complementary Learning Systems in the Hippocampus and Neocortex: Insights from the Successes and Failures of Connectionist Models of Learning and Memory},
+  author={McClelland, James L and McNaughton, Bruce L and O'Reilly, Randall C},
+  journal={Psychological Review},
+  volume={102},
+  number={3},
+  pages={419--457},
+  year={1995}
+}
+
+@article{kumaran2016learning,
+  title={What Learning Systems Do Intelligent Agents Need? {Complementary} Learning Systems Theory Updated},
+  author={Kumaran, Dharshan and Hassabis, Demis and McClelland, James L},
+  journal={Trends in Cognitive Sciences},
+  volume={20},
+  number={7},
+  pages={512--534},
+  year={2016}
+}
+
+@article{rasch2013sleep,
+  title={About Sleep's Role in Memory},
+  author={Rasch, Bj{\"o}rn and Born, Jan},
+  journal={Physiological Reviews},
+  volume={93},
+  number={2},
+  pages={681--766},
+  year={2013}
+}
+
+@book{walker2017sleep,
+  title={Why We Sleep: Unlocking the Power of Sleep and Dreams},
+  author={Walker, Matthew},
+  year={2017},
+  publisher={Scribner}
+}
+
+@inproceedings{shin2017continual,
+  title={Continual Learning with Deep Generative Replay},
+  author={Shin, Hanul and Lee, Jung Kwon and Kim, Jaehong and Kim, Jiwon},
+  booktitle={Advances in Neural Information Processing Systems},
+  volume={30},
+  year={2017}
+}
+
+@article{van2020brain,
+  title={Brain-Inspired Replay for Continual Learning with Artificial Neural Networks},
+  author={van de Ven, Gido M and Siegelmann, Hava T and Tolias, Andreas S},
+  journal={Nature Communications},
+  volume={11},
+  number={1},
+  pages={4069},
+  year={2020}
+}
+
+@inproceedings{arani2022learning,
+  title={Learning Fast, Learning Slow: A General Continual Learning Method Based on Complementary Learning System},
+  author={Arani, Elahe and Sarfraz, Fahad and Zonooz, Bahram},
+  booktitle={International Conference on Learning Representations},
+  year={2022}
+}
+
+% --- Knowledge Distillation ---
+@article{hinton2015distilling,
+  title={Distilling the Knowledge in a Neural Network},
+  author={Hinton, Geoffrey and Vinyals, Oriol and Dean, Jeff},
+  journal={arXiv preprint arXiv:1503.02531},
+  year={2015}
+}
+
+@inproceedings{sanh2019distilbert,
+  title={{DistilBERT}, a Distilled Version of {BERT}: Smaller, Faster, Cheaper and Lighter},
+  author={Sanh, Victor and Debut, Lysandre and Chaumond, Julien and Wolf, Thomas},
+  booktitle={NeurIPS EMC$^2$ Workshop},
+  year={2019}
+}
+
+% --- Self-Improving LLMs ---
+@article{huang2023large,
+  title={Large Language Models Can Self-Improve},
+  author={Huang, Jiaxin and Gu, Shixiang Shane and Hou, Le and Wu, Yuexin and Wang, Xuezhi and Yu, Hongkun and Han, Jiawei},
+  journal={arXiv preprint arXiv:2210.11610},
+  year={2023}
+}
+
+@article{yuan2024self,
+  title={Self-Rewarding Language Models},
+  author={Yuan, Weizhe and Pang, Richard Yuanzhe and Cho, Kyunghyun and Sukhbaatar, Sainbayar and Xu, Jing and Weston, Jason},
+  journal={arXiv preprint arXiv:2401.10020},
+  year={2024}
+}
+
+@article{chen2024self,
+  title={Self-Play Fine-Tuning Converts Weak Language Models to Strong Language Models},
+  author={Chen, Zixiang and Deng, Yihe and Yuan, Huizhuo and Ji, Kaixuan and Gu, Quanquan},
+  journal={arXiv preprint arXiv:2401.01335},
+  year={2024}
+}
+
+% --- RLHF / Constitutional AI ---
+@inproceedings{ouyang2022training,
+  title={Training Language Models to Follow Instructions with Human Feedback},
+  author={Ouyang, Long and Wu, Jeffrey and Jiang, Xu and Almeida, Diogo and Wainwright, Carroll and Mishkin, Pamela and Zhang, Chong and Agarwal, Sandhini and Slama, Katarina and Ray, Alex and others},
+  booktitle={Advances in Neural Information Processing Systems},
+  volume={35},
+  pages={27730--27744},
+  year={2022}
+}
+
+@article{bai2022constitutional,
+  title={Constitutional {AI}: Harmlessness from {AI} Feedback},
+  author={Bai, Yuntao and Kadavath, Saurav and Kundu, Sandipan and Askell, Amanda and Kernion, Jackson and Jones, Andy and Chen, Anna and Goldie, Anna and Mirhoseini, Azalia and McKinnon, Cameron and others},
+  journal={arXiv preprint arXiv:2212.08073},
+  year={2022}
+}
+
+% --- Memory-Augmented Networks ---
+@inproceedings{graves2014neural,
+  title={Neural Turing Machines},
+  author={Graves, Alex and Wayne, Greg and Danihelka, Ivo},
+  booktitle={arXiv preprint arXiv:1410.5401},
+  year={2014}
+}
+
+@inproceedings{sukhbaatar2015end,
+  title={End-To-End Memory Networks},
+  author={Sukhbaatar, Sainbayar and Szlam, Arthur and Weston, Jason and Fergus, Rob},
+  booktitle={Advances in Neural Information Processing Systems},
+  volume={28},
+  year={2015}
+}
+
+@inproceedings{zhong2022training,
+  title={Training Language Models with Memory Augmentation},
+  author={Zhong, Zexuan and Lei, Tao and Chen, Danqi},
+  booktitle={Proceedings of the 2022 Conference on Empirical Methods in Natural Language Processing},
+  pages={5657--5673},
+  year={2022}
+}
+
+% --- Benchmarks ---
+@article{kwiatkowski2019natural,
+  title={Natural Questions: A Benchmark for Question Answering Research},
+  author={Kwiatkowski, Tom and Palomaki, Jennimaria and Redfield, Olivia and Collins, Michael and Parikh, Ankur and Alberti, Chris and Epstein, Danielle and Polosukhin, Illia and Devlin, Jacob and Lee, Kenton and others},
+  journal={Transactions of the Association for Computational Linguistics},
+  volume={7},
+  pages={453--466},
+  year={2019}
+}
+
+@inproceedings{joshi2017triviaqa,
+  title={{TriviaQA}: A Large Scale Distantly Supervised Challenge Dataset for Reading Comprehension},
+  author={Joshi, Mandar and Choi, Eunsol and Weld, Daniel S and Zettlemoyer, Luke},
+  booktitle={Proceedings of the 55th Annual Meeting of the Association for Computational Linguistics},
+  pages={1601--1611},
+  year={2017}
+}
+
+@article{li2023alpacaeval,
+  title={AlpacaEval: An Automatic Evaluator of Instruction-Following Models},
+  author={Li, Xuechen and Zhang, Tianyi and Dubois, Yann and Taori, Rohan and Gulrajani, Ishaan and Guestrin, Carlos and Liang, Percy and Hashimoto, Tatsunori B},
+  journal={GitHub repository},
+  year={2023}
+}
+
+@article{zheng2023judging,
+  title={Judging {LLM}-as-a-Judge with {MT-Bench} and Chatbot Arena},
+  author={Zheng, Lianmin and Chiang, Wei-Lin and Sheng, Ying and Zhuang, Siyuan and Wu, Zhanghao and Zhuang, Yonghao and Lin, Zi and Li, Zhuohan and Li, Dacheng and Xing, Eric and others},
+  journal={Advances in Neural Information Processing Systems},
+  volume={36},
+  year={2023}
+}
+
+@article{salemi2024lamp,
+  title={{LaMP}: When Large Language Models Meet Personalization},
+  author={Salemi, Alireza and Mysore, Sheshera and Bendersky, Michael and Zamani, Hamed},
+  journal={arXiv preprint arXiv:2304.11406},
+  year={2024}
+}

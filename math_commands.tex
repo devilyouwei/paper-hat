@@ -1,0 +1,71 @@
+% math_commands.tex — Custom notation and macros for the HAT paper.
+% Include via \input{math_commands} in the preamble.
+
+% ===== General Math =====
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+
+% Probability / Expectation
+\newcommand{\prob}[1]{\Pr\!\left(#1\right)}
+\newcommand{\expect}[1]{\E\!\left[#1\right]}
+\newcommand{\KL}[2]{\mathrm{KL}\!\left(#1 \,\Vert\, #2\right)}
+
+% ===== Model Components =====
+\newcommand{\model}{\mathcal{M}}                    % base model
+\newcommand{\modeltheta}{\mathcal{M}_{\theta}}      % parameterised model
+\newcommand{\cortex}{\mathcal{C}}                    % cortex module
+\newcommand{\hippocampus}{\mathcal{H}}               % hippocampus agent
+\newcommand{\oracle}{\mathcal{O}}                    % oracle / teacher LLM
+\newcommand{\neocortex}{\mathcal{N}}                 % neocortex memory store
+\newcommand{\sws}{\mathcal{SWS}}                     % slow-wave sleep trainer
+\newcommand{\replaybuf}{\mathcal{B}}                 % replay buffer
+
+% ===== Parameters =====
+\newcommand{\params}{\theta}                         % model parameters
+\newcommand{\paramsnew}{\theta^{\mathrm{new}}}       % updated parameters
+\newcommand{\paramsold}{\theta_{\mathrm{old}}}       % previous parameters
+
+% ===== Loss Functions =====
+\newcommand{\loss}{\mathcal{L}}                      % generic loss
+\newcommand{\lossce}{\mathcal{L}_{\mathrm{CE}}}     % cross-entropy loss
+\newcommand{\losskd}{\mathcal{L}_{\mathrm{KD}}}     % knowledge distillation loss
+\newcommand{\lossreg}{\mathcal{L}_{\mathrm{reg}}}   % regularisation loss
+\newcommand{\losssws}{\mathcal{L}_{\mathrm{SWS}}}   % SWS trainer loss (combined)
+
+% ===== Memory / Selection =====
+\newcommand{\memtrace}{m}                             % memory trace
+\newcommand{\memory}{\mathcal{M}}                     % memory collection
+\newcommand{\metadata}{\xi}                           % trace metadata
+\newcommand{\writepolicy}{\pi_{\mathrm{write}}}       % write policy
+\newcommand{\selectscore}{s}                          % composite selection score
+\newcommand{\uncertainty}{U}                          % uncertainty score
+\newcommand{\feedback}{F}                             % feedback signal
+\newcommand{\novelty}{N}                              % novelty score
+
+% ===== Sequences / Tokens =====
+\newcommand{\vocab}{\mathcal{V}}                     % vocabulary
+\newcommand{\context}{c}                             % context
+\newcommand{\seq}{x}                                 % input sequence
+\newcommand{\seqy}{y}                                % output / target sequence
+\newcommand{\query}{q}                               % user query
+\newcommand{\response}{a}                            % model response
+
+% ===== Miscellaneous =====
+\newcommand{\ie}{\textit{i.e.}}
+\newcommand{\eg}{\textit{e.g.}}
+\newcommand{\cf}{\textit{cf.}}
+\newcommand{\etal}{\textit{et~al.}}
+\newcommand{\wrt}{w.r.t.\@\xspace}
+\newcommand{\HAT}{\textsc{HAT}}                      % formatted model name
+
+% ===== Operators =====
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\softmax}{softmax}
+\DeclareMathOperator{\entropy}{H}
+\newcommand{\cosine}{\mathrm{cos}}
+\newcommand{\TopK}{\mathrm{TopK}}
+\newcommand{\Merge}{\mathrm{Merge}}
+\newcommand{\indicator}{\mathbbm{1}}

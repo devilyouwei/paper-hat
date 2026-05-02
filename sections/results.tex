@@ -1,0 +1,90 @@
+% ============================================================
+% Section 5 — Results
+% ============================================================
+\section{Results}
+\label{sec:results}
+
+\subsection{Main Results}
+\label{sec:results:main}
+
+Table~\ref{tab:main_results} summarises the performance of HAT and all baselines after 5{,}000 interactions (10 SWS cycles) across three benchmark families and three base model scales.
+
+\begin{table}[t]
+  \centering
+  \caption{Main results after 10 SWS cycles.  We report accuracy (\%) on knowledge QA (NQ / TriviaQA, exact match), instruction following (MT-Bench, GPT-4 judge score $\times 10$), and personalisation (LaMP, ROUGE-L $\times 100$).  Best in \textbf{bold}; second best \underline{underlined}.  $^\dagger$Full Distillation uses the oracle for \emph{every} query (upper bound).}
+  \label{tab:main_results}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{@{}l ccc ccc ccc@{}}
+    \toprule
+    & \multicolumn{3}{c}{\textbf{Knowledge QA}} & \multicolumn{3}{c}{\textbf{Instruction Following}} & \multicolumn{3}{c}{\textbf{Personalisation}} \\
+    \cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+    \textbf{Method} & 1.5B & 3.8B & 8B & 1.5B & 3.8B & 8B & 1.5B & 3.8B & 8B \\
+    \midrule
+    Frozen          & --   & --   & --  & --   & --   & --  & --   & --   & -- \\
+    RAG             & --   & --   & --  & --   & --   & --  & --   & --   & -- \\
+    Na\"ive Replay  & --   & --   & --  & --   & --   & --  & --   & --   & -- \\
+    EWC Replay      & --   & --   & --  & --   & --   & --  & --   & --   & -- \\
+    DER++           & --   & --   & --  & --   & --   & --  & --   & --   & -- \\
+    Self-Play       & --   & --   & --  & --   & --   & --  & --   & --   & -- \\
+    \midrule
+    Full Distill.$^\dagger$ & --  & --  & --  & --  & --  & --  & --  & --  & -- \\
+    \midrule
+    \textbf{HAT (ours)} & --  & --  & --  & --  & --  & --  & --  & --  & -- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% Placeholder analysis paragraphs — fill in after experiments.
+
+\paragraph{HAT consistently outperforms non-parametric baselines.}
+% TODO: Describe how HAT outperforms Frozen and RAG baselines.
+
+\paragraph{HAT surpasses continual learning baselines.}
+% TODO: Describe advantage over Naïve Replay, EWC Replay, and DER++.
+
+\paragraph{Selective curation closes the gap to full distillation.}
+% TODO: Describe how HAT approaches Full Distillation performance while using far fewer oracle calls.
+
+\subsection{Sample Efficiency}
+\label{sec:results:efficiency}
+
+Figure~\ref{fig:sample_efficiency} plots accuracy as a function of the number of training examples consumed.
+
+\begin{figure}[t]
+  \centering
+  % TODO: Replace with actual plot (pgfplots or included PDF)
+  \fbox{\parbox{0.46\textwidth}{\centering\vspace{4em}\textbf{[Sample Efficiency Plot Placeholder]}\vspace{4em}}}
+  \hfill
+  \fbox{\parbox{0.46\textwidth}{\centering\vspace{4em}\textbf{[Error Rate Over Time Placeholder]}\vspace{4em}}}
+  \caption{\textbf{Left:} Accuracy vs.\ number of training examples consumed (sample efficiency). \textbf{Right:} Error rate over successive SWS cycles.  HAT achieves higher accuracy with fewer examples and reduces errors faster than baselines.}
+  \label{fig:sample_efficiency}
+\end{figure}
+
+% TODO: Describe sample efficiency results and error rate reduction.
+
+\subsection{Oracle Budget Analysis}
+\label{sec:results:oracle}
+
+A practical concern is the cost of oracle consultations.
+Table~\ref{tab:oracle_budget} reports performance and the number of oracle calls made under different oracle-budget constraints.
+
+\begin{table}[t]
+  \centering
+  \caption{Impact of oracle budget on HAT performance (Phi-3-3.8B, NQ benchmark).  ``\% Oracle'' is the fraction of interactions that trigger an oracle call.}
+  \label{tab:oracle_budget}
+  \small
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    \textbf{Setting} & \textbf{\% Oracle} & \textbf{Accuracy} & \textbf{Error Rate} \\
+    \midrule
+    HAT (no oracle)       & 0\%   & -- & -- \\
+    HAT ($\tau_\oracle=0.9$) & --\%  & -- & -- \\
+    HAT ($\tau_\oracle=0.7$) & --\%  & -- & -- \\
+    HAT ($\tau_\oracle=0.5$) & --\%  & -- & -- \\
+    Full Distillation     & 100\% & -- & -- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% TODO: Discuss cost-accuracy trade-off.

@@ -1,0 +1,178 @@
+% ============================================================
+% HAT: Learning What to Learn for Self-Improving Language Models
+% Target venue: NeurIPS 2026 (Main Track)
+% Uses the official neurips_2026.sty
+% ============================================================
+\documentclass{article}
+
+% --- Track / submission mode ---------------------------------
+% Options provided by neurips_2026.sty:
+%   (default)  — Main Track, anonymous double-blind submission (line numbers ON)
+%   [main]     — Main Track (equivalent to default)
+%   [preprint] — non-anonymous preprint (e.g., arXiv)
+%   [final]    — camera-ready (de-anonymised, no line numbers)
+%   [nonatbib] — disable automatic natbib loading
+%
+% At submission time, omit `final` and `preprint` to keep it anonymous.
+\usepackage{neurips_2026}
+% \usepackage[preprint]{neurips_2026}
+% \usepackage[main, final]{neurips_2026}
+
+% --- Standard packages (per official template) ---------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath,amssymb}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+
+% --- Additional packages used by the HAT paper ---------------
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{bbm}
+\usepackage{bm}
+\usepackage{xspace}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc,backgrounds,shapes.geometric,shadows.blur}
+\usepackage{fontawesome5}
+
+% --- Custom math macros --------------------------------------
+\input{math_commands}
+
+% --- Theorem environments ------------------------------------
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+% ============================================================
+%                      TITLE & AUTHORS
+% ============================================================
+% \title{Learning What to Learn for Self-Improving Language Models}
+% \title{Learning What to Learn for Self-Adaptive Language Models}
+% \title{HAT: Hippocampus-Augmented Transformer for Selective Memory Consolidation in Continual Learning}
+% \title{Learning What to Learn: Selective Memory Consolidation for Continual Learning Model}
+% \title{Selective Memory Consolidation for Continual Learning Model}
+% \title{Learning What to Learn: Memory-Selective Continual Adaptation for Language Models}
+\title{Learning What to Learn: Hippocampal Memory Consolidation for Continual Model Adaptation}
+
+% Authors are automatically anonymised in submission mode by the style file.
+% For [preprint] or [final], replace with real names/affiliations.
+\author{%
+  Anonymous Author(s) \\
+  Affiliation \\
+  Address \\
+  \texttt{email}
+  % Example with multiple authors:
+  % First Author\thanks{Equal contribution.} \\
+  % Department of Computer Science \\
+  % University \\
+  % \texttt{first@example.com} \\
+  % \And
+  % Second Author \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{second@example.com} \\
+}
+
+\begin{document}
+
+\maketitle
+
+% ============================================================
+%                         ABSTRACT
+% ============================================================
+% \begin{abstract}
+% Contemporary large language models are pre-trained on internet-scale, broadly sourced text corpora and scale to hundreds of billions of parameters, incurring substantial training and deployment costs, while relying on expensive and iterative post hoc adaptation for downstream alignment.
+% Human cognition, by contrast, is selective and experience-driven, relying on hippocampal mechanisms that preferentially encode salient, novel, or behaviorally relevant experiences for long-term consolidation.
+% We propose \textbf{HAT (Hippocampus-Augmented Transformer)}, a memory-centric self-improvement paradigm that enables language models to learn \emph{what to learn} from experience.
+% Inspired by hippocampal and neocortical memory consolidation in the mammalian brain, HAT introduces a mechanism of \emph{selective memory consolidation} that transforms raw user interactions into structured, high-fidelity training signals through three stages of abstraction, selection, and replay.
+% Rather than indiscriminately storing data, HAT prioritises high-value experiences based on model uncertainty, explicit user feedback, and input novelty, and converts them into reusable learning signals.
+% HAT operates in a wake and sleep loop.
+% During online interaction, the base language model, which we term the \emph{Cortex}, estimates its own uncertainty and selectively incorporates user corrections or consults an external oracle, namely a stronger teacher model.
+% During offline \emph{slow-wave sleep} (SWS) phases, curated experiences stored in a \emph{Neocortex} memory are replayed to update model parameters via targeted fine-tuning.
+% This decoupling of experience acquisition from parameter optimisation enables stable and sample-efficient continual learning without catastrophic forgetting.
+% We evaluate HAT on knowledge-intensive question answering, instruction following, and personalisation benchmarks.
+% Experimental results demonstrate that HAT consistently outperforms strong fine-tuning and retrieval-augmented baselines, achieving significant gains in sample efficiency, error-rate reduction, and long-horizon adaptation, validating the effectiveness of learning through selective memory consolidation.
+% \end{abstract}
+
+% \begin{abstract}
+% Contemporary language models are trained on internet-scale corpora and scaled to hundreds of billions of parameters, incurring substantial costs in training, deployment and post hoc adaptation.
+% Human cognition, by contrast, is selective and experience-driven, relying on hippocampal mechanisms that preferentially encode salient, novel, or behaviorally relevant experiences and coordinate their gradual consolidation into long-term neocortical memory.
+% We propose \textbf{Hippocampus-Augmented Transformer (HAT)}, a memory-centric self-improvement approach inspired by hippocampal and neocortical memory consolidation in the mammalian brain.
+% HAT enables small language models to learn \emph{what to learn} from interaction by modeling three core hippocampal functions: rapid abstraction of experience, selective retention of informative traces, and replay-based consolidation during offline sleep-like phases.
+% During the wake phase, a base model, the \emph{Cortex}, serves user queries while a \emph{Hippocampus Agent} transforms interactions and corrections into structured memory traces, scores them using uncertainty, feedback, and novelty, and consults an external oracle when additional supervision is needed.
+% Selected traces are written to a long-term \emph{Neocortex} memory and replayed during \emph{slow-wave sleep} (SWS) phases, where an SWS trainer updates the Cortex through parameter-efficient fine-tuning.
+% This wake--sleep separation turns sparse feedback and uncertain interactions into reusable training signals while limiting indiscriminate data accumulation.
+% We evaluate HAT on knowledge-intensive question answering, instruction following, and personalization benchmarks, comparing it with fine-tuning and retrieval-augmented baselines under continual adaptation settings.
+% \end{abstract}
+
+\begin{abstract}
+Contemporary language models are trained on internet-scale corpora and scaled to massive parameter regimes, incurring substantial costs in training, deployment, and continual adaptation.
+Human cognition, by contrast, is selective and experience-driven, relying on hippocampal mechanisms that preferentially encode salient, novel, and behaviorally relevant experiences and coordinate their gradual consolidation into long-term neocortical memory.
+We propose \textbf{Hippocampus-Augmented Transformer (HAT)}, a memory-centric continual learning mechanism inspired by hippocampal--neocortical consolidation in the mammalian brain.
+HAT enables language models to learn \emph{what to learn} from interaction by coupling online experience acquisition with offline memory consolidation.
+During interaction, a base model (the \emph{Cortex}) processes inputs while a \emph{Hippocampus Agent} encodes interactions and feedback into structured memory traces and selectively retains informative experiences based on uncertainty, novelty, and supervision signals, optionally querying an external oracle when needed.
+Selected experiences are progressively consolidated into a persistent \emph{Neocortex} memory and subsequently replayed during slow-wave sleep (SWS), where the Cortex is updated through parameter-efficient fine-tuning.
+This wake--sleep separation transforms sparse, interaction-driven feedback into reusable training signals, enabling continual self-improvement without indiscriminate data accumulation.
+We evaluate HAT on knowledge-intensive question answering, instruction following, and personalization benchmarks, demonstrating consistent improvements over fine-tuning and retrieval-augmented baselines under continual adaptation settings.
+\end{abstract}
+
+% \begin{abstract}
+% Contemporary language models are trained on internet-scale corpora and scaled to massive parameter regimes, incurring substantial costs in training, deployment, and continual adaptation.
+% Human cognition, by contrast, is selective and experience-driven, relying on hippocampal mechanisms that preferentially encode salient, novel, and behaviorally relevant experiences and coordinate their gradual consolidation into long-term neocortical memory.
+% We propose \textbf{Hippocampus-Augmented Transformer (HAT)}, a hippocampus-inspired continual learning mechanism that enables language models to learn \emph{what to learn} through selective memory consolidation.
+% HAT separates wake-phase interaction from sleep-phase adaptation: during wake, a base model (the \emph{Cortex}) processes inputs while a \emph{Hippocampus Agent} encodes interactions and feedback into structured memory traces, selectively retaining experiences according to uncertainty, novelty, and supervision signals.
+% When additional supervision is needed, the Hippocampus Agent queries an external oracle and integrates its response into the retained trace.
+% Selected traces are progressively consolidated into a persistent \emph{Neocortex} memory and replayed during slow-wave sleep (SWS), where the Cortex is updated through parameter-efficient fine-tuning.
+% This wake--sleep mechanism transforms sparse interaction feedback into reusable training signals, enabling continual self-improvement without indiscriminate data accumulation.
+% We evaluate HAT on knowledge-intensive question answering, instruction following, and personalization benchmarks, demonstrating consistent improvements over fine-tuning and retrieval-augmented baselines under continual adaptation settings.
+% \end{abstract}
+
+% ============================================================
+%                     MAIN BODY
+% ============================================================
+\input{sections/introduction}
+\input{sections/related_work}
+\input{sections/method}
+\input{sections/experiments}
+\input{sections/results}
+\input{sections/analysis}
+\input{sections/conclusion}
+
+% ============================================================
+%             ACKNOWLEDGEMENTS (hidden in submission)
+% ============================================================
+\begin{ack}
+% Acknowledgements and funding disclosures go here.
+% Automatically hidden in anonymous submission mode.
+% See: https://neurips.cc/Conferences/2026/PaperInformation/FundingDisclosure
+\end{ack}
+
+% ============================================================
+%                     REFERENCES
+% ============================================================
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+% ============================================================
+%                     APPENDIX
+% ============================================================
+\appendix
+\input{sections/appendix}
+
+% ============================================================
+%             NeurIPS PAPER CHECKLIST (mandatory)
+% ============================================================
+\newpage
+\input{checklist}
+
+\end{document}
