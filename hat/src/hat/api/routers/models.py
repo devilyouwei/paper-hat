@@ -1,9 +1,10 @@
 """Model management endpoints.
 
-* ``GET  /api/models?backend=`` — catalog + installed status
-* ``POST /api/models/download``  — snapshot_download a catalog entry
-* ``POST /api/models/active``    — load + set as the loop's active Cortex
-* ``GET  /api/models/active``    — current active model
+* ``GET    /api/models?backend=`` — catalog + installed status
+* ``POST   /api/models/download``  — snapshot_download a catalog entry
+* ``POST   /api/models/active``    — load + set as the loop's active Cortex
+* ``GET    /api/models/active``    — current active model
+* ``DELETE /api/models/active``    — unload all models, free memory
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from ...models.manager import ModelManagerError, get_manager
-from ..deps import swap_active_cortex
+from ..deps import deactivate_cortex, swap_active_cortex
 from ..schemas.models import (
     ActiveModel,
     CatalogItem,
@@ -65,3 +66,12 @@ def get_active() -> ActiveModel | None:
     if a is None:
         return None
     return ActiveModel(backend=a["backend"], id=a["id"])
+
+
+@router.delete("/active")
+def deactivate() -> dict:
+    """Unload the current model (and any other cached weights), freeing
+    GPU/Metal memory. The loop falls back to the Noop cortex until a new
+    model is activated."""
+    n = deactivate_cortex()
+    return {"unloaded": n}

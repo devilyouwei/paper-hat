@@ -91,6 +91,18 @@ def swap_active_cortex(backend: str, model_id: str) -> Cortex:
     return cortex
 
 
+def deactivate_cortex() -> int:
+    """Unload every cached cortex and point the loop at the Noop fallback.
+
+    Returns the number of evicted entries so callers can report back.
+    """
+    n = get_manager().unload_all()
+    get_loop().cortex = NoopCortex()
+    # Drop the cached bootstrap so the next chat doesn't silently reload it.
+    _initial_cortex.cache_clear()
+    return n
+
+
 @lru_cache
 def get_raw_log() -> JsonlRawLog:
     return JsonlRawLog(get_settings().raw_log_path)

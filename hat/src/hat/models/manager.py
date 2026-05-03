@@ -127,10 +127,82 @@ class ModelManager:
             self._cache[key] = cortex
             return cortex
 
-    def set_active(self, backend: str, model_id: str) -> Cortex:
-        cortex = self.load(backend, model_id)
+    def _release_cortex(self, cortex: Cortex) -> None:
+        """Best-effort teardown so the previous model frees GPU/Metal memory.
+
+        The Cortex / LM wrappers keep a reference to a HF or MLX model + a
+        tokenizer; dropping the wrapper alone is not enough on CUDA/MPS where
+        the allocator caches blocks. We null out the heavy attrs and ask the
+        framework to release its cache.
+        """
+        lm = getattr(cortex, "lm", None)
+        for obj in (lm, cortex):
+            for attr in ("model", "tokenizer", "_model", "_tokenizer"):
+                if hasattr(obj, attr):
+                    try:
+                        setattr(obj, attr, None)
+                    except Exception:
+                        pass
+        import gc
+
+        gc.collect()
+        try:  # CUDA / MPS allocator
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            mps = getattr(torch.backends, "mps", None)
+            if mps is not None and mps.is_available():
+                empty = getattr(getattr(torch, "mps", None), "empty_cache", None)
+                if callable(empty):
+                    empty()
+        except ImportError:
+            pass
+        try:  # MLX (Metal) allocator
+            import mlx.core as mx
+
+            clear = getattr(mx, "clear_cache", None) or getattr(
+                getattr(mx, "metal", None), "clear_cache", None
+            )
+            if callable(clear):
+                clear()
+        except ImportError:
+            pass
+
+    def unload(self, backend: str, model_id: str) -> bool:
+        """Drop a cached cortex and free its memory. Returns True if removed."""
+        key = (backend, model_id)
         with self._lock:
-            self._active = (backend, model_id)
+            cortex = self._cache.pop(key, None)
+            if self._active == key:
+                self._active = None
+        if cortex is None:
+            return False
+        self._release_cortex(cortex)
+        return True
+
+    def unload_all(self) -> int:
+        """Drop every cached cortex and clear the active pointer."""
+        with self._lock:
+            evicted = list(self._cache.values())
+            self._cache.clear()
+            self._active = None
+        for old in evicted:
+            self._release_cortex(old)
+        return len(evicted)
+
+    def set_active(self, backend: str, model_id: str) -> Cortex:
+        new_key = (backend, model_id)
+        # Load the new model first so a failure leaves the previous one intact.
+        cortex = self.load(backend, model_id)
+        # Evict every other cached cortex — keeping a single resident model
+        # avoids GPU/Metal OOM when switching between large checkpoints.
+        with self._lock:
+            stale = [k for k in self._cache if k != new_key]
+            evicted = [self._cache.pop(k) for k in stale]
+            self._active = new_key
+        for old in evicted:
+            self._release_cortex(old)
         return cortex
 
     def active(self) -> dict | None:

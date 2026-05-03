@@ -69,6 +69,12 @@ def _api_set_active(backend: str, model_id: str) -> dict:
     return r.json()
 
 
+def _api_deactivate() -> dict:
+    r = httpx.delete(f"{_server_root()}/api/models/active", timeout=60)
+    r.raise_for_status()
+    return r.json()
+
+
 def _label(item: dict) -> str:
     tag = "✓ installed" if item["installed"] else "↓ not installed"
     size = f", {item['size_gb']:.1f} GB" if item.get("size_gb") else ""
@@ -288,6 +294,23 @@ def build():  # pragma: no cover - UI
         except Exception as e:
             return gr.update(value=f"switch failed: {e}")
 
+    def on_deactivate(backend: str):
+        try:
+            res = _api_deactivate()
+        except Exception as e:
+            return gr.update(value=f"deactivate failed: {e}"), gr.update()
+        # Refresh the installed-models dropdown so the now-inactive entry no
+        # longer appears as "selected".
+        try:
+            items = _api_list_models(backend)
+            dd = gr.update(choices=_installed_options(items), value=None)
+        except Exception:
+            dd = gr.update(value=None)
+        return (
+            gr.update(value=f"Active: — (unloaded {res.get('unloaded', 0)} model(s))"),
+            dd,
+        )
+
     def initial_chat_dropdown(backend: str):
         try:
             items = _api_list_models(backend)
@@ -342,6 +365,7 @@ def build():  # pragma: no cover - UI
                         choices=[], value=None, label="Active model (installed)", scale=3,
                     )
                     chat_use = gr.Button("Use this model", scale=1)
+                    chat_unload = gr.Button("Unload", scale=1)
                 chatbot = gr.Chatbot(label="Cortex", height=480)
                 with gr.Row():
                     msg = gr.Textbox(
@@ -401,6 +425,9 @@ def build():  # pragma: no cover - UI
                 chat_backend.change(initial_chat_dropdown, [chat_backend], [chat_model])
                 chat_use.click(
                     on_chat_switch, [chat_backend, chat_model], [active_label]
+                )
+                chat_unload.click(
+                    on_deactivate, [chat_backend], [active_label, chat_model]
                 )
 
             # -------- Models tab --------
