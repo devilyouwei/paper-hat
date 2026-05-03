@@ -193,16 +193,35 @@ class ModelManager:
 
     def set_active(self, backend: str, model_id: str) -> Cortex:
         new_key = (backend, model_id)
-        # Load the new model first so a failure leaves the previous one intact.
-        cortex = self.load(backend, model_id)
-        # Evict every other cached cortex — keeping a single resident model
-        # avoids GPU/Metal OOM when switching between large checkpoints.
+
+        # Fast path: already cached — just flip the pointer and evict siblings.
         with self._lock:
-            stale = [k for k in self._cache if k != new_key]
-            evicted = [self._cache.pop(k) for k in stale]
+            if new_key in self._cache:
+                cortex = self._cache[new_key]
+                stale = [k for k in self._cache if k != new_key]
+                evicted = [self._cache.pop(k) for k in stale]
+                self._active = new_key
+            else:
+                cortex = None
+                evicted = list(self._cache.values())
+                self._cache.clear()
+                self._active = None
+        if evicted:
+            for old in evicted:
+                self._release_cortex(old)
+        if cortex is not None:
+            return cortex
+
+        # Slow path: build the new cortex *after* freeing the old one so the
+        # GPU/Metal allocator only has to host one model at a time.
+        if not self.is_installed(backend, model_id):
+            raise ModelManagerError(
+                f"model {model_id!r} not installed; download it first"
+            )
+        cortex = self._build_cortex(backend, str(self.model_dir(backend, model_id)))
+        with self._lock:
+            self._cache[new_key] = cortex
             self._active = new_key
-        for old in evicted:
-            self._release_cortex(old)
         return cortex
 
     def active(self) -> dict | None:

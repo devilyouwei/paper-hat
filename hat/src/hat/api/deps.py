@@ -85,8 +85,18 @@ def get_loop() -> WakeSleepLoop:
 
 
 def swap_active_cortex(backend: str, model_id: str) -> Cortex:
-    """Set the manager's active model and update the loop in place."""
-    cortex = get_manager().set_active(backend, model_id)
+    """Set the manager's active model and update the loop in place.
+
+    The loop holds a strong reference to the current cortex; we must drop it
+    *before* the manager builds the new model, otherwise on CUDA the old
+    weights stay resident during the new load and we OOM.
+    """
+    mgr = get_manager()
+    active = mgr.active()
+    if active and (active["backend"], active["id"]) != (backend, model_id):
+        # Park the loop on a placeholder so it stops referencing the old cortex.
+        get_loop().cortex = NoopCortex()
+    cortex = mgr.set_active(backend, model_id)
     get_loop().cortex = cortex
     return cortex
 
