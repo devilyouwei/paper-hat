@@ -31,19 +31,22 @@ class Settings(BaseSettings):
     # Storage
     raw_log_path: Path = Path("runs/raw_log.jsonl")
     neocortex_path: Path = Path("runs/neocortex.jsonl")
+    model_root: Path = Path("model")
 
-    # Cortex backend selection
+    # Cortex backend selection. Concrete model paths are NOT in env any
+    # more — they're discovered at runtime under ``model/<backend>/<id>/``
+    # via the catalog and ``ModelManager``. Use the UI / ``/api/models``
+    # to download and activate.
     cortex_backend: str = "noop"  # noop | hf | mlx
-    hf_model_path: str = "./model"
+
+    # HF hardware preferences (constructor-time, can't change per request).
     hf_device: str = "auto"  # auto | cpu | cuda | mps
     hf_dtype: str = "auto"  # auto | float16 | bfloat16 | float32
-    hf_max_new_tokens: int = 512
-    hf_temperature: float = 0.7
 
-    # MLX backend (Apple Silicon)
-    mlx_model_path: str = "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
-    mlx_max_tokens: int = 512
-    mlx_temperature: float = 0.7
+    # Per-request generation defaults (used when the client doesn't supply
+    # ``temperature`` / ``max_tokens`` in the chat-completions request).
+    default_temperature: float = 0.7
+    default_max_tokens: int = 512
 
     # Oracle (OpenAI-compatible HTTP)
     oracle_base_url: str = "https://api.openai.com/v1"

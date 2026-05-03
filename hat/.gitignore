@@ -20,5 +20,8 @@ runs/
 wandb/
 mlruns/
 
-# local model weights
-model/
+# local model weights — keep per-backend catalog overrides, ignore weights
+model/**
+!model/
+!model/*/
+!model/*/catalog.yaml

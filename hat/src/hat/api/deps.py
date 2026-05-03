@@ -1,7 +1,12 @@
 """Dependency container.
 
 Wires concrete defaults into the loop. Controllers depend only on Protocols/ABCs,
-so swapping backends never touches HTTP code."""
+so swapping backends never touches HTTP code.
+
+Active-model selection is delegated to :class:`hat.models.manager.ModelManager`
+so the UI / management API can hot-swap the Cortex without restarting the
+server. ``get_cortex()`` returns the manager's active model when one has been
+selected, otherwise the env-driven bootstrap Cortex (noop / hf / mlx)."""
 
 from __future__ import annotations
 
@@ -24,38 +29,41 @@ from ..core.loop import WakeSleepLoop
 from ..core.neocortex.store import InMemoryNeocortex
 from ..core.sws.trainer import DryRunTrainer
 from ..memory.raw.log import JsonlRawLog
+from ..models.manager import get_manager
+
+
+def _bootstrap_cortex() -> Cortex:
+    """Build the initial Cortex.
+
+    For ``hf``/``mlx`` we auto-activate the first installed catalog entry
+    under ``model/<backend>/``. If nothing is installed, fall back to the
+    noop Cortex — the user must download a model from the UI / ``/api/models``
+    before chat works. There is no env-driven model path any more; weights
+    live under ``model/<backend>/<id>/`` by convention."""
+    s = get_settings()
+    if s.cortex_backend in {"mlx", "hf"}:
+        mgr = get_manager()
+        for entry in mgr.list_models(s.cortex_backend):
+            if entry["installed"]:
+                return mgr.set_active(s.cortex_backend, entry["id"])
+        # nothing installed yet — degrade gracefully
+        return NoopCortex()
+    if s.cortex_backend == "noop":
+        return NoopCortex()
+    raise ValueError(f"unknown HAT_CORTEX_BACKEND={s.cortex_backend!r}")
 
 
 @lru_cache
+def _initial_cortex() -> Cortex:
+    return _bootstrap_cortex()
+
+
 def get_cortex() -> Cortex:
-    s = get_settings()
-    if s.cortex_backend == "noop":
-        return NoopCortex()
-    if s.cortex_backend == "hf":
-        # Lazy import: torch/transformers only required when actually used.
-        from ..core.cortex.hf_cortex import HFCortex
-        from ..models.backends import hf as _hf  # registers backend
-
-        lm = _hf.build_hf_model(
-            model_path=s.hf_model_path,
-            device=s.hf_device,
-            dtype=s.hf_dtype,
-            max_new_tokens=s.hf_max_new_tokens,
-            temperature=s.hf_temperature,
-        )
-        return HFCortex(lm)
-    if s.cortex_backend == "mlx":
-        # Apple Silicon native; lazy import so non-mac installs are fine.
-        from ..core.cortex.mlx_cortex import MLXCortex
-        from ..models.backends import mlx as _mlx  # registers backend
-
-        lm = _mlx.build_mlx_model(
-            model_path=s.mlx_model_path,
-            max_tokens=s.mlx_max_tokens,
-            temperature=s.mlx_temperature,
-        )
-        return MLXCortex(lm)
-    raise ValueError(f"unknown HAT_CORTEX_BACKEND={s.cortex_backend!r}")
+    """Active Cortex: manager override if set, else the env-driven bootstrap."""
+    if get_manager().active() is not None:
+        backend, model_id = get_manager()._active  # type: ignore[union-attr]
+        return get_manager().load(backend, model_id)
+    return _initial_cortex()
 
 
 @lru_cache
@@ -74,6 +82,13 @@ def get_loop() -> WakeSleepLoop:
         oracle=None,
         oracle_threshold=s.oracle_threshold,
     )
+
+
+def swap_active_cortex(backend: str, model_id: str) -> Cortex:
+    """Set the manager's active model and update the loop in place."""
+    cortex = get_manager().set_active(backend, model_id)
+    get_loop().cortex = cortex
+    return cortex
 
 
 @lru_cache

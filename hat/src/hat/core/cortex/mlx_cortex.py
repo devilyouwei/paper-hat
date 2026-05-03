@@ -15,11 +15,11 @@ class MLXCortex(Cortex):
         self.lm = lm
         self.name = name or getattr(lm, "name", "mlx-cortex")
 
-    def generate(self, query: str, *, context: str | None = None) -> str:
-        return self.lm.generate(query, context=context)
+    def generate(self, query: str, *, context: str | None = None, **kwargs) -> str:
+        return self.lm.generate(query, context=context, **kwargs)
 
-    def chat(self, messages: Sequence[dict[str, str]]) -> str:
-        return self.lm.chat(messages)
+    def chat(self, messages: Sequence[dict[str, str]], **kwargs) -> str:
+        return self.lm.chat(messages, **kwargs)
 
     def uncertainty(self, interaction: Interaction) -> float:
         # TODO: predictive entropy from mlx-lm `generate_step` logprobs.

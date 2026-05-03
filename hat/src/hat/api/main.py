@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 
 from ..config.settings import get_settings
 from .routers import chat as chat_router
+from .routers import models as models_router
 from .routers import openai_compat as openai_router
 
 # Project-root assets (logo, etc.) — repo layout is hat/<asset> at the same
@@ -19,6 +20,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="HAT", version="0.0.1")
     app.include_router(chat_router.router, prefix="/chat", tags=["chat"])
     app.include_router(openai_router.router, prefix="/v1", tags=["openai"])
+    app.include_router(models_router.router, prefix="/api/models", tags=["models"])
 
     @app.get("/healthz")
     def healthz() -> dict[str, object]:
@@ -26,8 +28,7 @@ def create_app() -> FastAPI:
         return {
             "status": "ok",
             "cortex_backend": s.cortex_backend,
-            "mlx_model_path": s.mlx_model_path,
-            "hf_model_path": s.hf_model_path,
+            "model_root": str(s.model_root),
         }
 
     @app.get("/logo.png", include_in_schema=False)

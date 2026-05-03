@@ -1,0 +1,36 @@
+# Default catalog of HuggingFace causal-LM models. Override at
+# ``<HAT_MODEL_ROOT>/hf/catalog.yaml``. See ``mlx.yaml`` for field definitions.
+- id: qwen2.5-1.5b-instruct
+  repo_id: Qwen/Qwen2.5-1.5B-Instruct
+  display: Qwen2.5 1.5B Instruct
+  size_gb: 3.1
+- id: qwen2.5-3b-instruct
+  repo_id: Qwen/Qwen2.5-3B-Instruct
+  display: Qwen2.5 3B Instruct
+  size_gb: 6.2
+- id: llama-3.2-3b-instruct
+  repo_id: meta-llama/Llama-3.2-3B-Instruct
+  display: Llama 3.2 3B Instruct
+  size_gb: 6.4
+  notes: Gated repo — requires HF_TOKEN.
+- id: phi-3.5-mini-instruct
+  repo_id: microsoft/Phi-3.5-mini-instruct
+  display: Phi-3.5 mini Instruct
+  size_gb: 7.6
+- id: qwen3.5-4b
+  repo_id: Qwen/Qwen3.5-4B
+  display: Qwen3.5 4B (multimodal, bf16)
+  size_gb: 10.0
+  notes: |
+    Vision-language model (Image-Text-to-Text). Needs latest transformers
+    main; visual tower is loaded by default. bf16 ~10GB — too tight for
+    3060/12GB once KV cache is included; recommended only on 16GB+ GPUs.
+    Use a 4-bit GGUF/AWQ quant for 3060.
+- id: qwen3.5-9b
+  repo_id: Qwen/Qwen3.5-9B
+  display: Qwen3.5 9B (multimodal, bf16)
+  size_gb: 20.0
+  notes: |
+    Vision-language model. bf16 weights ~20GB — DOES NOT fit on 3060 (12GB).
+    Listed for 24GB+ GPUs (3090/4090/A6000) or as a download for later 4-bit
+    conversion.

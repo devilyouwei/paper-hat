@@ -50,13 +50,23 @@ class OpenAIChatController:
     def handle(self, req: ChatCompletionRequest) -> ChatCompletionResponse:
         history, last = _split_messages(req.messages)
 
+        # Per-request generation overrides — only forwarded if the client
+        # actually set them; otherwise the LM uses its built-in defaults.
+        gen_kwargs: dict = {}
+        if req.temperature is not None:
+            gen_kwargs["temperature"] = req.temperature
+        if req.max_tokens is not None:
+            gen_kwargs["max_tokens"] = req.max_tokens
+
         # If the Cortex supports native chat-template generation, use it for
         # higher fidelity multi-turn behavior; otherwise fall back to flattened
         # context.
         cortex = self.loop.cortex
         response_text: str
         if hasattr(cortex, "chat") and callable(cortex.chat):
-            response_text = cortex.chat([m.model_dump() for m in req.messages])
+            response_text = cortex.chat(
+                [m.model_dump() for m in req.messages], **gen_kwargs
+            )
             interaction = Interaction(
                 context=_flatten_history(history),
                 query=last.content,

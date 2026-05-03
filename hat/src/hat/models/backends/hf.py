@@ -105,7 +105,9 @@ class HFLanguageModel:
         )
         inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
 
-        max_new_tokens = int(kwargs.get("max_new_tokens", self.max_new_tokens))
+        max_new_tokens = int(
+            kwargs.get("max_new_tokens", kwargs.get("max_tokens", self.max_new_tokens))
+        )
         temperature = float(kwargs.get("temperature", self.temperature))
         do_sample = temperature > 0.0
 

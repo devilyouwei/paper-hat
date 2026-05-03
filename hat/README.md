@@ -37,21 +37,13 @@ Set in `.env`:
 
 ```env
 HAT_CORTEX_BACKEND=mlx
-HAT_MLX_MODEL_PATH=mlx-community/Qwen2.5-1.5B-Instruct-4bit
-HAT_MLX_MAX_TOKENS=512
-HAT_MLX_TEMPERATURE=0.7
 ```
 
-The model is auto-downloaded from HuggingFace on first use and cached under
-`~/.cache/huggingface`. To use a model you already downloaded, set
-`HAT_MLX_MODEL_PATH` to a local directory in MLX format. Some 8 GB-friendly
-choices:
-
-| Repo | Size on disk | Notes |
-| --- | --- | --- |
-| `mlx-community/Qwen2.5-1.5B-Instruct-4bit` | ~1.0 GB | fastest, default |
-| `mlx-community/Qwen2.5-3B-Instruct-4bit`   | ~1.9 GB | better quality, still fits in 8 GB |
-| `mlx-community/Llama-3.2-3B-Instruct-4bit` | ~1.9 GB | |
+Models are downloaded from the **Models** tab in the Gradio UI (or via
+`POST /api/models/download`) into `model/mlx/<id>/`. The catalog ships with
+8 GB-friendly defaults including `qwen2.5-1.5b-instruct-4bit` (≈1.0 GB,
+default), `qwen3.5-2b-optiq-4bit` (≈1.5 GB), `qwen3.5-4b-optiq-4bit`
+(≈3.0 GB, recommended quality/footprint pick).
 
 Then in two terminals:
 
@@ -70,31 +62,25 @@ Use the **HF** backend if you have a CUDA box or want full PyTorch control.
    uv sync --extra hf
    ```
 
-2. Download a chat-tuned Qwen model into `model/` (the directory is gitignored).
-   Any model whose tokenizer ships a chat template works — e.g.
-   `Qwen/Qwen2.5-1.5B-Instruct`:
-
-   ```bash
-   uv run huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct \
-       --local-dir model/qwen2.5-1.5b-instruct
-   ```
-
-3. Configure the backend. Copy `.env.example` to `.env` and set:
+2. Configure the backend. Copy `.env.example` to `.env` and set:
 
    ```env
    HAT_CORTEX_BACKEND=hf
-   HAT_HF_MODEL_PATH=./model/qwen2.5-1.5b-instruct
    HAT_HF_DEVICE=auto         # auto | cpu | cuda | mps
-   HAT_HF_MAX_NEW_TOKENS=512
-   HAT_HF_TEMPERATURE=0.7
+   HAT_HF_DTYPE=auto          # auto | float16 | bfloat16 | float32
    ```
 
-4. Start the server and the chat UI:
+3. Start the server and the chat UI, then download a model from the Models
+   tab. Weights land under `model/hf/<id>/`.
 
    ```bash
-   make serve   # one terminal — first request triggers model load
-   make ui      # another terminal — http://127.0.0.1:7860
+   make serve
+   make ui   # → http://127.0.0.1:7860
    ```
+
+Per-call generation parameters (temperature, max tokens) are exposed in the
+chat UI under "Generation settings" and forwarded to the OpenAI-compatible
+endpoint, so you can tune them without touching env vars.
 
 ## OpenAI-compatible API
 
