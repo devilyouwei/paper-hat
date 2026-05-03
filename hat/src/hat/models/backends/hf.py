@@ -95,15 +95,32 @@ class HFLanguageModel:
 
     # -- chat-template path ------------------------------------------------
 
-    def chat(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> str:
-        import torch
+    @staticmethod
+    def _split_template_kwargs(kwargs: dict) -> dict:
+        out: dict = {}
+        if "enable_thinking" in kwargs:
+            out["enable_thinking"] = bool(kwargs.pop("enable_thinking"))
+        nested = kwargs.pop("chat_template_kwargs", None)
+        if isinstance(nested, dict):
+            out.update(nested)
+        return out
 
+    def _prepare_inputs(
+        self, messages: Sequence[dict[str, str]], template_kwargs: dict
+    ):
         text = self.tokenizer.apply_chat_template(
             list(messages),
             tokenize=False,
             add_generation_prompt=True,
+            **template_kwargs,
         )
-        inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
+        return self.tokenizer(text, return_tensors="pt").to(self.model.device)
+
+    def chat(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> str:
+        import torch
+
+        template_kwargs = self._split_template_kwargs(kwargs)
+        inputs = self._prepare_inputs(messages, template_kwargs)
 
         max_new_tokens = int(
             kwargs.get("max_new_tokens", kwargs.get("max_tokens", self.max_new_tokens))
@@ -122,6 +139,43 @@ class HFLanguageModel:
 
         new_tokens = out[0][inputs["input_ids"].shape[-1] :]
         return self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+
+    def stream_chat(
+        self, messages: Sequence[dict[str, str]], **kwargs: Any
+    ):
+        """Yield decoded text chunks via :class:`TextIteratorStreamer`."""
+        from threading import Thread
+
+        from transformers import TextIteratorStreamer
+
+        template_kwargs = self._split_template_kwargs(kwargs)
+        inputs = self._prepare_inputs(messages, template_kwargs)
+
+        max_new_tokens = int(
+            kwargs.get("max_new_tokens", kwargs.get("max_tokens", self.max_new_tokens))
+        )
+        temperature = float(kwargs.get("temperature", self.temperature))
+        do_sample = temperature > 0.0
+
+        streamer = TextIteratorStreamer(
+            self.tokenizer, skip_prompt=True, skip_special_tokens=True
+        )
+        gen_kwargs = dict(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=do_sample,
+            temperature=temperature if do_sample else 1.0,
+            pad_token_id=self.tokenizer.eos_token_id,
+            streamer=streamer,
+        )
+        thread = Thread(target=self.model.generate, kwargs=gen_kwargs)
+        thread.start()
+        try:
+            for chunk in streamer:
+                if chunk:
+                    yield chunk
+        finally:
+            thread.join()
 
 
 @register("hf")

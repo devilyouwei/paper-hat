@@ -25,17 +25,24 @@ def test_openai_chat_completions_smoke() -> None:
     assert "hat_consolidated" in data
 
 
-def test_openai_chat_rejects_streaming() -> None:
+def test_openai_chat_streaming_smoke() -> None:
     client = TestClient(app)
-    res = client.post(
+    with client.stream(
+        "POST",
         "/v1/chat/completions",
         json={
             "model": "hat-cortex",
             "messages": [{"role": "user", "content": "hi"}],
             "stream": True,
         },
-    )
-    assert res.status_code == 400
+    ) as res:
+        assert res.status_code == 200, res.read()
+        assert res.headers["content-type"].startswith("text/event-stream")
+        body = b"".join(res.iter_bytes()).decode("utf-8")
+    assert "data: " in body
+    assert "[DONE]" in body
+    # at least one chunk should carry assistant content
+    assert '"delta"' in body
 
 
 def test_openai_models_list() -> None:

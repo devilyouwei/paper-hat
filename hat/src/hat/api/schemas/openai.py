@@ -25,6 +25,9 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int | None = None
     stream: bool = False
     user: str | None = None  # optional client-supplied user id
+    # HAT extension: forwarded to the tokenizer's chat template (e.g. Qwen3.5
+    # uses ``enable_thinking`` to toggle the <think> phase).
+    chat_template_kwargs: dict | None = None
 
 
 class ChatCompletionChoice(BaseModel):
@@ -48,6 +51,31 @@ class ChatCompletionResponse(BaseModel):
     usage: ChatCompletionUsage = Field(default_factory=ChatCompletionUsage)
     # HAT-specific extras (clients can ignore these)
     hat_consolidated: bool = False
+    hat_trace_id: str | None = None
+
+
+# ---- Streaming chunks (chat.completion.chunk) -----------------------------
+
+
+class ChatCompletionDelta(BaseModel):
+    role: str | None = None
+    content: str | None = None
+
+
+class ChatCompletionChunkChoice(BaseModel):
+    index: int = 0
+    delta: ChatCompletionDelta = Field(default_factory=ChatCompletionDelta)
+    finish_reason: str | None = None
+
+
+class ChatCompletionChunk(BaseModel):
+    id: str
+    object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    model: str
+    choices: list[ChatCompletionChunkChoice]
+    # HAT extras attached to the final chunk
+    hat_consolidated: bool | None = None
     hat_trace_id: str | None = None
 
 

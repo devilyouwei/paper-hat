@@ -26,6 +26,9 @@ class HFCortex(Cortex):
     def chat(self, messages: Sequence[dict[str, str]], **kwargs) -> str:
         return self.lm.chat(messages, **kwargs)
 
+    def stream_chat(self, messages: Sequence[dict[str, str]], **kwargs):
+        yield from self.lm.stream_chat(messages, **kwargs)
+
     def uncertainty(self, interaction: Interaction) -> float:
         # TODO: predictive entropy via token_logprobs once implemented.
         return 0.5

@@ -21,6 +21,9 @@ class MLXCortex(Cortex):
     def chat(self, messages: Sequence[dict[str, str]], **kwargs) -> str:
         return self.lm.chat(messages, **kwargs)
 
+    def stream_chat(self, messages: Sequence[dict[str, str]], **kwargs):
+        yield from self.lm.stream_chat(messages, **kwargs)
+
     def uncertainty(self, interaction: Interaction) -> float:
         # TODO: predictive entropy from mlx-lm `generate_step` logprobs.
         return 0.5

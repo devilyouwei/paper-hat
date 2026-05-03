@@ -84,6 +84,61 @@ def _installed_options(items: list[dict]) -> list[tuple[str, str]]:
     return [(i["display"], i["id"]) for i in items if i["installed"]]
 
 
+# ---------- <think>...</think> streaming filter ----------------------------
+
+
+class _ThinkFilter:
+    """Stream-friendly filter for the Qwen3.5-style ``<think>...</think>``
+    block. ``show_thinking=False`` drops the block entirely; ``True`` keeps the
+    raw text untouched (the UI styles it later)."""
+
+    OPEN = "<think>"
+    CLOSE = "</think>"
+
+    def __init__(self, show_thinking: bool) -> None:
+        self.show = bool(show_thinking)
+        self._buf = ""
+        self._in_think = False
+
+    def feed(self, chunk: str) -> str:
+        if self.show:
+            return chunk  # passthrough; UI gets raw stream
+        self._buf += chunk
+        out = ""
+        while True:
+            if self._in_think:
+                idx = self._buf.find(self.CLOSE)
+                if idx == -1:
+                    # keep last (len(CLOSE)-1) chars in case CLOSE straddles
+                    keep = len(self.CLOSE) - 1
+                    if len(self._buf) > keep:
+                        self._buf = self._buf[-keep:]
+                    return out
+                self._buf = self._buf[idx + len(self.CLOSE) :]
+                self._in_think = False
+                continue
+            idx = self._buf.find(self.OPEN)
+            if idx == -1:
+                keep = len(self.OPEN) - 1
+                if len(self._buf) > keep:
+                    out += self._buf[:-keep]
+                    self._buf = self._buf[-keep:]
+                return out
+            out += self._buf[:idx]
+            self._buf = self._buf[idx + len(self.OPEN) :]
+            self._in_think = True
+
+    def flush(self) -> str:
+        if self.show:
+            tail, self._buf = self._buf, ""
+            return tail
+        if self._in_think:
+            self._buf = ""
+            return ""
+        tail, self._buf = self._buf, ""
+        return tail
+
+
 # ---------- main UI --------------------------------------------------------
 
 
@@ -118,6 +173,8 @@ def build():  # pragma: no cover - UI
         correction: str,
         temperature: float,
         max_tokens: int,
+        enable_thinking: bool,
+        show_thinking: bool,
     ) -> Iterator[tuple[list[dict], str]]:
         history = list(history or [])
         history.append({"role": "user", "content": _flatten(message)})
@@ -130,21 +187,60 @@ def build():  # pragma: no cover - UI
                 {"role": "system", "content": f"[user correction]: {correction}"}
             )
 
+        # initial empty assistant slot — we mutate `.content` as chunks arrive.
+        history.append({"role": "assistant", "content": ""})
+        yield history, ""
+
+        filt = _ThinkFilter(show_thinking=show_thinking)
+        visible = ""
+
         try:
-            resp = client.chat.completions.create(
+            stream = client.chat.completions.create(
                 model=s.ui_model,
                 messages=msgs,
                 temperature=float(temperature),
                 max_tokens=int(max_tokens),
+                stream=True,
+                extra_body={
+                    "chat_template_kwargs": {
+                        "enable_thinking": bool(enable_thinking),
+                    }
+                },
             )
-            text = resp.choices[0].message.content or ""
-            if getattr(resp, "hat_consolidated", None):
-                text += f"\n\n_— consolidated as trace {getattr(resp, 'hat_trace_id', '?')}_"
+            consolidated_note = ""
+            for ev in stream:
+                if not ev.choices:
+                    # final chunk may arrive without choices but with HAT extras
+                    if getattr(ev, "hat_consolidated", None):
+                        consolidated_note = (
+                            f"\n\n_— consolidated as trace "
+                            f"{getattr(ev, 'hat_trace_id', '?')}_"
+                        )
+                    continue
+                delta = ev.choices[0].delta
+                piece = getattr(delta, "content", None)
+                if piece:
+                    out = filt.feed(piece)
+                    if out:
+                        visible += out
+                        history[-1]["content"] = visible
+                        yield history, ""
+                # also harvest HAT extras if the SDK exposed them on the chunk
+                if getattr(ev, "hat_consolidated", None):
+                    consolidated_note = (
+                        f"\n\n_— consolidated as trace "
+                        f"{getattr(ev, 'hat_trace_id', '?')}_"
+                    )
+            tail = filt.flush()
+            if tail:
+                visible += tail
+            if consolidated_note:
+                visible += consolidated_note
+            history[-1]["content"] = visible or "(no content)"
+            yield history, ""
         except Exception as e:
-            text = f"[error] {type(e).__name__}: {e}"
-
-        history.append({"role": "assistant", "content": text})
-        yield history, ""
+            history[-1]["content"] = f"[error] {type(e).__name__}: {e}"
+            yield history, ""
 
     # ---- model tab callbacks ---------------------------------------------
 
@@ -275,16 +371,29 @@ def build():  # pragma: no cover - UI
                             value=s.default_max_tokens,
                             label="Max tokens",
                         )
+                    with gr.Row():
+                        enable_thinking_cb = gr.Checkbox(
+                            value=False,
+                            label="Enable thinking (Qwen3 <think>…)",
+                            info="Forwarded as chat_template_kwargs.enable_thinking; only effective on think-capable models.",
+                        )
+                        show_thinking_cb = gr.Checkbox(
+                            value=False,
+                            label="Show thinking process",
+                            info="If off, the <think>…</think> block is hidden from the chat view.",
+                        )
                 clear = gr.Button("Clear conversation")
 
                 send.click(
                     respond,
-                    [msg, chatbot, correction, temp_slider, max_tokens_slider],
+                    [msg, chatbot, correction, temp_slider, max_tokens_slider,
+                     enable_thinking_cb, show_thinking_cb],
                     [chatbot, msg],
                 )
                 msg.submit(
                     respond,
-                    [msg, chatbot, correction, temp_slider, max_tokens_slider],
+                    [msg, chatbot, correction, temp_slider, max_tokens_slider,
+                     enable_thinking_cb, show_thinking_cb],
                     [chatbot, msg],
                 )
                 clear.click(lambda: ([], ""), outputs=[chatbot, msg])

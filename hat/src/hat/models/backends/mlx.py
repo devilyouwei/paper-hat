@@ -65,15 +65,34 @@ class MLXLanguageModel:
 
     # -- chat-template path ------------------------------------------------
 
+    def _render_prompt(
+        self, messages: Sequence[dict[str, str]], **template_kwargs: Any
+    ) -> str:
+        return self.tokenizer.apply_chat_template(
+            list(messages),
+            tokenize=False,
+            add_generation_prompt=True,
+            **template_kwargs,
+        )
+
+    @staticmethod
+    def _split_template_kwargs(kwargs: dict) -> dict:
+        """Pop chat-template-only kwargs (e.g. ``enable_thinking``)."""
+        out: dict = {}
+        if "enable_thinking" in kwargs:
+            out["enable_thinking"] = bool(kwargs.pop("enable_thinking"))
+        # OpenAI-style nested form
+        nested = kwargs.pop("chat_template_kwargs", None)
+        if isinstance(nested, dict):
+            out.update(nested)
+        return out
+
     def chat(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> str:
         from mlx_lm import generate
         from mlx_lm.sample_utils import make_sampler
 
-        prompt = self.tokenizer.apply_chat_template(
-            list(messages),
-            tokenize=False,
-            add_generation_prompt=True,
-        )
+        template_kwargs = self._split_template_kwargs(kwargs)
+        prompt = self._render_prompt(messages, **template_kwargs)
 
         max_tokens = int(kwargs.get("max_tokens", self.max_tokens))
         temperature = float(kwargs.get("temperature", self.temperature))
@@ -88,6 +107,30 @@ class MLXLanguageModel:
             verbose=False,
         )
         return text.strip()
+
+    def stream_chat(
+        self, messages: Sequence[dict[str, str]], **kwargs: Any
+    ):
+        """Yield decoded text chunks as the model generates them."""
+        from mlx_lm import stream_generate
+        from mlx_lm.sample_utils import make_sampler
+
+        template_kwargs = self._split_template_kwargs(kwargs)
+        prompt = self._render_prompt(messages, **template_kwargs)
+
+        max_tokens = int(kwargs.get("max_tokens", self.max_tokens))
+        temperature = float(kwargs.get("temperature", self.temperature))
+
+        for resp in stream_generate(
+            self.model,
+            self.tokenizer,
+            prompt=prompt,
+            max_tokens=max_tokens,
+            sampler=make_sampler(temp=temperature),
+        ):
+            text = getattr(resp, "text", None)
+            if text:
+                yield text
 
 
 @register("mlx")
