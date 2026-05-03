@@ -333,7 +333,7 @@ def build():  # pragma: no cover - UI
 
 def main() -> None:  # pragma: no cover
     build().launch(
-        server_name="127.0.0.1",
+        server_name="0.0.0.0",
         server_port=7860,
         theme=__import__("gradio").themes.Soft(),
     )
