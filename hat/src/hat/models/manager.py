@@ -111,7 +111,16 @@ class ModelManager:
             from .backends.hf import build_hf_model
 
             return HFCortex(
-                build_hf_model(path, device=s.hf_device, dtype=s.hf_dtype)
+                build_hf_model(
+                    path,
+                    device=s.hf_device,
+                    dtype=s.hf_dtype,
+                    offload=s.hf_offload,
+                    max_gpu_gb=s.hf_max_gpu_gb,
+                    max_cpu_gb=s.hf_max_cpu_gb,
+                    offload_dir=str(s.hf_offload_dir),
+                    load_in_4bit=s.hf_load_in_4bit,
+                )
             )
         raise ModelManagerError(f"backend {backend!r} cannot host a model")
 

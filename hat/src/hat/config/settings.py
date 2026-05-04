@@ -51,6 +51,20 @@ class Settings(BaseSettings):
     # HF hardware preferences (constructor-time, can't change per request).
     hf_device: str = "auto"  # auto | cpu | cuda | mps
     hf_dtype: str = "auto"  # auto | float16 | bfloat16 | float32
+    # When the chosen device is a single GPU and the model doesn't fit, set
+    # ``hf_offload=true`` to spill layers to CPU RAM (and optionally disk).
+    # Implemented via accelerate's ``device_map="auto"`` + ``max_memory``
+    # budget. ``hf_max_gpu_gb`` caps GPU usage (None = no cap, fill the
+    # card); ``hf_max_cpu_gb`` caps host RAM usage; if both are set and the
+    # weights still don't fit, accelerate spills the rest to
+    # ``hf_offload_dir`` on disk.
+    hf_offload: bool = False
+    hf_max_gpu_gb: float | None = None
+    hf_max_cpu_gb: float | None = None
+    hf_offload_dir: Path = Path("runs/hf-offload")
+    # 4-bit quantization (bitsandbytes). Cuts VRAM ~3-4× with minor quality
+    # loss. Requires ``bitsandbytes`` and a CUDA GPU.
+    hf_load_in_4bit: bool = False
 
     # Per-request generation defaults (used when the client doesn't supply
     # ``temperature`` / ``max_tokens`` in the chat-completions request).

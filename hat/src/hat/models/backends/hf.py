@@ -42,7 +42,14 @@ def _resolve_device(name: str) -> str:
 
 
 class HFLanguageModel:
-    """Thin wrapper around `AutoModelForCausalLM` with chat-template support."""
+    """Thin wrapper around `AutoModelForCausalLM` with chat-template support.
+
+    When ``offload=True``, the model is loaded with accelerate's
+    ``device_map="auto"`` and a ``max_memory`` budget so that layers which
+    don't fit on the GPU spill to CPU RAM (and, if needed, to disk under
+    ``offload_dir``). When ``load_in_4bit=True``, weights are quantised via
+    bitsandbytes (CUDA only).
+    """
 
     def __init__(
         self,
@@ -51,6 +58,12 @@ class HFLanguageModel:
         dtype: str = "auto",
         max_new_tokens: int = 512,
         temperature: float = 0.7,
+        *,
+        offload: bool = False,
+        max_gpu_gb: float | None = None,
+        max_cpu_gb: float | None = None,
+        offload_dir: str | None = None,
+        load_in_4bit: bool = False,
     ) -> None:
         try:
             import torch  # noqa: F401
@@ -69,13 +82,54 @@ class HFLanguageModel:
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_path, trust_remote_code=True
         )
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            torch_dtype=_resolve_dtype(dtype),
-            device_map=self.device if self.device != "mps" else None,
-            trust_remote_code=True,
-        )
-        if self.device == "mps":
+
+        load_kwargs: dict[str, Any] = {
+            "torch_dtype": _resolve_dtype(dtype),
+            "trust_remote_code": True,
+        }
+
+        # Optional 4-bit quantisation via bitsandbytes (CUDA only).
+        if load_in_4bit:
+            try:
+                import torch
+                from transformers import BitsAndBytesConfig
+            except ImportError as e:  # pragma: no cover
+                raise RuntimeError(
+                    "hf_load_in_4bit=True requires `bitsandbytes`"
+                ) from e
+            load_kwargs["quantization_config"] = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+            )
+            # bnb manages dtype; drop the user's torch_dtype to avoid clash.
+            load_kwargs.pop("torch_dtype", None)
+
+        if offload:
+            # Accelerate-driven sharding: GPU first, then CPU RAM, then disk.
+            from pathlib import Path as _P
+
+            max_memory: dict[str | int, str] = {}
+            if self.device in ("cuda", "mps"):
+                if max_gpu_gb is not None:
+                    max_memory[0] = f"{max_gpu_gb:.2f}GiB"
+            if max_cpu_gb is not None:
+                max_memory["cpu"] = f"{max_cpu_gb:.2f}GiB"
+            load_kwargs["device_map"] = "auto"
+            if max_memory:
+                load_kwargs["max_memory"] = max_memory
+            if offload_dir:
+                _P(offload_dir).mkdir(parents=True, exist_ok=True)
+                load_kwargs["offload_folder"] = offload_dir
+        else:
+            # Single-device path (legacy behaviour).
+            load_kwargs["device_map"] = (
+                self.device if self.device != "mps" else None
+            )
+
+        self.model = AutoModelForCausalLM.from_pretrained(model_path, **load_kwargs)
+        if not offload and self.device == "mps":
             self.model = self.model.to("mps")
         self.model.eval()
 
@@ -185,6 +239,12 @@ def build_hf_model(
     dtype: str = "auto",
     max_new_tokens: int = 512,
     temperature: float = 0.7,
+    *,
+    offload: bool = False,
+    max_gpu_gb: float | None = None,
+    max_cpu_gb: float | None = None,
+    offload_dir: str | None = None,
+    load_in_4bit: bool = False,
     **_: Any,
 ) -> HFLanguageModel:
     return HFLanguageModel(
@@ -193,6 +253,11 @@ def build_hf_model(
         dtype=dtype,
         max_new_tokens=max_new_tokens,
         temperature=temperature,
+        offload=offload,
+        max_gpu_gb=max_gpu_gb,
+        max_cpu_gb=max_cpu_gb,
+        offload_dir=offload_dir,
+        load_in_4bit=load_in_4bit,
     )
 
 
