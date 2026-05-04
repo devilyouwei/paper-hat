@@ -16,15 +16,29 @@
   repo_id: Qwen/Qwen2.5-7B
   display: Qwen2.5 7B
   size_gb: 15.2
-- id: llama-3.2-3b-instruct
-  repo_id: meta-llama/Llama-3.2-3B-Instruct
-  display: Llama 3.2 3B Instruct
-  size_gb: 6.4
-  notes: Gated repo — requires HF_TOKEN.
-- id: phi-3.5-mini-instruct
-  repo_id: microsoft/Phi-3.5-mini-instruct
-  display: Phi-3.5 mini Instruct
-  size_gb: 7.6
+- id: qwen3-0.6b-base
+  repo_id: Qwen/Qwen3-0.6B-Base
+  display: Qwen3 0.6B Base
+  size_gb: 1.2
+- id: qwen3-1.7b-base
+  repo_id: Qwen/Qwen3-1.7B-Base
+  display: Qwen3 1.7B Base
+  size_gb: 3.4
+- id: qwen3-4b-base
+  repo_id: Qwen/Qwen3-4B-Base
+  display: Qwen3 4B Base
+  size_gb: 8.0
+- id: qwen3-8b-base
+  repo_id: Qwen/Qwen3-8B-Base
+  display: Qwen3 8B Base
+  size_gb: 16.0
+- id: qwen3-14b-base
+  repo_id: Qwen/Qwen3-14B-Base
+  display: Qwen3 14B Base
+  size_gb: 30.0
+  notes: |
+    bf16 ~30GB — needs HAT_HF_OFFLOAD=true on a single consumer GPU, or
+    HAT_HF_LOAD_IN_4BIT=true (~8GB) on CUDA.
 - id: qwen3.5-0.8b
   repo_id: Qwen/Qwen3.5-0.8B
   display: Qwen3.5 0.8B (multimodal)
@@ -49,3 +63,19 @@
   size_gb: 6.6
   notes: |
     Vision-language model (Text + Image). 256K context.
+- id: qwen3.6-27b
+  repo_id: Qwen/Qwen3.6-27B
+  display: Qwen3.6 27B
+  size_gb: 54.0
+  notes: |
+    bf16 weights ~54GB. Won't fit on a single consumer GPU. With 64GB host
+    RAM, enable HAT_HF_OFFLOAD=true (CPU offload) or HAT_HF_LOAD_IN_4BIT=true
+    (~14GB on CUDA via bitsandbytes) before activating.
+- id: qwen3.6-35b-a3b
+  repo_id: Qwen/Qwen3.6-35B-A3B
+  display: Qwen3.6 35B-A3B (MoE, 3B active)
+  size_gb: 70.0
+  notes: |
+    Mixture-of-experts: 35B total params, ~3B active per token. bf16 ~70GB —
+    requires HAT_HF_OFFLOAD=true with HAT_HF_MAX_CPU_GB≈48 on a 64GB host,
+    or HAT_HF_LOAD_IN_4BIT=true on CUDA (~18GB).
