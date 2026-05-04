@@ -56,13 +56,6 @@ async function loadHealth() {
     const h = await jget("/healthz");
     dot.classList.add("ok");
     dot.title = `backend: ${h.cortex_backend}`;
-    // Stash the env-configured backend so tab modules can default their
-    // backend selectors to it on first load. ``noop`` is the inert
-    // fallback when no real cortex is configured — we treat it as "no
-    // preference" (the dropdown's first option wins).
-    if (h.cortex_backend && h.cortex_backend !== "noop") {
-      window.__hatEnvBackend = h.cortex_backend;
-    }
   } catch {
     dot.classList.add("err");
     dot.title = "server unreachable";
