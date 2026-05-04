@@ -1,20 +1,21 @@
 # Default catalog of HuggingFace causal-LM models. Override at
 # ``<HAT_MODEL_ROOT>/hf/catalog.yaml``. See ``mlx.yaml`` for field definitions.
-- id: qwen2.5-1.5b-instruct
-  repo_id: Qwen/Qwen2.5-1.5B-Instruct
-  display: Qwen2.5 1.5B Instruct
+- id: qwen2.5-0.5b
+  repo_id: Qwen/Qwen2.5-0.5B
+  display: Qwen2.5 0.5B
+  size_gb: 1.0
+- id: qwen2.5-1.5b
+  repo_id: Qwen/Qwen2.5-1.5B
+  display: Qwen2.5 1.5B
   size_gb: 3.1
-- id: qwen2.5-3b-instruct
-  repo_id: Qwen/Qwen2.5-3B-Instruct
-  display: Qwen2.5 3B Instruct
+- id: qwen2.5-3b
+  repo_id: Qwen/Qwen2.5-3B
+  display: Qwen2.5 3B
   size_gb: 6.2
-- id: qwen2.5-7b-instruct
-  repo_id: Qwen/Qwen2.5-7B-Instruct
-  display: Qwen2.5 7B Instruct
+- id: qwen2.5-7b
+  repo_id: Qwen/Qwen2.5-7B
+  display: Qwen2.5 7B
   size_gb: 15.2
-  notes: |
-    bf16 weights ~15GB — too large for 3060 (12GB) at full precision; fits on
-    16GB+ GPUs or use a 4-bit quant for smaller cards.
 - id: llama-3.2-3b-instruct
   repo_id: meta-llama/Llama-3.2-3B-Instruct
   display: Llama 3.2 3B Instruct
@@ -24,20 +25,27 @@
   repo_id: microsoft/Phi-3.5-mini-instruct
   display: Phi-3.5 mini Instruct
   size_gb: 7.6
+- id: qwen3.5-0.8b
+  repo_id: Qwen/Qwen3.5-0.8B
+  display: Qwen3.5 0.8B (multimodal)
+  size_gb: 1.0
+  notes: |
+    Vision-language model (Text + Image). 256K context.
+- id: qwen3.5-2b
+  repo_id: Qwen/Qwen3.5-2B
+  display: Qwen3.5 2B (multimodal)
+  size_gb: 2.7
+  notes: |
+    Vision-language model (Text + Image). 256K context.
 - id: qwen3.5-4b
   repo_id: Qwen/Qwen3.5-4B
-  display: Qwen3.5 4B (multimodal, bf16)
-  size_gb: 10.0
+  display: Qwen3.5 4B (multimodal)
+  size_gb: 3.4
   notes: |
-    Vision-language model (Image-Text-to-Text). Needs latest transformers
-    main; visual tower is loaded by default. bf16 ~10GB — too tight for
-    3060/12GB once KV cache is included; recommended only on 16GB+ GPUs.
-    Use a 4-bit GGUF/AWQ quant for 3060.
+    Vision-language model (Text + Image). 256K context.
 - id: qwen3.5-9b
   repo_id: Qwen/Qwen3.5-9B
-  display: Qwen3.5 9B (multimodal, bf16)
-  size_gb: 20.0
+  display: Qwen3.5 9B (multimodal)
+  size_gb: 6.6
   notes: |
-    Vision-language model. bf16 weights ~20GB — DOES NOT fit on 3060 (12GB).
-    Listed for 24GB+ GPUs (3090/4090/A6000) or as a download for later 4-bit
-    conversion.
+    Vision-language model (Text + Image). 256K context.
