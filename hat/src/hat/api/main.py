@@ -53,6 +53,12 @@ def create_app() -> FastAPI:
     def logo() -> FileResponse:
         return FileResponse(_LOGO_PATH, media_type="image/png")
 
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> FileResponse:
+        # Browsers request /favicon.ico by default; serve the bundled .ico
+        # straight from the static directory.
+        return FileResponse(_STATIC_DIR / "favicon.ico", media_type="image/x-icon")
+
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
         return FileResponse(_STATIC_DIR / "index.html", media_type="text/html")
