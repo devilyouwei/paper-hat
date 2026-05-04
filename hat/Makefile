@@ -1,16 +1,10 @@
-.PHONY: install serve ui dashboard sleep test lint typecheck format clean
+.PHONY: install serve sleep test lint typecheck format clean
 
 install:
 	uv sync
 
 serve:
 	uv run uvicorn hat.api.main:app --reload --host 127.0.0.1 --port 8000
-
-ui:
-	uv run python -m hat.ui.gradio_app
-
-dashboard:
-	uv run streamlit run src/hat/ui/dashboard.py
 
 sleep:
 	uv run hat sleep --dry-run

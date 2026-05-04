@@ -15,18 +15,10 @@ def _root() -> None:
 
 @app.command()
 def serve(host: str = "127.0.0.1", port: int = 8000, reload: bool = False) -> None:
-    """Run the FastAPI server."""
+    """Run the FastAPI server (which also serves the web UI at ``/``)."""
     import uvicorn
 
     uvicorn.run("hat.api.main:app", host=host, port=port, reload=reload)
-
-
-@app.command()
-def ui(host: str = "127.0.0.1", port: int = 7860) -> None:
-    """Launch the Gradio chat UI (requires the server to be running)."""
-    from .ui.gradio_app import build
-
-    build().launch(server_name=host, server_port=port)
 
 
 @app.command()

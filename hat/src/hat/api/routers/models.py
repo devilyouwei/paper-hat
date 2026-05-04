@@ -5,6 +5,7 @@
 * ``POST   /api/models/active``    — load + set as the loop's active Cortex
 * ``GET    /api/models/active``    — current active model
 * ``DELETE /api/models/active``    — unload all models, free memory
+* ``DELETE /api/models/{backend}/{id}`` — remove installed weights from disk
 """
 
 from __future__ import annotations
@@ -75,3 +76,14 @@ def deactivate() -> dict:
     model is activated."""
     n = deactivate_cortex()
     return {"unloaded": n}
+
+
+@router.delete("/{backend}/{model_id:path}")
+def delete_model(backend: str, model_id: str) -> dict:
+    """Remove an installed model's weights from disk. Refuses if it's
+    currently the active model."""
+    try:
+        removed = get_manager().delete(backend, model_id)
+    except ModelManagerError as e:
+        raise HTTPException(400, str(e)) from e
+    return {"backend": backend, "id": model_id, "removed": removed}

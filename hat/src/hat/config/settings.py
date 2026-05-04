@@ -29,8 +29,17 @@ class Settings(BaseSettings):
     oracle_threshold: float = 0.7
 
     # Storage
+    # Raw chat history is now organised per-session under ``raw_root``:
+    #   <raw_root>/index.json            session metadata list
+    #   <raw_root>/sessions/<id>.jsonl   per-session interaction log
+    raw_root: Path = Path("runs/raw")
+    # Curated Neocortex memory. ``neocortex_path`` is the SFT-format file
+    # consumed by the SWS trainer; ``neocortex_traces_path`` keeps the full
+    # trace records (including signals/scores) for inspection.
+    neocortex_path: Path = Path("runs/neocortex/train.jsonl")
+    neocortex_traces_path: Path = Path("runs/neocortex/traces.jsonl")
+    # Legacy single-file raw log (read-only fallback for old data).
     raw_log_path: Path = Path("runs/raw_log.jsonl")
-    neocortex_path: Path = Path("runs/neocortex.jsonl")
     model_root: Path = Path("model")
 
     # Cortex backend selection. Concrete model paths are NOT in env any

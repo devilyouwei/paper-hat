@@ -1,0 +1,66 @@
+<div class="memory-page">
+  <div class="card">
+    <div class="card-header">
+      <h2>Curated memory <small class="muted">(Neocortex)</small></h2>
+      <div class="row gap">
+        <span class="status" id="mem-status"></span>
+        <button id="mem-refresh" class="ghost small" title="Reload">↻</button>
+      </div>
+    </div>
+    <p class="hint">
+      Entries written here are the SFT training set for the Cortex. Edit or
+      delete rows to manually curate the data before the next sleep-phase
+      trainer run.
+    </p>
+
+    <div class="mem-toolbar">
+      <label class="grow">Search
+        <input type="search" id="mem-search"
+               placeholder="filter query or response…"
+               autocomplete="off" />
+      </label>
+      <span class="badge subtle" id="mem-count">0 / 0</span>
+    </div>
+
+    <div class="mem-table-wrap">
+      <table class="mem-table" id="mem-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>trace</th>
+            <th>score</th>
+            <th>query</th>
+            <th>response</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<dialog id="mem-editor" class="modal">
+  <form method="dialog" class="modal-body">
+    <header class="modal-header">
+      <h3>Edit entry <code id="mem-edit-id"></code></h3>
+      <button type="button" class="ghost small" id="mem-cancel" aria-label="Close">✕</button>
+    </header>
+
+    <label>Query (user)
+      <textarea id="mem-query" rows="3"></textarea>
+    </label>
+    <label>Response (assistant)
+      <textarea id="mem-response" rows="8"></textarea>
+    </label>
+    <label>Score: <output id="mem-score-out">0.00</output>
+      <input type="range" id="mem-score" min="0" max="1" step="0.01" value="0" />
+    </label>
+
+    <footer class="modal-footer row gap">
+      <button type="button" class="primary" id="mem-save">Save changes</button>
+      <button type="button" class="danger" id="mem-delete">Delete</button>
+      <button type="button" class="ghost" id="mem-cancel-2">Cancel</button>
+    </footer>
+  </form>
+</dialog>

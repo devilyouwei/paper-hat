@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HAT — Hippocampus-Augmented Transformer</title>
+  <link rel="icon" href="/logo.png" type="image/png" />
+  <link rel="stylesheet" href="/ui/static/style.css?v=8" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="HAT home">
+      <img class="logo" src="/logo.png" alt="HAT" />
+    </a>
+
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab active" data-tab="chat" role="tab">
+        <span class="tab-icon" aria-hidden="true">💬</span>Chat
+      </button>
+      <button class="tab" data-tab="models" role="tab">
+        <span class="tab-icon" aria-hidden="true">📦</span>Models
+      </button>
+      <button class="tab" data-tab="memory" role="tab">
+        <span class="tab-icon" aria-hidden="true">🧠</span>Memory
+      </button>
+    </nav>
+
+    <div class="topbar-status">
+      <span class="badge" id="active-model" title="Active Cortex">Active: —</span>
+      <span class="dot" id="health-dot" title="Server status"></span>
+    </div>
+  </header>
+
+  <main id="tab-host">
+    <section class="panel active" id="tab-chat" data-partial="chat"></section>
+    <section class="panel" id="tab-models" data-partial="models"></section>
+    <section class="panel" id="tab-memory" data-partial="memory"></section>
+  </main>
+
+  <script src="/ui/static/js/main.js" type="module"></script>
+</body>
+</html>

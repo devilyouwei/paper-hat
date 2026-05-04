@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 
 from ...config.settings import get_settings
 from ..controllers.openai_compat import OpenAIChatController
-from ..deps import get_loop, get_raw_log
+from ..deps import get_loop, get_raw_log, get_session_store
 from ..schemas.openai import (
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -33,8 +33,9 @@ def chat_completions(
     req: ChatCompletionRequest,
     loop=Depends(get_loop),
     log=Depends(get_raw_log),
+    sessions=Depends(get_session_store),
 ):
-    controller = OpenAIChatController(loop=loop, raw_log=log)
+    controller = OpenAIChatController(loop=loop, raw_log=log, sessions=sessions)
     try:
         if req.stream:
             return StreamingResponse(

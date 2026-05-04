@@ -26,9 +26,10 @@ from ..core.hippocampus.scoring import (
     ConstantUncertainty,
 )
 from ..core.loop import WakeSleepLoop
-from ..core.neocortex.store import InMemoryNeocortex
 from ..core.sws.trainer import DryRunTrainer
-from ..memory.raw.log import JsonlRawLog
+from ..memory.curated.jsonl_store import JsonlNeocortex
+from ..memory.raw.log import SessionRawLog
+from ..memory.raw.sessions import JsonlSessionStore
 from ..models.manager import get_manager
 
 
@@ -77,7 +78,9 @@ def get_loop() -> WakeSleepLoop:
         novelty=AlwaysNovel(),
         write_policy=LinearWritePolicy(s.alpha, s.beta, s.gamma, s.write_threshold),
         replay_builder=SupervisedReplayBuilder(),
-        neocortex=InMemoryNeocortex(),
+        neocortex=JsonlNeocortex(
+            s.neocortex_path, traces_path=s.neocortex_traces_path
+        ),
         trainer=DryRunTrainer(),
         oracle=None,
         oracle_threshold=s.oracle_threshold,
@@ -114,5 +117,14 @@ def deactivate_cortex() -> int:
 
 
 @lru_cache
-def get_raw_log() -> JsonlRawLog:
-    return JsonlRawLog(get_settings().raw_log_path)
+def get_session_store() -> JsonlSessionStore:
+    """Process-wide session store (one ``runs/raw/`` tree)."""
+    return JsonlSessionStore(get_settings().raw_root)
+
+
+@lru_cache
+def get_raw_log() -> SessionRawLog:
+    """Backwards-compatible :class:`RawInteractionLog` view of the session
+    store. Callers that don't know about sessions land in the synthetic
+    ``default`` session; the chat controller passes a real session id."""
+    return SessionRawLog(get_session_store(), session_id=None)

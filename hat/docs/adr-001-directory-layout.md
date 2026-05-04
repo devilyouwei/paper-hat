@@ -14,7 +14,7 @@ Use a **src layout** with one importable package, ``hat``, split into:
 * ``memory/`` — storage backends. Two strictly disjoint subpackages: ``raw/`` (chat history) and ``curated/`` (Neocortex). See ADR-002.
 * ``api/`` — FastAPI surface, organised as ``routers → controllers → injected protocols``. Controllers are pure Python.
 * ``services/`` — long-running orchestration (SWS scheduler, replay worker, job queue).
-* ``ui/`` — Gradio chat + Streamlit operator dashboard. UI components reuse the same controllers as the REST API.
+* ``ui/`` — vanilla HTML/CSS/JS web app served by FastAPI from ``ui/static/``. The UI calls the same REST surface as any external client.
 * ``data/`` and ``eval/`` — benchmark adapters and metrics for paper §4.
 
 ## Consequences

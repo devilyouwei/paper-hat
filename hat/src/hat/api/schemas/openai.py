@@ -28,6 +28,9 @@ class ChatCompletionRequest(BaseModel):
     # HAT extension: forwarded to the tokenizer's chat template (e.g. Qwen3.5
     # uses ``enable_thinking`` to toggle the <think> phase).
     chat_template_kwargs: dict | None = None
+    # HAT extension: target session for raw-log persistence. If absent the
+    # turn is appended to the synthetic 'default' session.
+    session_id: str | None = None
 
 
 class ChatCompletionChoice(BaseModel):
@@ -52,6 +55,7 @@ class ChatCompletionResponse(BaseModel):
     # HAT-specific extras (clients can ignore these)
     hat_consolidated: bool = False
     hat_trace_id: str | None = None
+    hat_session_id: str | None = None
 
 
 # ---- Streaming chunks (chat.completion.chunk) -----------------------------
@@ -77,6 +81,7 @@ class ChatCompletionChunk(BaseModel):
     # HAT extras attached to the final chunk
     hat_consolidated: bool | None = None
     hat_trace_id: str | None = None
+    hat_session_id: str | None = None
 
 
 class ModelCard(BaseModel):

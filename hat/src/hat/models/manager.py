@@ -14,6 +14,7 @@ own GPU/Metal context.
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 from threading import Lock
 
 from ..config.settings import get_settings
@@ -190,6 +191,26 @@ class ModelManager:
         for old in evicted:
             self._release_cortex(old)
         return len(evicted)
+
+    def delete(self, backend: str, model_id: str) -> bool:
+        """Remove an installed model's weights from disk. Refuses to delete
+        the currently-active model. Returns True if files were removed."""
+        if backend not in SUPPORTED_BACKENDS:
+            raise ModelManagerError(f"unsupported backend {backend!r}")
+        with self._lock:
+            if self._active == (backend, model_id):
+                raise ModelManagerError(
+                    "cannot delete the active model; unload it first"
+                )
+            # Drop any cached (but not active) cortex for this id too.
+            cortex = self._cache.pop((backend, model_id), None)
+        if cortex is not None:
+            self._release_cortex(cortex)
+        d = self.model_dir(backend, model_id)
+        if not d.exists():
+            return False
+        shutil.rmtree(d, ignore_errors=False)
+        return True
 
     def set_active(self, backend: str, model_id: str) -> Cortex:
         new_key = (backend, model_id)

@@ -10,17 +10,26 @@ Strategy:
   Agent can score and (selectively) consolidate the turn.
 * A single response is returned in OpenAI ``chat.completion`` shape, or a
   generator of ``chat.completion.chunk`` SSE payloads when streaming.
+* Each turn is appended to the caller-supplied session (``req.session_id``)
+  via the session store. The first turn of a brand-new session triggers an
+  asynchronous-style title summary (kept short) so the UI can label it.
 """
 
 from __future__ import annotations
 
 import uuid
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 
 from ...core.loop import WakeSleepLoop
 from ...core.schemas import Interaction
 from ...memory.raw.log import RawInteractionLog
+from ...memory.raw.sessions import (
+    JsonlSessionStore,
+    Session,
+    SessionStoreError,
+)
 from ..schemas.openai import (
     ChatCompletionChoice,
     ChatCompletionChunk,
@@ -59,14 +68,116 @@ def _build_gen_kwargs(req: ChatCompletionRequest) -> dict:
     return gen_kwargs
 
 
+def _truncate_title(text: str, *, limit: int = 48) -> str:
+    text = " ".join((text or "").split())
+    if not text:
+        return "New chat"
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
+
+_THINK_RE = re.compile(r"<think\b[^>]*>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
+def _strip_think(text: str) -> str:
+    """Remove <think>...</think> blocks (closed or unterminated) from a model
+    response so that thinking-style models still produce a usable title."""
+    if not text:
+        return ""
+    text = _THINK_RE.sub("", text)
+    # Drop an unterminated leading <think> (some models forget the close tag
+    # when truncated by max_tokens).
+    lower = text.lower()
+    if "<think>" in lower and "</think>" not in lower:
+        idx = lower.rfind("<think>")
+        text = text[:idx]
+    return text.strip()
+
+
+def _summarize_title(cortex, query: str) -> str:
+    """Best-effort short-title generation. Falls back to the truncated query
+    if the cortex is the noop one or if anything throws."""
+    try:
+        if hasattr(cortex, "chat") and callable(cortex.chat):
+            prompt = (
+                "Summarize the user's message into a short, plain-text chat "
+                "title (max 8 words, no quotes, no punctuation at the end)."
+            )
+            text = cortex.chat(
+                [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": query},
+                ],
+                max_tokens=64,
+                temperature=0.2,
+                # Disable Qwen3-style <think> blocks for title generation.
+                # Backends that don't understand the kwarg simply ignore it.
+                chat_template_kwargs={"enable_thinking": False},
+            )
+            cleaned = _strip_think(text or "").strip().strip('"').strip("'")
+            # First non-empty line only — titles should be a single line.
+            if cleaned:
+                cleaned = cleaned.splitlines()[0].strip().strip('"').strip("'")
+            if cleaned and not cleaned.lower().startswith("[noop]"):
+                return _truncate_title(cleaned)
+    except Exception:
+        pass
+    return _truncate_title(query)
+
+
 @dataclass
 class OpenAIChatController:
     loop: WakeSleepLoop
-    raw_log: RawInteractionLog
+    raw_log: RawInteractionLog  # legacy fallback (single-file log)
+    sessions: JsonlSessionStore | None = None
+
+    # ----- session helpers ---------------------------------------------
+
+    def _resolve_session(
+        self, session_id: str | None, *, first_query: str
+    ) -> Session | None:
+        """Return the target session for this turn (or ``None`` if no session
+        store is wired). May create the session if the caller passed an unknown
+        id; auto-titles brand-new sessions on the first turn."""
+        if self.sessions is None:
+            return None
+        if session_id:
+            try:
+                return self.sessions.get(session_id)
+            except SessionStoreError:
+                # Caller knows the id they want — honour it by creating
+                # the session under that id is not supported, so fall back
+                # to a fresh one.
+                pass
+        # No session id (or unknown one) — create a new one with a stub title
+        # that the caller upgrades after generation completes.
+        return self.sessions.create(title=_truncate_title(first_query))
+
+    def _persist_turn(
+        self, session: Session | None, interaction: Interaction
+    ) -> None:
+        if session is not None and self.sessions is not None:
+            self.sessions.append(session.id, interaction)
+            # First turn: refine the title using the cortex if we have a
+            # better summary now that we've already paid for inference.
+            if session.message_count <= 1 and session.title in {
+                "New chat",
+                _truncate_title(interaction.query),
+            }:
+                better = _summarize_title(self.loop.cortex, interaction.query)
+                if better and better != session.title:
+                    try:
+                        self.sessions.rename(session.id, better)
+                    except SessionStoreError:
+                        pass
+        else:
+            self.raw_log.append(interaction)
+
+    # ----- non-streaming -----------------------------------------------
 
     def handle(self, req: ChatCompletionRequest) -> ChatCompletionResponse:
         history, last = _split_messages(req.messages)
         gen_kwargs = _build_gen_kwargs(req)
+        session = self._resolve_session(req.session_id, first_query=last.content)
 
         cortex = self.loop.cortex
         response_text: str
@@ -88,7 +199,7 @@ class OpenAIChatController:
             trace = self.loop.wake_step(interaction)
             response_text = interaction.response or ""
 
-        self.raw_log.append(interaction)
+        self._persist_turn(session, interaction)
 
         return ChatCompletionResponse(
             model=getattr(cortex, "name", req.model),
@@ -101,6 +212,7 @@ class OpenAIChatController:
             ],
             hat_consolidated=trace is not None,
             hat_trace_id=trace.id if trace else None,
+            hat_session_id=session.id if session else None,
         )
 
     # ------------------------------------------------------------------ stream
@@ -113,6 +225,7 @@ class OpenAIChatController:
         """
         history, last = _split_messages(req.messages)
         gen_kwargs = _build_gen_kwargs(req)
+        session = self._resolve_session(req.session_id, first_query=last.content)
 
         cortex = self.loop.cortex
         chat_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
@@ -120,7 +233,8 @@ class OpenAIChatController:
 
         def chunk(delta: ChatCompletionDelta, finish: str | None = None,
                   *, hat_consolidated: bool | None = None,
-                  hat_trace_id: str | None = None) -> str:
+                  hat_trace_id: str | None = None,
+                  hat_session_id: str | None = None) -> str:
             payload = ChatCompletionChunk(
                 id=chat_id,
                 model=model_name,
@@ -131,11 +245,16 @@ class OpenAIChatController:
                 ],
                 hat_consolidated=hat_consolidated,
                 hat_trace_id=hat_trace_id,
+                hat_session_id=hat_session_id,
             )
             return f"data: {payload.model_dump_json(exclude_none=True)}\n\n"
 
-        # Opening role chunk (mirrors OpenAI behaviour).
-        yield chunk(ChatCompletionDelta(role="assistant"))
+        # Opening role chunk + session id (so the UI can pin newly-created
+        # sessions before the stream completes).
+        yield chunk(
+            ChatCompletionDelta(role="assistant"),
+            hat_session_id=session.id if session else None,
+        )
 
         msgs = [m.model_dump() for m in req.messages]
         collected: list[str] = []
@@ -168,7 +287,7 @@ class OpenAIChatController:
             response=full,
         )
         trace = self.loop.wake_step(interaction)
-        self.raw_log.append(interaction)
+        self._persist_turn(session, interaction)
 
         # Closing chunk + DONE marker.
         yield chunk(
@@ -176,5 +295,6 @@ class OpenAIChatController:
             finish="stop",
             hat_consolidated=trace is not None,
             hat_trace_id=trace.id if trace else None,
+            hat_session_id=session.id if session else None,
         )
         yield "data: [DONE]\n\n"
