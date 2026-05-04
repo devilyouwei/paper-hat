@@ -3,6 +3,10 @@ import { jget, jpost, jdelete } from "./api.js";
 import { loadCatalog, loadActive } from "./models.js";
 
 let currentSessionId = null;
+// In-memory transcript for the active session, mirroring what the backend
+// has on disk. Sent verbatim with every /v1/chat/completions request so the
+// model sees prior turns as context.
+let history = [];
 
 function chatbox() { return $("#chatbox"); }
 
@@ -68,9 +72,16 @@ async function openSession(id) {
   $("#session-status").textContent = "";
   const detail = await jget(`/api/sessions/${id}`);
   clearChat();
+  history = [];
   for (const it of detail.messages) {
-    if (it.query) appendBubble("user", it.query);
-    if (it.response) appendBubble("assistant", it.response);
+    if (it.query) {
+      appendBubble("user", it.query);
+      history.push({ role: "user", content: it.query });
+    }
+    if (it.response) {
+      appendBubble("assistant", it.response);
+      history.push({ role: "assistant", content: it.response });
+    }
   }
   $$("#session-list li").forEach((li) =>
     li.classList.toggle("active", li.dataset.id === id),
@@ -81,6 +92,7 @@ async function newSession() {
   try {
     const created = await jpost("/api/sessions", {});
     currentSessionId = created.id;
+    history = [];
     clearChat();
     await loadSessions(created.id);
   } catch (e) {
@@ -96,6 +108,7 @@ async function deleteCurrentSession() {
   try {
     await jdelete(`/api/sessions/${currentSessionId}`);
     currentSessionId = null;
+    history = [];
     clearChat();
     await initSessions();
   } catch (e) {
@@ -125,9 +138,14 @@ async function sendChat(ev) {
   const assistantDiv = appendBubble("assistant", "");
   let buffer = "";
 
+  // Build the full message list: prior turns + this user turn. The backend
+  // forwards the whole array to the cortex's chat template, which is how
+  // the model sees conversational context.
+  const outgoing = history.concat([{ role: "user", content: text }]);
+
   const body = {
     model: "hat-cortex",
-    messages: [{ role: "user", content: text }],
+    messages: outgoing,
     stream: true,
     temperature: parseFloat($("#temp").value),
     max_tokens: parseInt($("#max-tokens").value, 10),
@@ -177,6 +195,9 @@ async function sendChat(ev) {
         }
       }
     }
+    // Commit this turn to the in-memory history so the next request sees it.
+    history.push({ role: "user", content: text });
+    if (buffer) history.push({ role: "assistant", content: buffer });
     $("#correction").value = "";
     await loadSessions(currentSessionId);
   } catch (e) {
