@@ -194,6 +194,16 @@ export async function downloadModel() {
 
 export async function initModelsTab() {
   const backendSel = $("#mgr-backend");
+  // Default to whichever backend hosts the currently-active model; if none
+  // is active, fall back to HAT_CORTEX_BACKEND from the env.
+  const active = await loadActive();
+  if (active && active.backend) {
+    backendSel.value = active.backend;
+  } else if (window.__hatEnvBackend) {
+    if ([...backendSel.options].some((o) => o.value === window.__hatEnvBackend)) {
+      backendSel.value = window.__hatEnvBackend;
+    }
+  }
   backendSel.addEventListener("change", () => loadCatalog(backendSel.value));
   $("#mgr-filter").addEventListener("change", applyFilters);
   $("#mgr-search").addEventListener("input", applyFilters);

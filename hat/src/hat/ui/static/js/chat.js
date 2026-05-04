@@ -218,12 +218,18 @@ export async function initChatTab() {
     }
   });
 
-  // Initialise the backend selector to whichever backend hosts the
-  // currently-active model, so the dropdown reflects what's really loaded
-  // after a page refresh.
+  // Initialise the backend selector. Priority:
+  //   1. backend hosting the currently-active model (post-refresh state).
+  //   2. backend configured via HAT_CORTEX_BACKEND in the env (/healthz).
+  //   3. whatever option happens to be first in the dropdown.
   const active = await loadActive();
   if (active && active.backend) {
     $("#chat-backend").value = active.backend;
+  } else if (window.__hatEnvBackend) {
+    const sel = $("#chat-backend");
+    if ([...sel.options].some((o) => o.value === window.__hatEnvBackend)) {
+      sel.value = window.__hatEnvBackend;
+    }
   }
   await loadCatalog($("#chat-backend").value);
   await initSessions();
