@@ -4,7 +4,7 @@ install:
 	uv sync
 
 serve:
-	uv run uvicorn hat.api.main:app --reload --host 127.0.0.1 --port 8000
+	uv run uvicorn hat.api.main:app --reload --host 0.0.0.0 --port 8000
 
 sleep:
 	uv run hat sleep --dry-run
