@@ -2,6 +2,8 @@
  *  HAT — vanilla web UI
  * ===================================================================*/
 
+/* Dark variables (default). When ``data-effective-theme="light"`` is set
+ * on <html> by the inline boot script, the light overrides below win. */
 :root {
   --bg: #0d1017;
   --bg-2: #11151d;
@@ -28,30 +30,28 @@
   --radius-sm: 6px;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f6f8fc;
-    --bg-2: #eef2f8;
-    --panel: #ffffff;
-    --panel-2: #f3f5fa;
-    --panel-3: #e7ecf4;
-    --border: #d8dde9;
-    --border-strong: #b8c1d3;
-    --text: #1a1d24;
-    --muted: #5b6273;
-    --accent: #3361d8;
-    --accent-2: #2949a6;
-    --accent-soft: rgba(51, 97, 216, 0.12);
-    --danger: #c0394f;
-    --ok: #2da06b;
-    --user-bubble-1: #d5e0ff;
-    --user-bubble-2: #c2d2ff;
-    --assistant-bubble: #f3f5fa;
-    --think-bg: #eef0f5;
-    --think-border: #8a9bd0;
-    --code-bg: #eef0f5;
-    --shadow: 0 4px 14px rgba(40, 60, 110, 0.10);
-  }
+:root[data-effective-theme="light"] {
+  --bg: #f6f8fc;
+  --bg-2: #eef2f8;
+  --panel: #ffffff;
+  --panel-2: #f3f5fa;
+  --panel-3: #e7ecf4;
+  --border: #d8dde9;
+  --border-strong: #b8c1d3;
+  --text: #1a1d24;
+  --muted: #5b6273;
+  --accent: #3361d8;
+  --accent-2: #2949a6;
+  --accent-soft: rgba(51, 97, 216, 0.12);
+  --danger: #c0394f;
+  --ok: #2da06b;
+  --user-bubble-1: #d5e0ff;
+  --user-bubble-2: #c2d2ff;
+  --assistant-bubble: #f3f5fa;
+  --think-bg: #eef0f5;
+  --think-border: #8a9bd0;
+  --code-bg: #eef0f5;
+  --shadow: 0 4px 14px rgba(40, 60, 110, 0.10);
 }
 
 /* --- reset / typography --- */
@@ -155,6 +155,51 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
 }
 .dot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
 .dot.err { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+/* Theme switcher (sun/moon pill).
+ * Layout: [moon] [knob slides] [sun]
+ *   dark   -> knob left, moon icon highlighted
+ *   light  -> knob right, sun icon highlighted
+ * The .is-light helper class is added to the body by JS to mirror the
+ * effective theme (system OR user choice) so styling rules stay simple. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 56px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.theme-toggle:hover { border-color: var(--border-strong); }
+.theme-toggle .theme-icon {
+  font-size: 13px;
+  line-height: 1;
+  z-index: 1;
+  color: var(--muted);
+  transition: color 0.15s;
+}
+.theme-toggle::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  transition: transform 0.18s ease;
+}
+/* light theme — knob slides right over the sun icon */
+:root[data-effective-theme="light"] .theme-toggle::before { transform: translateX(26px); }
+:root[data-effective-theme="light"] .theme-toggle .theme-icon-sun { color: #fff; }
+:root:not([data-effective-theme="light"]) .theme-toggle .theme-icon-moon { color: #fff; }
 
 /* =====================================================================
  *  Main panels

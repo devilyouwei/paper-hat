@@ -62,9 +62,53 @@ async function loadHealth() {
   }
 }
 
+// ---------- theme toggle -----------------------------------------------
+
+function currentEffectiveTheme() {
+  return document.documentElement.dataset.effectiveTheme || "dark";
+}
+
+function applyTheme(next) {
+  const html = document.documentElement;
+  if (next) {
+    html.setAttribute("data-theme", next);
+    html.dataset.effectiveTheme = next;
+    try { localStorage.setItem("hat-theme", next); } catch (e) {}
+  } else {
+    // "system" — clear override and re-derive from OS preference.
+    html.removeAttribute("data-theme");
+    const prefersLight =
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches;
+    html.dataset.effectiveTheme = prefersLight ? "light" : "dark";
+    try { localStorage.removeItem("hat-theme"); } catch (e) {}
+  }
+}
+
+function initThemeToggle() {
+  const btn = $("#theme-toggle");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    applyTheme(currentEffectiveTheme() === "light" ? "dark" : "light");
+  });
+  // If the user hasn't set an explicit override, follow the OS preference live.
+  if (window.matchMedia) {
+    const mql = window.matchMedia("(prefers-color-scheme: light)");
+    mql.addEventListener?.("change", (ev) => {
+      try {
+        if (localStorage.getItem("hat-theme")) return; // user override wins
+      } catch (e) {}
+      document.documentElement.dataset.effectiveTheme = ev.matches
+        ? "light"
+        : "dark";
+    });
+  }
+}
+
 // ---------- boot --------------------------------------------------------
 
 (async function boot() {
+  initThemeToggle();
   await loadHealth();
   await loadActive();
   // First tab: render Chat immediately. Others lazy-load on click.

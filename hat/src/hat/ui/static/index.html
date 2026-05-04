@@ -6,7 +6,22 @@
   <title>HAT — Hippocampus-Augmented Transformer</title>
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" href="/ui/static/icon.png" type="image/png" />
-  <link rel="stylesheet" href="/ui/static/style.css?v=9" />
+  <link rel="stylesheet" href="/ui/static/style.css?v=10" />
+  <!-- Apply saved theme before first paint to avoid a flash of the wrong
+       palette. Looks at localStorage first, then OS preference. -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("hat-theme");
+        var prefersLight =
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: light)").matches;
+        var effective = saved || (prefersLight ? "light" : "dark");
+        if (saved) document.documentElement.setAttribute("data-theme", saved);
+        document.documentElement.dataset.effectiveTheme = effective;
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <header class="topbar">
@@ -28,6 +43,11 @@
 
     <div class="topbar-status">
       <span class="badge" id="active-model" title="Active Cortex">Active: —</span>
+      <button class="theme-toggle" id="theme-toggle"
+              aria-label="Toggle theme" title="Toggle light/dark theme">
+        <span class="theme-icon theme-icon-moon" aria-hidden="true">☾</span>
+        <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+      </button>
       <span class="dot" id="health-dot" title="Server status"></span>
     </div>
   </header>
