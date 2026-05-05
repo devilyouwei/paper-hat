@@ -49,6 +49,35 @@ def create_app() -> FastAPI:
             "model_root": str(s.model_root),
         }
 
+    @app.get("/api/policy")
+    def policy() -> dict[str, object]:
+        """Expose the live hippocampus selection policy and oracle config.
+
+        The Memory tab consumes this to render the scoring formula
+        ``score = αU + βF + γN`` with the actual coefficients and the
+        threshold currently in use, plus the oracle trigger settings.
+        Read-only — there is no setter; tweak via env (``HAT_*``) and
+        restart.
+        """
+        s = get_settings()
+        return {
+            "write_policy": {
+                "kind": "linear",
+                "alpha": s.alpha,
+                "beta": s.beta,
+                "gamma": s.gamma,
+                "threshold": s.write_threshold,
+                "feedback_bypass": True,  # F=1 force-accepts (paper §3.4.2)
+            },
+            "oracle": {
+                "enabled": s.oracle_enabled,
+                "model": s.oracle_model if s.oracle_enabled else None,
+                "threshold": s.oracle_threshold,
+                "rps": s.oracle_rps,
+                "daily_calls": s.oracle_daily_calls,
+            },
+        }
+
     @app.get("/logo.png", include_in_schema=False)
     def logo() -> FileResponse:
         return FileResponse(_LOGO_PATH, media_type="image/png")

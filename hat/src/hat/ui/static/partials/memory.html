@@ -13,6 +13,61 @@
       trainer run.
     </p>
 
+    <details class="score-explainer" id="mem-explainer">
+      <summary>
+        How is each entry scored?
+        <span class="muted small" id="mem-policy-summary"></span>
+      </summary>
+      <div class="score-explainer-body">
+        <p>
+          The Hippocampus fuses three per-interaction signals into a single
+          scalar via a linear write policy
+          (<a href="#" class="muted">paper §3.4.2</a>):
+        </p>
+        <pre class="formula"
+          id="mem-formula">score(m) = α·U(m) + β·F(m) + γ·N(m)</pre>
+        <p>
+          A trace is written to the Neocortex when
+          <code>score &gt; threshold</code>. There is one hard override:
+          a verified user correction (<code>F = 1</code>) is always accepted
+          regardless of the soft score — the user is the teacher of last
+          resort.
+        </p>
+        <table class="signal-table">
+          <thead>
+            <tr><th>signal</th><th>weight</th><th>meaning</th><th>how it's computed</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>U</code> uncertainty</td>
+              <td id="mem-policy-alpha">—</td>
+              <td>How unsure the model is about <em>its own</em> response.</td>
+              <td>1 − exp(mean log p) over the response tokens (logprob path),
+                  fallback 0.5 when the backend has no logprobs.</td>
+            </tr>
+            <tr>
+              <td><code>F</code> feedback</td>
+              <td id="mem-policy-beta">—</td>
+              <td>Strength of the user's supervision signal.</td>
+              <td>1.0 if a correction was supplied, otherwise the explicit
+                  <code>feedback</code> field, else an LLM judge of implicit
+                  cues.</td>
+            </tr>
+            <tr>
+              <td><code>N</code> novelty</td>
+              <td id="mem-policy-gamma">—</td>
+              <td>How new the <em>user input</em> is to the model — never
+                  evaluated against the model's own response.</td>
+              <td>LLM self-assessment under a strict prompt that ignores
+                  truthfulness, legality, and sensitivity; it judges only
+                  "do I, the model, already know this?".</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="muted small" id="mem-oracle-summary"></p>
+      </div>
+    </details>
+
     <div class="mem-toolbar">
       <label class="grow">Search
         <input type="search" id="mem-search"
@@ -28,7 +83,10 @@
           <tr>
             <th>#</th>
             <th>trace</th>
-            <th>score</th>
+            <th title="score = α·U + β·F + γ·N">score</th>
+            <th title="uncertainty">U</th>
+            <th title="feedback">F</th>
+            <th title="novelty">N</th>
             <th>query</th>
             <th>response</th>
             <th></th>
@@ -47,15 +105,22 @@
       <button type="button" class="ghost small" id="mem-cancel" aria-label="Close">✕</button>
     </header>
 
-    <label>Query (user)
-      <textarea id="mem-query" rows="3"></textarea>
-    </label>
-    <label>Response (assistant)
-      <textarea id="mem-response" rows="8"></textarea>
-    </label>
-    <label>Score: <output id="mem-score-out">0.00</output>
-      <input type="range" id="mem-score" min="0" max="1" step="0.01" value="0" />
-    </label>
+    <div class="modal-scroll">
+      <label>Query (user)
+        <textarea id="mem-query" rows="3"></textarea>
+      </label>
+      <label>Response (assistant)
+        <textarea id="mem-response" rows="8"></textarea>
+      </label>
+      <label>Score: <output id="mem-score-out">0.00</output>
+        <input type="range" id="mem-score" min="0" max="1" step="0.01" value="0" />
+      </label>
+
+      <section class="score-breakdown" id="mem-breakdown">
+        <h4>Score breakdown <span class="muted small" id="mem-breakdown-formula"></span></h4>
+        <div id="mem-breakdown-body"></div>
+      </section>
+    </div>
 
     <footer class="modal-footer row gap">
       <button type="button" class="primary" id="mem-save">Save changes</button>

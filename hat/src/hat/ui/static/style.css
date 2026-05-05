@@ -609,6 +609,129 @@ pre.status {
 .mem-table .actions { white-space: nowrap; }
 .mem-table .actions button + button { margin-left: 4px; }
 .mem-table code { color: var(--accent-2); }
+.mem-table td.dominant {
+  /* Dominant signal cell — the largest weighted contribution among
+     α·U, β·F, γ·N — gets a subtle accent so the "why" of the score is
+     readable at a glance. */
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* --- score explainer (collapsible <details> at the top of memory tab) --- */
+.score-explainer {
+  margin: 0 0 14px 0;
+  padding: 10px 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.score-explainer summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.score-explainer summary::-webkit-details-marker { display: none; }
+.score-explainer summary::before {
+  content: "▸";
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: var(--muted);
+}
+.score-explainer[open] summary::before { transform: rotate(90deg); }
+.score-explainer-body { padding-top: 10px; font-size: 13px; }
+.score-explainer .formula {
+  display: block;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  white-space: pre-wrap;
+}
+.signal-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 4px 0;
+  font-size: 12.5px;
+}
+.signal-table th, .signal-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.signal-table th { color: var(--muted); font-weight: 500; }
+.signal-table td:nth-child(2) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--accent-2);
+  white-space: nowrap;
+}
+
+/* --- per-row breakdown panel inside the editor modal --- */
+.score-breakdown {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.score-breakdown h4 {
+  margin: 0 0 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.bd-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 50px 60px;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.bd-label code { color: var(--accent-2); }
+.bd-bar {
+  height: 8px;
+  background: var(--panel);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bd-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.2s ease;
+}
+.bd-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: right;
+  font-size: 12px;
+}
+.bd-contrib { color: var(--accent); }
+.bd-total {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.bd-total strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+}
+.modal-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
 
 .mem-editor {
   margin-top: 16px;
@@ -704,6 +827,14 @@ pre.status {
 .badge.accent {
   color: #fff;
   background: var(--accent);
+  border-color: var(--accent);
+}
+.badge.oracle {
+  margin-left: 6px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
   border-color: var(--accent);
 }
 

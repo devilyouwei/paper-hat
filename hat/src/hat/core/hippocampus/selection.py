@@ -21,12 +21,17 @@ class WritePolicy(ABC):
 
     def decide(self, trace: MemoryTrace, signals: ScoreSignals) -> WriteDecision:
         s = self.score(trace, signals)
+        # Hard rule: explicit user supervision (correction or full feedback)
+        # always wins. The user is the teacher of last resort, so a verified
+        # correction must enter training data even if U and N are low. This
+        # short-circuit makes the policy a soft-vote with a hard override.
+        forced = signals.feedback >= 1.0
         return WriteDecision(
             trace_id=trace.id,
             score=s,
             threshold=self.threshold,
             signals=signals,
-            accepted=s > self.threshold,
+            accepted=forced or s > self.threshold,
         )
 
 

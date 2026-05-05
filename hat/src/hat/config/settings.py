@@ -75,6 +75,18 @@ class Settings(BaseSettings):
     oracle_base_url: str = "https://api.openai.com/v1"
     oracle_model: str = "gpt-4o-mini"
     oracle_api_key: str | None = None
+    # Oracle is opt-in: set ``HAT_ORACLE_ENABLED=true`` to consult the
+    # external teacher when the cortex is unsure. Without this flag the
+    # wake step is purely local.
+    oracle_enabled: bool = False
+    # Cost / rate limits. ``oracle_rps`` caps the throughput of consult
+    # calls (sliding-window); ``oracle_daily_calls`` is a hard budget per
+    # UTC day. Set either to 0 to disable that limiter.
+    oracle_rps: float = 0.5
+    oracle_daily_calls: int = 200
+    # Where to append a JSONL audit log of every consult call. Useful for
+    # post-hoc cost reconciliation. ``None`` disables the audit trail.
+    oracle_audit_path: Path = Path("runs/oracle/audit.jsonl")
 
     # UI -> server
     ui_base_url: str = "http://127.0.0.1:8000/v1"

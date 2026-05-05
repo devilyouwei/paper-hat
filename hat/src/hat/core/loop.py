@@ -55,15 +55,35 @@ class WakeSleepLoop:
         u = self.uncertainty(interaction)
         f = self.feedback(interaction)
 
-        if self.oracle is not None and (u > self.oracle_threshold or f > 0):
-            interaction.user_correction = (
-                interaction.user_correction or self.oracle.consult(interaction)
-            )
+        # Oracle policy (paper §3.5): consult the external teacher when the
+        # cortex is unsure of its own answer **and** the user did not already
+        # supply a correction. The user is the authoritative supervisor —
+        # if they corrected the response we trust them and skip the oracle
+        # round-trip entirely (saves cost + avoids overriding the human).
+        oracle_used = False
+        if (
+            self.oracle is not None
+            and not interaction.user_correction
+            and u > self.oracle_threshold
+        ):
+            correction = self.oracle.consult(interaction)
+            if correction:
+                interaction.user_correction = correction
+                oracle_used = True
 
         trace = self.abstractor(interaction)
         n = self.novelty(trace)
         signals = ScoreSignals(uncertainty=u, feedback=f, novelty=n)
         trace.metadata.signals = signals
+        if oracle_used:
+            # Tag the trace so downstream tooling (UI / replay weighting)
+            # can distinguish oracle-augmented examples from human-supervised
+            # ones. ``source`` is also annotated so existing readers (e.g.
+            # ``SupervisedReplayBuilder.is_oracle``) keep working.
+            trace.metadata.extras["oracle"] = True
+            trace.metadata.extras["oracle_name"] = getattr(self.oracle, "name", "oracle")
+            if "oracle" not in trace.metadata.source:
+                trace.metadata.source = f"{trace.metadata.source}+oracle"
 
         decision = self.write_policy.decide(trace, signals)
         if decision.accepted:

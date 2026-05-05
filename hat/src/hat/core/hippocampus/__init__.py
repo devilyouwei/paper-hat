@@ -9,13 +9,14 @@ Three composable stages:
 Per-signal scorers (uncertainty, feedback, novelty) live under :mod:`scoring`.
 """
 
-from .abstraction import Abstractor, IdentityAbstractor
+from .abstraction import Abstractor, IdentityAbstractor, LLMAbstractor
 from .replay import ReplayBuilder, SupervisedReplayBuilder
 from .selection import LinearWritePolicy, WritePolicy
 
 __all__ = [
     "Abstractor",
     "IdentityAbstractor",
+    "LLMAbstractor",
     "WritePolicy",
     "LinearWritePolicy",
     "ReplayBuilder",

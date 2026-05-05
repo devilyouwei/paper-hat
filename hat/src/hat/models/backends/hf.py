@@ -143,9 +143,48 @@ class HFLanguageModel:
         return self.chat(messages, **kwargs)
 
     def token_logprobs(self, prompt: str, response: str) -> list[float]:
-        # Minimal placeholder: return empty list. A faithful implementation
-        # runs a forward pass with `labels` and gathers per-token log-softmax.
-        return []
+        """Return per-token log-probabilities of ``response`` conditioned on
+        ``prompt`` (no chat template applied — caller is expected to pass an
+        already-rendered string, or use :meth:`chat_logprobs`).
+
+        Implementation: tokenise ``prompt`` and ``prompt+response`` separately,
+        run a single forward pass over the concatenation, then gather
+        ``log_softmax`` at each response position against the actual response
+        token id. Returns an empty list if the response tokenises to nothing.
+        """
+        import torch
+        import torch.nn.functional as F
+
+        prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids
+        full_ids = self.tokenizer(prompt + response, return_tensors="pt").input_ids
+        # Response slice in the concatenated sequence.
+        start = prompt_ids.shape[-1]
+        if full_ids.shape[-1] <= start:
+            return []
+        full_ids = full_ids.to(self.model.device)
+        with torch.no_grad():
+            logits = self.model(full_ids).logits  # (1, T, V)
+        # Predicting token t uses logits at position t-1.
+        target_ids = full_ids[0, start:]
+        pred_logits = logits[0, start - 1 : -1, :]
+        if pred_logits.shape[0] == 0 or target_ids.shape[0] == 0:
+            return []
+        logp = F.log_softmax(pred_logits.float(), dim=-1)
+        gathered = logp.gather(-1, target_ids.unsqueeze(-1)).squeeze(-1)
+        return gathered.detach().cpu().tolist()
+
+    def chat_logprobs(
+        self, messages: Sequence[dict[str, str]], response: str
+    ) -> list[float]:
+        """Like :meth:`token_logprobs` but applies the chat template to
+        ``messages`` first so the prompt mirrors what :meth:`chat` actually
+        feeds the model. Used by the uncertainty estimator."""
+        prompt = self.tokenizer.apply_chat_template(
+            list(messages),
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        return self.token_logprobs(prompt, response)
 
     # -- chat-template path ------------------------------------------------
 
