@@ -2,7 +2,7 @@
 
 Uses `mlx-lm <https://github.com/ml-explore/mlx-lm>`_ — Apple's official
 Metal-native LLM runtime. Runs comfortably on an 8 GB M1 with 4-bit quantized
-models (e.g. ``mlx-community/Qwen2.5-1.5B-Instruct-4bit`` ≈ 1 GB on disk,
+models (e.g. ``mlx-community/Qwen2.5-0.5B-4bit`` ≈ 0.3 GB on disk,
 ~1.5 GB resident).
 
 Install with::

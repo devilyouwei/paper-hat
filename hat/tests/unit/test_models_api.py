@@ -34,7 +34,7 @@ def test_models_router_lists_catalog() -> None:
     body = r.json()
     assert body["backend"] == "mlx"
     ids = {i["id"] for i in body["items"]}
-    assert "qwen2.5-1.5b-instruct-4bit" in ids
+    assert "qwen2.5-0.5b-4bit" in ids
     assert all(i["installed"] is False for i in body["items"])
 
 
@@ -48,7 +48,7 @@ def test_set_active_rejects_uninstalled() -> None:
     client = TestClient(app)
     r = client.post(
         "/api/models/active",
-        json={"backend": "mlx", "id": "qwen2.5-1.5b-instruct-4bit"},
+        json={"backend": "mlx", "id": "qwen2.5-0.5b-4bit"},
     )
     assert r.status_code == 400
     assert "not installed" in r.json()["detail"].lower()
