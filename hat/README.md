@@ -42,7 +42,7 @@ HAT_CORTEX_BACKEND=mlx
 
 Models are downloaded from the **Models** tab in the web UI (or via
 `POST /api/models/download`) into `model/mlx/<id>/`. The catalog ships with
-8 GB-friendly defaults including `qwen2.5-0.5b-4bit` (≈0.3 GB,
+8 GB-friendly defaults including `qwen2.5-0.5b-instruct-4bit` (≈0.3 GB,
 default), `qwen3.5-2b-4bit` (≈1.4 GB), `qwen3.5-4b-4bit`
 (≈2.3 GB, recommended quality/footprint pick).
 

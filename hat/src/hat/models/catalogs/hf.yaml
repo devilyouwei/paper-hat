@@ -1,20 +1,26 @@
 # Default catalog of HuggingFace causal-LM models. Override at
 # ``<HAT_MODEL_ROOT>/hf/catalog.yaml``. See ``mlx.yaml`` for field definitions.
-- id: qwen2.5-0.5b
-  repo_id: Qwen/Qwen2.5-0.5B
-  display: Qwen2.5 0.5B
+#
+# Qwen2.5 entries below are the **-Instruct** variants. The plain
+# ``Qwen/Qwen2.5-*`` repos are *base* checkpoints with no chat template and
+# no instruction tuning; feeding them through the chat path produces fluent
+# but off-task continuations (multi-language drift, role-name leakage, loops).
+# Always pick an Instruct/Chat checkpoint for the conversational UI.
+- id: qwen2.5-0.5b-instruct
+  repo_id: Qwen/Qwen2.5-0.5B-Instruct
+  display: Qwen2.5 0.5B Instruct
   size_gb: 1.0
-- id: qwen2.5-1.5b
-  repo_id: Qwen/Qwen2.5-1.5B
-  display: Qwen2.5 1.5B
+- id: qwen2.5-1.5b-instruct
+  repo_id: Qwen/Qwen2.5-1.5B-Instruct
+  display: Qwen2.5 1.5B Instruct
   size_gb: 3.1
-- id: qwen2.5-3b
-  repo_id: Qwen/Qwen2.5-3B
-  display: Qwen2.5 3B
+- id: qwen2.5-3b-instruct
+  repo_id: Qwen/Qwen2.5-3B-Instruct
+  display: Qwen2.5 3B Instruct
   size_gb: 6.2
-- id: qwen2.5-7b
-  repo_id: Qwen/Qwen2.5-7B
-  display: Qwen2.5 7B
+- id: qwen2.5-7b-instruct
+  repo_id: Qwen/Qwen2.5-7B-Instruct
+  display: Qwen2.5 7B Instruct
   size_gb: 15.2
 - id: qwen3-0.6b-base
   repo_id: Qwen/Qwen3-0.6B-Base

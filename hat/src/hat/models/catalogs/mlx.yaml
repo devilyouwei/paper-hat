@@ -6,26 +6,37 @@
 #   display   — human-readable name shown in the UI
 #   size_gb   — approximate on-disk footprint after download
 #   notes     — free-form note, displayed as tooltip / subtitle
-- id: qwen2.5-0.5b-4bit
-  repo_id: mlx-community/Qwen2.5-0.5B-4bit
-  display: Qwen2.5 0.5B (4-bit)
+#
+# Qwen2.5 entries below point at the **-Instruct-4bit** mlx-community repos.
+# The plain ``mlx-community/Qwen2.5-*-4bit`` repos are base checkpoints (no
+# chat template, no instruction tuning); using them in the chat UI produces
+# multi-language drift / role-name leakage / loops. Always pick an Instruct
+# checkpoint for conversational use.
+- id: qwen2.5-0.5b-instruct-4bit
+  repo_id: mlx-community/Qwen2.5-0.5B-Instruct-4bit
+  display: Qwen2.5 0.5B Instruct (4-bit)
   size_gb: 0.3
-  notes: Tiny base model. Good for smoke tests on any M-series Mac.
-- id: qwen2.5-3b-4bit
-  repo_id: mlx-community/Qwen2.5-3B-4bit
-  display: Qwen2.5 3B (4-bit)
+  notes: Tiny instruct model. Good for smoke tests on any M-series Mac.
+- id: qwen2.5-1.5b-instruct-4bit
+  repo_id: mlx-community/Qwen2.5-1.5B-Instruct-4bit
+  display: Qwen2.5 1.5B Instruct (4-bit)
+  size_gb: 1.0
+  notes: Better quality than 0.5B, still tiny footprint.
+- id: qwen2.5-3b-instruct-4bit
+  repo_id: mlx-community/Qwen2.5-3B-Instruct-4bit
+  display: Qwen2.5 3B Instruct (4-bit)
   size_gb: 1.9
   notes: Better quality, still fits 8GB.
-- id: qwen2.5-7b-4bit
-  repo_id: mlx-community/Qwen2.5-7B-4bit
-  display: Qwen2.5 7B (4-bit)
+- id: qwen2.5-7b-instruct-4bit
+  repo_id: mlx-community/Qwen2.5-7B-Instruct-4bit
+  display: Qwen2.5 7B Instruct (4-bit)
   size_gb: 4.3
-  notes: 4-bit 7B. Fits 8GB M1 with limited context; comfortable on 16GB+.
-- id: qwen2.5-14b-4bit
-  repo_id: mlx-community/Qwen2.5-14B-4bit
-  display: Qwen2.5 14B (4-bit)
+  notes: 4-bit 7B Instruct. Fits 8GB M1 with limited context; comfortable on 16GB+.
+- id: qwen2.5-14b-instruct-4bit
+  repo_id: mlx-community/Qwen2.5-14B-Instruct-4bit
+  display: Qwen2.5 14B Instruct (4-bit)
   size_gb: 8.3
-  notes: 4-bit 14B. Needs 16GB+ unified memory.
+  notes: 4-bit 14B Instruct. Needs 16GB+ unified memory.
 
 - id: qwen3-0.6b-4bit
   repo_id: mlx-community/Qwen3-0.6B-4bit

@@ -138,9 +138,8 @@ class HFLanguageModel:
         # ``<|eot_id|>`` that is *different* from ``tokenizer.eos_token``
         # (``<|endoftext|>``). If we only pass ``eos_token_id=eos_token_id``
         # to ``generate``, the model emits the chat terminator, the runtime
-        # does not recognise it as a stop, and generation either runs to
-        # ``max_new_tokens`` or — on quantised / small models — falls into a
-        # repetitive loop. Collect every plausible terminator id once.
+        # does not recognise it as a stop, and generation runs to
+        # ``max_new_tokens``. Collect every plausible terminator id once.
         self._stop_token_ids = self._collect_stop_token_ids()
 
     def _collect_stop_token_ids(self) -> list[int]:
@@ -256,31 +255,26 @@ class HFLanguageModel:
         )
         temperature = float(kwargs.get("temperature", self.temperature))
         do_sample = temperature > 0.0
-        # Repetition controls. Small / quantised instruct models (Qwen2.5-0.5B,
-        # 4-bit Llama, ...) reliably collapse into 2-4 token cycles like
-        # "hi AsyncCallback hi AsyncCallback ..." once the prompt is long
-        # enough (typically from turn 2 onwards). Repetition penalty alone is
-        # not enough — it shifts probabilities but greedy decoding still
-        # picks the locally-best repeat. ``no_repeat_ngram_size`` is the
-        # decisive fix: it *forbids* re-emitting any 4-gram already seen in
-        # the generated suffix, which kills any closed cycle of length ≤ 4.
-        repetition_penalty = float(kwargs.get("repetition_penalty", 1.1))
-        no_repeat_ngram_size = int(kwargs.get("no_repeat_ngram_size", 4))
+        # Mild repetition penalty as a safety net for tiny / 4-bit instruct
+        # checkpoints. 1.05 matches Qwen2.5's recommended sampling hyper-
+        # parameters; higher values (1.1+) start to noticeably hurt code
+        # generation and lists. Override per-request via kwargs if needed.
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
 
         gen_kwargs: dict[str, Any] = dict(
             max_new_tokens=max_new_tokens,
             do_sample=do_sample,
             temperature=temperature if do_sample else 1.0,
             repetition_penalty=repetition_penalty,
-            no_repeat_ngram_size=no_repeat_ngram_size,
             pad_token_id=self.tokenizer.eos_token_id,
         )
-        # Pass *all* known stop ids so chat-template terminators end the turn.
+        # Pass *all* known stop ids so chat-template terminators (‘<|im_end|>’,
+        # ‘<|eot_id|>’, …) actually end the turn — without this, instruct
+        # models can run past the turn boundary on top of which they were
+        # trained and the runtime hits ``max_new_tokens`` instead.
         if self._stop_token_ids:
             gen_kwargs["eos_token_id"] = self._stop_token_ids
         if do_sample:
-            # Top-p further suppresses low-probability tail tokens that
-            # frequently seed loops on small / quantised models.
             gen_kwargs.setdefault("top_p", float(kwargs.get("top_p", 0.9)))
 
         with torch.no_grad():
@@ -306,8 +300,7 @@ class HFLanguageModel:
         temperature = float(kwargs.get("temperature", self.temperature))
         do_sample = temperature > 0.0
 
-        repetition_penalty = float(kwargs.get("repetition_penalty", 1.1))
-        no_repeat_ngram_size = int(kwargs.get("no_repeat_ngram_size", 4))
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
         streamer = TextIteratorStreamer(
             self.tokenizer, skip_prompt=True, skip_special_tokens=True
         )
@@ -317,7 +310,6 @@ class HFLanguageModel:
             do_sample=do_sample,
             temperature=temperature if do_sample else 1.0,
             repetition_penalty=repetition_penalty,
-            no_repeat_ngram_size=no_repeat_ngram_size,
             pad_token_id=self.tokenizer.eos_token_id,
             streamer=streamer,
         )

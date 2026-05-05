@@ -2,7 +2,7 @@
 
 Uses `mlx-lm <https://github.com/ml-explore/mlx-lm>`_ — Apple's official
 Metal-native LLM runtime. Runs comfortably on an 8 GB M1 with 4-bit quantized
-models (e.g. ``mlx-community/Qwen2.5-0.5B-4bit`` ≈ 0.3 GB on disk,
+models (e.g. ``mlx-community/Qwen2.5-0.5B-Instruct-4bit`` ≈ 0.3 GB on disk,
 ~1.5 GB resident).
 
 Install with::
@@ -115,12 +115,13 @@ class MLXLanguageModel:
 
         max_tokens = int(kwargs.get("max_tokens", self.max_tokens))
         temperature = float(kwargs.get("temperature", self.temperature))
-        # 1.1 + a wide context window. With the default 20-token context,
-        # the penalty cannot "see" the cycle once the prompt is long
-        # (multi-turn), so the model loops on phrases like
-        # "hi AsyncCallback hi AsyncCallback ..." from turn 2 onwards.
-        # 256 covers any plausible recent suffix.
-        repetition_penalty = float(kwargs.get("repetition_penalty", 1.1))
+        # 1.05 matches Qwen2.5's recommended sampling hyperparameters; the
+        # main reason this is here at all is the wider context window below
+        # — mlx-lm's default ``repetition_context_size=20`` is too short for
+        # multi-turn chat, so the penalty effectively does nothing once the
+        # prompt grows past a few hundred tokens. 256 covers any plausible
+        # recent suffix without changing decoding behaviour for short inputs.
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
         repetition_context_size = int(
             kwargs.get("repetition_context_size", 256)
         )
@@ -152,7 +153,7 @@ class MLXLanguageModel:
 
         max_tokens = int(kwargs.get("max_tokens", self.max_tokens))
         temperature = float(kwargs.get("temperature", self.temperature))
-        repetition_penalty = float(kwargs.get("repetition_penalty", 1.1))
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
         repetition_context_size = int(
             kwargs.get("repetition_context_size", 256)
         )
