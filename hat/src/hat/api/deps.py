@@ -200,15 +200,25 @@ def swap_active_cortex(backend: str, model_id: str) -> Cortex:
 def deactivate_cortex() -> int:
     """Unload every cached cortex and point the loop at the Noop fallback.
 
-    Returns the number of evicted entries so callers can report back.
+    Order matters for memory release: the wake/sleep loop and the
+    hippocampus scorers each hold a strong reference to the active cortex.
+    If we ask the manager to release first, it nulls the heavy attrs
+    (``lm.model``, ``lm.tokenizer``) but the cortex *wrapper* is kept alive
+    by the loop, which is fine for memory but means a subsequent re-activation
+    would silently use a corpse. So we park the loop on the Noop fallback
+    *first*, refresh the hippocampus, drop the bootstrap cache, and only then
+    ask the manager to unload — at which point nothing else in the process
+    references the old weights and the GPU/Metal allocator can actually
+    return the blocks to the OS.
     """
-    n = get_manager().unload_all()
     fallback = NoopCortex()
-    get_loop().cortex = fallback
-    _refresh_hippocampus(get_loop(), fallback)
+    loop = get_loop()
+    loop.cortex = fallback
+    _refresh_hippocampus(loop, fallback)
     # Drop the cached bootstrap so the next chat doesn't silently reload it.
     _initial_cortex.cache_clear()
-    return n
+    # Now no live reference remains except the manager's own cache; release.
+    return get_manager().unload_all()
 
 
 @lru_cache

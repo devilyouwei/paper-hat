@@ -115,10 +115,15 @@ class MLXLanguageModel:
 
         max_tokens = int(kwargs.get("max_tokens", self.max_tokens))
         temperature = float(kwargs.get("temperature", self.temperature))
-        # 1.05 is conservative; high enough to break degenerate loops on
-        # small 4-bit Qwen / Llama checkpoints, low enough to keep diction
-        # natural. Override with ``repetition_penalty=1.0`` to disable.
-        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
+        # 1.1 + a wide context window. With the default 20-token context,
+        # the penalty cannot "see" the cycle once the prompt is long
+        # (multi-turn), so the model loops on phrases like
+        # "hi AsyncCallback hi AsyncCallback ..." from turn 2 onwards.
+        # 256 covers any plausible recent suffix.
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.1))
+        repetition_context_size = int(
+            kwargs.get("repetition_context_size", 256)
+        )
 
         # `mlx-lm.generate` returns the decoded continuation only.
         text = generate(
@@ -128,7 +133,8 @@ class MLXLanguageModel:
             max_tokens=max_tokens,
             sampler=make_sampler(temp=temperature),
             logits_processors=make_logits_processors(
-                repetition_penalty=repetition_penalty
+                repetition_penalty=repetition_penalty,
+                repetition_context_size=repetition_context_size,
             ),
             verbose=False,
         )
@@ -146,7 +152,10 @@ class MLXLanguageModel:
 
         max_tokens = int(kwargs.get("max_tokens", self.max_tokens))
         temperature = float(kwargs.get("temperature", self.temperature))
-        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.1))
+        repetition_context_size = int(
+            kwargs.get("repetition_context_size", 256)
+        )
 
         for resp in stream_generate(
             self.model,
@@ -155,7 +164,8 @@ class MLXLanguageModel:
             max_tokens=max_tokens,
             sampler=make_sampler(temp=temperature),
             logits_processors=make_logits_processors(
-                repetition_penalty=repetition_penalty
+                repetition_penalty=repetition_penalty,
+                repetition_context_size=repetition_context_size,
             ),
         ):
             text = getattr(resp, "text", None)

@@ -256,24 +256,30 @@ class HFLanguageModel:
         )
         temperature = float(kwargs.get("temperature", self.temperature))
         do_sample = temperature > 0.0
-        # Repetition penalty above 1.0 pushes generation away from already-
-        # emitted tokens, which prevents the "loops forever on a 0.5B model"
-        # failure mode. 1.05-1.1 is a conservative range that keeps coherent
-        # text but breaks degenerate cycles.
-        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
+        # Repetition controls. Small / quantised instruct models (Qwen2.5-0.5B,
+        # 4-bit Llama, ...) reliably collapse into 2-4 token cycles like
+        # "hi AsyncCallback hi AsyncCallback ..." once the prompt is long
+        # enough (typically from turn 2 onwards). Repetition penalty alone is
+        # not enough — it shifts probabilities but greedy decoding still
+        # picks the locally-best repeat. ``no_repeat_ngram_size`` is the
+        # decisive fix: it *forbids* re-emitting any 4-gram already seen in
+        # the generated suffix, which kills any closed cycle of length ≤ 4.
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.1))
+        no_repeat_ngram_size = int(kwargs.get("no_repeat_ngram_size", 4))
 
         gen_kwargs: dict[str, Any] = dict(
             max_new_tokens=max_new_tokens,
             do_sample=do_sample,
             temperature=temperature if do_sample else 1.0,
             repetition_penalty=repetition_penalty,
+            no_repeat_ngram_size=no_repeat_ngram_size,
             pad_token_id=self.tokenizer.eos_token_id,
         )
         # Pass *all* known stop ids so chat-template terminators end the turn.
         if self._stop_token_ids:
             gen_kwargs["eos_token_id"] = self._stop_token_ids
         if do_sample:
-            # Top-p + min-p further suppress low-probability tail tokens that
+            # Top-p further suppresses low-probability tail tokens that
             # frequently seed loops on small / quantised models.
             gen_kwargs.setdefault("top_p", float(kwargs.get("top_p", 0.9)))
 
@@ -300,7 +306,8 @@ class HFLanguageModel:
         temperature = float(kwargs.get("temperature", self.temperature))
         do_sample = temperature > 0.0
 
-        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.1))
+        no_repeat_ngram_size = int(kwargs.get("no_repeat_ngram_size", 4))
         streamer = TextIteratorStreamer(
             self.tokenizer, skip_prompt=True, skip_special_tokens=True
         )
@@ -310,6 +317,7 @@ class HFLanguageModel:
             do_sample=do_sample,
             temperature=temperature if do_sample else 1.0,
             repetition_penalty=repetition_penalty,
+            no_repeat_ngram_size=no_repeat_ngram_size,
             pad_token_id=self.tokenizer.eos_token_id,
             streamer=streamer,
         )
