@@ -56,6 +56,13 @@ def set_active(req: ModelActionRequest) -> ActiveModel:
         cortex = swap_active_cortex(req.backend, req.id)
     except ModelManagerError as e:
         raise HTTPException(400, str(e)) from e
+    except Exception as e:  # backend load errors (OOM, missing extras, ...)
+        # Without this, FastAPI converts the exception to a bare 500 with no
+        # body, and the UI shows nothing useful. Surface the type + message
+        # so the toast can tell the user *why* activation failed.
+        raise HTTPException(
+            500, f"activate failed: {type(e).__name__}: {e}"
+        ) from e
     return ActiveModel(
         backend=req.backend, id=req.id, name=getattr(cortex, "name", None)
     )

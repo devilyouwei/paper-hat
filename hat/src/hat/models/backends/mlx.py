@@ -48,6 +48,25 @@ class MLXLanguageModel:
         # on first use and cached under ~/.cache/huggingface.
         self.model, self.tokenizer = load(model_path)
 
+        # Same problem as the HF backend: many ChatML-style instruct models
+        # use ``<|im_end|>`` (Qwen, Yi) or ``<|eot_id|>`` (Llama-3) as the
+        # turn terminator, which is *not* the tokenizer's ``eos_token``.
+        # Without registering them, ``mlx_lm.generate`` happily continues past
+        # the stop token and small / 4-bit models then loop on themselves.
+        # ``TokenizerWrapper.add_eos_token`` is idempotent and safe.
+        for tok in ("<|im_end|>", "<|eot_id|>", "<|end|>"):
+            try:
+                tid = self.tokenizer.convert_tokens_to_ids(tok)
+            except Exception:
+                tid = None
+            if tid is not None and tid >= 0:
+                try:
+                    self.tokenizer.add_eos_token(tok)
+                except Exception:
+                    # Older mlx-lm releases may not accept unknown tokens;
+                    # ignore and rely on the default eos.
+                    pass
+
     # -- LanguageModel protocol -------------------------------------------
 
     def generate(self, prompt: str, *, context: str | None = None, **kwargs: Any) -> str:
@@ -89,13 +108,17 @@ class MLXLanguageModel:
 
     def chat(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> str:
         from mlx_lm import generate
-        from mlx_lm.sample_utils import make_sampler
+        from mlx_lm.sample_utils import make_logits_processors, make_sampler
 
         template_kwargs = self._split_template_kwargs(kwargs)
         prompt = self._render_prompt(messages, **template_kwargs)
 
         max_tokens = int(kwargs.get("max_tokens", self.max_tokens))
         temperature = float(kwargs.get("temperature", self.temperature))
+        # 1.05 is conservative; high enough to break degenerate loops on
+        # small 4-bit Qwen / Llama checkpoints, low enough to keep diction
+        # natural. Override with ``repetition_penalty=1.0`` to disable.
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
 
         # `mlx-lm.generate` returns the decoded continuation only.
         text = generate(
@@ -104,6 +127,9 @@ class MLXLanguageModel:
             prompt=prompt,
             max_tokens=max_tokens,
             sampler=make_sampler(temp=temperature),
+            logits_processors=make_logits_processors(
+                repetition_penalty=repetition_penalty
+            ),
             verbose=False,
         )
         return text.strip()
@@ -113,13 +139,14 @@ class MLXLanguageModel:
     ):
         """Yield decoded text chunks as the model generates them."""
         from mlx_lm import stream_generate
-        from mlx_lm.sample_utils import make_sampler
+        from mlx_lm.sample_utils import make_logits_processors, make_sampler
 
         template_kwargs = self._split_template_kwargs(kwargs)
         prompt = self._render_prompt(messages, **template_kwargs)
 
         max_tokens = int(kwargs.get("max_tokens", self.max_tokens))
         temperature = float(kwargs.get("temperature", self.temperature))
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
 
         for resp in stream_generate(
             self.model,
@@ -127,6 +154,9 @@ class MLXLanguageModel:
             prompt=prompt,
             max_tokens=max_tokens,
             sampler=make_sampler(temp=temperature),
+            logits_processors=make_logits_processors(
+                repetition_penalty=repetition_penalty
+            ),
         ):
             text = getattr(resp, "text", None)
             if text:

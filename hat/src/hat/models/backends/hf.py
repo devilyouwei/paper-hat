@@ -133,6 +133,42 @@ class HFLanguageModel:
             self.model = self.model.to("mps")
         self.model.eval()
 
+        # Chat-template stop tokens. Many instruct models (Qwen2.5, Llama-3,
+        # ChatML-style families) use a turn terminator like ``<|im_end|>`` or
+        # ``<|eot_id|>`` that is *different* from ``tokenizer.eos_token``
+        # (``<|endoftext|>``). If we only pass ``eos_token_id=eos_token_id``
+        # to ``generate``, the model emits the chat terminator, the runtime
+        # does not recognise it as a stop, and generation either runs to
+        # ``max_new_tokens`` or — on quantised / small models — falls into a
+        # repetitive loop. Collect every plausible terminator id once.
+        self._stop_token_ids = self._collect_stop_token_ids()
+
+    def _collect_stop_token_ids(self) -> list[int]:
+        """Resolve every chat-template stop token the tokenizer knows about.
+
+        Includes the canonical ``eos_token_id`` plus common chat-turn
+        terminators (``<|im_end|>``, ``<|eot_id|>``, ``<|end|>``) when the
+        tokenizer has them in its vocab. Returns a de-duplicated list.
+        """
+        ids: list[int] = []
+        if self.tokenizer.eos_token_id is not None:
+            ids.append(int(self.tokenizer.eos_token_id))
+        for tok in ("<|im_end|>", "<|eot_id|>", "<|end|>", "<|endoftext|>"):
+            try:
+                tid = self.tokenizer.convert_tokens_to_ids(tok)
+            except Exception:
+                tid = None
+            # ``convert_tokens_to_ids`` returns ``unk_token_id`` for unknown
+            # tokens on some tokenizers; filter those out.
+            if (
+                tid is not None
+                and tid >= 0
+                and tid != self.tokenizer.unk_token_id
+                and tid not in ids
+            ):
+                ids.append(int(tid))
+        return ids
+
     # -- LanguageModel protocol -------------------------------------------
 
     def generate(self, prompt: str, *, context: str | None = None, **kwargs: Any) -> str:
@@ -220,15 +256,29 @@ class HFLanguageModel:
         )
         temperature = float(kwargs.get("temperature", self.temperature))
         do_sample = temperature > 0.0
+        # Repetition penalty above 1.0 pushes generation away from already-
+        # emitted tokens, which prevents the "loops forever on a 0.5B model"
+        # failure mode. 1.05-1.1 is a conservative range that keeps coherent
+        # text but breaks degenerate cycles.
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
+
+        gen_kwargs: dict[str, Any] = dict(
+            max_new_tokens=max_new_tokens,
+            do_sample=do_sample,
+            temperature=temperature if do_sample else 1.0,
+            repetition_penalty=repetition_penalty,
+            pad_token_id=self.tokenizer.eos_token_id,
+        )
+        # Pass *all* known stop ids so chat-template terminators end the turn.
+        if self._stop_token_ids:
+            gen_kwargs["eos_token_id"] = self._stop_token_ids
+        if do_sample:
+            # Top-p + min-p further suppress low-probability tail tokens that
+            # frequently seed loops on small / quantised models.
+            gen_kwargs.setdefault("top_p", float(kwargs.get("top_p", 0.9)))
 
         with torch.no_grad():
-            out = self.model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                do_sample=do_sample,
-                temperature=temperature if do_sample else 1.0,
-                pad_token_id=self.tokenizer.eos_token_id,
-            )
+            out = self.model.generate(**inputs, **gen_kwargs)
 
         new_tokens = out[0][inputs["input_ids"].shape[-1] :]
         return self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
@@ -250,17 +300,23 @@ class HFLanguageModel:
         temperature = float(kwargs.get("temperature", self.temperature))
         do_sample = temperature > 0.0
 
+        repetition_penalty = float(kwargs.get("repetition_penalty", 1.05))
         streamer = TextIteratorStreamer(
             self.tokenizer, skip_prompt=True, skip_special_tokens=True
         )
-        gen_kwargs = dict(
+        gen_kwargs: dict[str, Any] = dict(
             **inputs,
             max_new_tokens=max_new_tokens,
             do_sample=do_sample,
             temperature=temperature if do_sample else 1.0,
+            repetition_penalty=repetition_penalty,
             pad_token_id=self.tokenizer.eos_token_id,
             streamer=streamer,
         )
+        if self._stop_token_ids:
+            gen_kwargs["eos_token_id"] = self._stop_token_ids
+        if do_sample:
+            gen_kwargs.setdefault("top_p", float(kwargs.get("top_p", 0.9)))
         thread = Thread(target=self.model.generate, kwargs=gen_kwargs)
         thread.start()
         try:

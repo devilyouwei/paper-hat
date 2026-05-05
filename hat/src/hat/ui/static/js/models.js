@@ -1,4 +1,4 @@
-import { $, escapeHtml } from "./util.js";
+import { $, escapeHtml, toast } from "./util.js";
 import { jget, jpost, jdelete } from "./api.js";
 
 let _items = [];      // last fetched catalog items for current backend
@@ -134,9 +134,11 @@ async function downloadModelById(backend, id) {
   try {
     const r = await jpost("/api/models/download", { backend, id });
     $("#mgr-status").textContent = `downloaded → ${r.local_dir}`;
+    toast(`Downloaded ${backend}/${id}`, "ok");
     await loadCatalog(backend);
   } catch (e) {
     $("#mgr-status").textContent = `download failed: ${e.message}`;
+    toast(`Download failed: ${e.message}`, "error");
   }
 }
 
@@ -150,22 +152,33 @@ async function deleteModelById(backend, id) {
   try {
     await jdelete(`/api/models/${encodeURIComponent(backend)}/${encodeURIComponent(id)}`);
     $("#mgr-status").textContent = `deleted ${backend}/${id}`;
+    toast(`Deleted ${backend}/${id}`, "ok");
     await loadCatalog(backend);
   } catch (e) {
     $("#mgr-status").textContent = `delete failed: ${e.message}`;
+    toast(`Delete failed: ${e.message}`, "error");
   }
 }
 
 export async function activateModel(backend, id) {
   const status = $("#mgr-status");
   if (status) status.textContent = `loading ${backend}/${id}…`;
+  // Surface a non-blocking "loading" toast so the user knows something is
+  // happening; some backends (large HF checkpoints) take 10-30s to load.
+  const dismissLoading = toast(`Loading ${backend}/${id}…`, "info", { timeout: 0 });
   try {
     await jpost("/api/models/active", { backend, id });
     if (status) status.textContent = `active: ${backend}/${id}`;
+    dismissLoading();
+    toast(`Active model: ${backend}/${id}`, "ok");
     await loadActive();
     await loadCatalog(backend);
   } catch (e) {
     if (status) status.textContent = `activate failed: ${e.message}`;
+    dismissLoading();
+    // Sticky error toast — the message contains the underlying exception
+    // (OOM, missing extras, bad path, …) and the user needs time to read it.
+    toast(`Activate failed: ${e.message}`, "error");
   }
 }
 
@@ -174,10 +187,12 @@ export async function unloadActive() {
   try {
     await jdelete("/api/models/active");
     if (status) status.textContent = "all models unloaded";
+    toast("All models unloaded", "ok");
     await loadActive();
     if ($("#model-grid")) applyFilters();
   } catch (e) {
     if (status) status.textContent = `unload failed: ${e.message}`;
+    toast(`Unload failed: ${e.message}`, "error");
   }
 }
 
