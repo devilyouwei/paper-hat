@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any
+import warnings
 
 from ..registry import register
 
@@ -128,7 +129,43 @@ class HFLanguageModel:
                 self.device if self.device != "mps" else None
             )
 
-        self.model = AutoModelForCausalLM.from_pretrained(model_path, **load_kwargs)
+        try:
+            self.model = AutoModelForCausalLM.from_pretrained(model_path, **load_kwargs)
+        except RuntimeError as e:
+            # Safety net: if the caller forgot to enable offload and a large
+            # checkpoint OOMs on CUDA, retry once with accelerate offload to
+            # spill layers into host RAM / disk instead of failing activation.
+            is_cuda_oom = (
+                self.device == "cuda"
+                and not offload
+                and (
+                    type(e).__name__ == "OutOfMemoryError"
+                    or "cuda out of memory" in str(e).lower()
+                )
+            )
+            if not is_cuda_oom:
+                raise
+            from pathlib import Path as _P
+
+            retry_kwargs = dict(load_kwargs)
+            retry_kwargs["device_map"] = "auto"
+            max_memory: dict[str | int, str] = {}
+            if max_gpu_gb is not None:
+                max_memory[0] = f"{max_gpu_gb:.2f}GiB"
+            if max_cpu_gb is not None:
+                max_memory["cpu"] = f"{max_cpu_gb:.2f}GiB"
+            if max_memory:
+                retry_kwargs["max_memory"] = max_memory
+            if offload_dir:
+                _P(offload_dir).mkdir(parents=True, exist_ok=True)
+                retry_kwargs["offload_folder"] = offload_dir
+            warnings.warn(
+                "CUDA OOM during HF model load; retrying with offload "
+                "(device_map='auto'). Set HAT_HF_OFFLOAD=true to make this "
+                "the default behaviour.",
+                RuntimeWarning,
+            )
+            self.model = AutoModelForCausalLM.from_pretrained(model_path, **retry_kwargs)
         if not offload and self.device == "mps":
             self.model = self.model.to("mps")
         self.model.eval()
