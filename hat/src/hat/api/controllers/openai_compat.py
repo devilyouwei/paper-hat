@@ -213,6 +213,20 @@ class OpenAIChatController:
         else:
             self.raw_log.append(interaction)
 
+    def _update_hat(self, session: Session | None, hat: dict | None) -> None:
+        """Best-effort rewrite of the last turn's ``hat`` metadata after the
+        wake step finishes. We persist the turn *before* running the wake
+        step so a fast follow-up message never observes a missing history
+        line; this writes the badge data back into the same row once it's
+        available."""
+        if hat is None or session is None or self.sessions is None:
+            return
+        try:
+            self.sessions.update_last_hat(session.id, hat)
+        except Exception:
+            # Non-fatal: badge data is best-effort, history is what matters.
+            pass
+
     # ----- non-streaming -----------------------------------------------
 
     def handle(self, req: ChatCompletionRequest) -> ChatCompletionResponse:
@@ -233,7 +247,6 @@ class OpenAIChatController:
             events.append({"stage": stage, **payload})
 
         cortex = self.loop.cortex
-        response_text: str
         if hasattr(cortex, "chat") and callable(cortex.chat):
             response_text = cortex.chat(
                 [m.model_dump() for m in req.messages], **gen_kwargs
@@ -244,22 +257,29 @@ class OpenAIChatController:
                 query=last.content,
                 response=response_text,
             )
-            trace = self.loop.wake_step(
-                interaction, prior_traces=prior_traces or None, event_sink=_sink,
-            )
         else:
+            # Legacy generate() path — produce the answer eagerly so the
+            # row we persist is complete.
+            response_text = cortex.generate(
+                last.content, context=_flatten_history(history)
+            )
             interaction = Interaction(
                 session_id=session.id if session else None,
                 context=_flatten_history(history),
                 query=last.content,
+                response=response_text,
             )
-            trace = self.loop.wake_step(
-                interaction, prior_traces=prior_traces or None, event_sink=_sink,
-            )
-            response_text = interaction.response or ""
 
-        interaction.hat = _summarize_events(events, trace)
+        # Persist BEFORE the wake step so a fast follow-up turn always sees
+        # this exchange in the history. The hat metadata is written back
+        # once the abstractor finishes.
         self._persist_turn(session, interaction)
+
+        trace = self.loop.wake_step(
+            interaction, prior_traces=prior_traces or None, event_sink=_sink,
+        )
+        interaction.hat = _summarize_events(events, trace)
+        self._update_hat(session, interaction.hat)
 
         return ChatCompletionResponse(
             model=getattr(cortex, "name", req.model),
@@ -351,6 +371,11 @@ class OpenAIChatController:
             response=full,
         )
 
+        # Persist BEFORE the wake step so a fast follow-up turn always sees
+        # this exchange in the history. The hat metadata is written back
+        # once the abstractor finishes.
+        self._persist_turn(session, interaction)
+
         # Pull prior traces (session-scoped) so the abstractor can REVISE.
         prior_traces: list = []
         if session is not None:
@@ -366,7 +391,7 @@ class OpenAIChatController:
             interaction, prior_traces=prior_traces or None, event_sink=_sink,
         )
         interaction.hat = _summarize_events(events, trace)
-        self._persist_turn(session, interaction)
+        self._update_hat(session, interaction.hat)
 
         # Forward each lifecycle event as its own chunk so the UI can render
         # trace creation/revision in real time alongside the response.

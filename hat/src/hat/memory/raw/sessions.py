@@ -169,6 +169,36 @@ class JsonlSessionStore:
             self._save_index(sessions)
             return target
 
+    def update_last_hat(self, session_id: str, hat: dict | None) -> bool:
+        """Rewrite the ``hat`` field of the last interaction in this session.
+
+        Used by the wake step to attach uncertainty / decision metadata
+        *after* the interaction has already been persisted, so a fast
+        follow-up turn never observes a half-written history.
+
+        Returns ``True`` when an update was applied, ``False`` if the
+        session has no recorded turns yet.
+        """
+        if hat is None:
+            return False
+        path = self._session_path(session_id)
+        with self._lock:
+            if not path.exists():
+                return False
+            lines = path.read_text(encoding="utf-8").splitlines()
+            if not lines:
+                return False
+            try:
+                last = Interaction.model_validate_json(lines[-1])
+            except Exception:
+                return False
+            last.hat = hat
+            lines[-1] = last.model_dump_json()
+            tmp = path.with_suffix(path.suffix + ".tmp")
+            tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            tmp.replace(path)
+            return True
+
     def messages(self, session_id: str) -> list[Interaction]:
         path = self._session_path(session_id)
         if not path.exists():
