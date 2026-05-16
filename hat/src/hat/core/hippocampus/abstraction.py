@@ -192,11 +192,17 @@ class LLMAbstractor(Abstractor):
         if not data:
             return None
         target = data.get("target") or interaction.response
+        # Honor a model-supplied ``query`` so behaviour-rule turns can be
+        # canonicalised into a stimulus->response pair (see abstraction.md,
+        # "Behavior-rule extraction"). Fall back to the verbatim user input
+        # when the model omits it.
+        rewritten_q = data.get("query")
+        query = rewritten_q if isinstance(rewritten_q, str) and rewritten_q.strip() else interaction.query
         return MemoryTrace(
             interaction_id=interaction.id,
             session_id=interaction.session_id,
             interaction_ids=[interaction.id],
-            query=interaction.query,
+            query=query,
             cortex_response=interaction.response,
             target_response=target,
             rationale=(data.get("rationale") or data.get("summary") or None),

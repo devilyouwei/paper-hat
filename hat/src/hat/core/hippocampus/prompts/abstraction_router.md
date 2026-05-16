@@ -43,6 +43,10 @@ fences:
 - `trace_id` MUST be one of the ids listed below, or `null`.
 - Prefer **REVISE** whenever `user_signal` is high (the user is teaching or
   correcting you) — the user outranks your own confidence.
+- A turn where the user is **teaching a behavior rule** ("when I say X,
+  reply Y", "from now on call me Z", "always answer in Chinese") is
+  high-`user_signal` even if no fact is being corrected: such rules must
+  be remembered, REVISE if a related rule trace exists else CREATE.
 - Prefer **DROP** when both `novelty` and `user_signal` are low.
 - Prefer **CREATE** otherwise.
 
