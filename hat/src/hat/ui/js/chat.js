@@ -10,9 +10,21 @@ import {
 
 let currentSessionId = null;
 // In-memory transcript for the active session, mirroring what the backend
-// has on disk. Sent verbatim with every /v1/chat/completions request so the
-// model sees prior turns as context.
+// has on disk. The backend rebuilds history from disk anyway (single source
+// of truth), but we still send it so that for unsaved/new sessions the
+// model still sees prior turns immediately.
 let history = [];
+// Aborts the in-flight stream when the user switches/creates/deletes a
+// session, so the previous turn's late ``history.push`` can never land in
+// the wrong session.
+let currentStreamAbort = null;
+
+function abortInflightStream(reason = "session changed") {
+  if (currentStreamAbort) {
+    try { currentStreamAbort.abort(reason); } catch { /* ignore */ }
+    currentStreamAbort = null;
+  }
+}
 
 function chatbox() {
   return $("#chatbox");
@@ -112,6 +124,7 @@ async function loadSessions(selectId = null) {
 }
 
 async function openSession(id) {
+  abortInflightStream("opening another session");
   currentSessionId = id;
   $("#session-status").textContent = "";
   const detail = await jget(`/api/sessions/${id}`);
@@ -158,6 +171,7 @@ async function openSession(id) {
 }
 
 async function newSession() {
+  abortInflightStream("creating new session");
   try {
     const created = await jpost("/api/sessions", {});
     currentSessionId = created.id;
@@ -175,6 +189,7 @@ async function deleteCurrentSession() {
     $("#session-status").textContent = "no session selected";
     return;
   }
+  abortInflightStream("deleting session");
   try {
     await jdelete(`/api/sessions/${currentSessionId}`);
     currentSessionId = null;
@@ -207,9 +222,17 @@ async function sendChat(ev) {
   const assistantDiv = appendBubble("assistant", "");
   let buffer = "";
 
+  // Pin the session id this turn belongs to. If the user switches sessions
+  // mid-stream we abort below; this guards the post-stream ``history.push``
+  // from landing in the wrong session.
+  const turnSessionId = currentSessionId;
+  abortInflightStream("new send");
+  const ac = new AbortController();
+  currentStreamAbort = ac;
+
   // Build the full message list: prior turns + this user turn. The backend
-  // forwards the whole array to the cortex's chat template, which is how
-  // the model sees conversational context.
+  // rebuilds it from disk when session_id is set; we still include it so
+  // unsaved sessions also get context.
   const outgoing = history.concat([{ role: "user", content: text }]);
 
   const body = {
@@ -219,7 +242,7 @@ async function sendChat(ev) {
     temperature: parseFloat($("#temp").value),
     max_tokens: parseInt($("#max-tokens").value, 10),
     chat_template_kwargs: { enable_thinking: $("#enable-thinking").checked },
-    session_id: currentSessionId,
+    session_id: turnSessionId,
   };
 
   try {
@@ -227,6 +250,7 @@ async function sendChat(ev) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
+      signal: ac.signal,
     });
     if (!resp.ok || !resp.body) {
       assistantDiv.textContent = `error: ${resp.status} ${await resp.text()}`;
@@ -267,13 +291,20 @@ async function sendChat(ev) {
         }
       }
     }
-    // Commit this turn to the in-memory history so the next request sees it.
-    history.push({ role: "user", content: text });
-    if (buffer) history.push({ role: "assistant", content: buffer });
-    await loadSessions(currentSessionId);
+    // Only commit if the user is still looking at the same session. If they
+    // switched away (currentSessionId !== turnSessionId) or the stream was
+    // aborted, dropping the push prevents cross-session history pollution.
+    if (currentSessionId === turnSessionId && !ac.signal.aborted) {
+      history.push({ role: "user", content: text });
+      if (buffer) history.push({ role: "assistant", content: buffer });
+      await loadSessions(currentSessionId);
+    }
   } catch (e) {
-    assistantDiv.textContent = `network error: ${e.message}`;
+    if (e.name !== "AbortError") {
+      assistantDiv.textContent = `network error: ${e.message}`;
+    }
   } finally {
+    if (currentStreamAbort === ac) currentStreamAbort = null;
     $("#send-btn").disabled = false;
   }
 }

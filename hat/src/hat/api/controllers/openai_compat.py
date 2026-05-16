@@ -227,12 +227,56 @@ class OpenAIChatController:
             # Non-fatal: badge data is best-effort, history is what matters.
             pass
 
+    def _rebuild_history(
+        self, session: Session | None, last: ChatMessage
+    ) -> tuple[list[ChatMessage], list[ChatMessage]]:
+        """Return ``(history, full_messages)`` for this turn.
+
+        When a session id is in play, the server is the **single source of
+        truth** for the conversation: we ignore whatever ``messages[:-1]``
+        the client sent and rebuild the prefix from the persisted session
+        log. This kills two classes of bug:
+
+        - Front-end races where switching sessions mid-stream causes the
+          client to send messages tagged with the wrong ``session_id``.
+        - "The model forgot what I just told it": every turn is guaranteed
+          to see the persisted prior turns because ``_persist_turn`` writes
+          before the (slow) wake step.
+
+        Without a session store we fall back to the client-supplied list.
+        """
+        if session is None or self.sessions is None:
+            # Stateless mode (legacy /chat). Trust the client.
+            return [], []  # caller will use req.messages directly
+        try:
+            stored = self.sessions.messages(session.id)
+        except Exception:
+            return [], []
+        history: list[ChatMessage] = []
+        for it in stored:
+            if it.query:
+                history.append(ChatMessage(role="user", content=it.query))
+            if it.response:
+                history.append(ChatMessage(role="assistant", content=it.response))
+        full = history + [last]
+        return history, full
+
     # ----- non-streaming -----------------------------------------------
 
     def handle(self, req: ChatCompletionRequest) -> ChatCompletionResponse:
-        history, last = _split_messages(req.messages)
+        _, last = _split_messages(req.messages)
         gen_kwargs = _build_gen_kwargs(req)
         session = self._resolve_session(req.session_id, first_query=last.content)
+
+        # Authoritative history: rebuild from the session store when one is
+        # available so we don't trust whatever the client sent.
+        rebuilt_history, rebuilt_full = self._rebuild_history(session, last)
+        if rebuilt_full:
+            history = rebuilt_history
+            effective_messages = rebuilt_full
+        else:
+            history = req.messages[:-1]
+            effective_messages = list(req.messages)
 
         # Pull session-scoped prior traces so the abstractor can decide
         # CREATE vs REVISE. Done lazily to avoid a hard import cycle.
@@ -249,7 +293,7 @@ class OpenAIChatController:
         cortex = self.loop.cortex
         if hasattr(cortex, "chat") and callable(cortex.chat):
             response_text = cortex.chat(
-                [m.model_dump() for m in req.messages], **gen_kwargs
+                [m.model_dump() for m in effective_messages], **gen_kwargs
             )
             interaction = Interaction(
                 session_id=session.id if session else None,
@@ -308,6 +352,14 @@ class OpenAIChatController:
         gen_kwargs = _build_gen_kwargs(req)
         session = self._resolve_session(req.session_id, first_query=last.content)
 
+        # Authoritative history rebuild (see ``_rebuild_history`` docstring).
+        rebuilt_history, rebuilt_full = self._rebuild_history(session, last)
+        if rebuilt_full:
+            history = rebuilt_history
+            effective_messages = rebuilt_full
+        else:
+            effective_messages = list(req.messages)
+
         cortex = self.loop.cortex
         chat_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
         model_name = getattr(cortex, "name", req.model)
@@ -339,7 +391,7 @@ class OpenAIChatController:
             hat_session_id=session.id if session else None,
         )
 
-        msgs = [m.model_dump() for m in req.messages]
+        msgs = [m.model_dump() for m in effective_messages]
         collected: list[str] = []
 
         if hasattr(cortex, "stream_chat") and callable(cortex.stream_chat):
