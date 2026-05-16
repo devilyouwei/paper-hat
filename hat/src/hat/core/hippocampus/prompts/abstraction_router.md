@@ -47,6 +47,13 @@ fences:
   reply Y", "from now on call me Z", "always answer in Chinese") is
   high-`user_signal` even if no fact is being corrected: such rules must
   be remembered, REVISE if a related rule trace exists else CREATE.
+- **Match new query against prior trace triggers.** If the new
+  user query closely matches the `query` field of an existing trace, OR
+  is a natural *application* of a rule that an existing trace's
+  `rationale`/`query` describes (e.g. an existing trace teaches "address
+  me as 主人 when greeted" and the new query is "你好"), pick **REVISE**
+  on that trace. Replaying the new better example onto the existing trace
+  keeps the training set tight; creating a parallel trace fragments it.
 - Prefer **DROP** when both `novelty` and `user_signal` are low.
 - Prefer **CREATE** otherwise.
 
@@ -72,6 +79,13 @@ Prior traces:
 ```
 New turn: query="Explain JAX's vmap with a code example." →
 `{"decision":"CREATE","trace_id":null,"novelty":0.7,"user_signal":0.0,"reason":"Unrelated topic and a non-trivial answer worth retaining."}`
+
+Prior traces:
+```
+[{"trace_id":"t-rule","query":"你好","target":"你好，主人。今天有什么可以帮您？","rationale":"User asked to be addressed as 主人 when greeted."}]
+```
+New turn: query="你好" response="你好，主人。" →
+`{"decision":"REVISE","trace_id":"t-rule","novelty":0.0,"user_signal":0.6,"reason":"New turn applies the same address rule; revise the existing trace instead of forking a parallel one."}`
 
 ## Input
 

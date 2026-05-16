@@ -29,35 +29,44 @@ Keep each field under 280 characters.
 
 - `query` and `target` MUST be a coherent Q/A pair on their own. Do NOT
   output a `target` that contradicts or no longer matches `query`.
-- **Behavior-rule extraction.** If the consolidated topic is the user
-  *teaching* a stimulus→response rule (e.g. "when I say X, reply Y", "call
-  me Z from now on"), do NOT paraphrase the rule as a meta-question. Emit
-  the *canonical applied example*:
-  - `query` = the trigger input (e.g. "X")
-  - `target` = the desired response (e.g. "Y")
-  The trace will be replayed against the trigger at inference time, so the
-  trigger is what must sit in `query`. The rule itself goes into
-  `rationale`.
+- `target` MUST be a **complete assistant message** — at least one full
+  sentence, not a single word, fragment, or addressee token ("master",
+  "yes"). The training set should never contain one-word targets.
+- `target` MUST be self-contained — do not assume the reader sees the old
+  trace; rewrite it fully.
+- **Teaching rules (form of address, language, style, persona).** If the
+  consolidated topic is the user teaching the model a behaviour rule
+  ("address me as X", "answer in Chinese", "be more concise"), do NOT
+  paraphrase the rule as a meta-question. Emit the canonical *applied
+  example*:
+  - `query` = a typical user turn the rule should govern at inference
+    time (often a simple greeting / short request).
+  - `target` = the full assistant reply for that input, written as if the
+    rule were already in force. The rule's effect must show inside a
+    natural, complete reply — not as the entire reply.
+  - `rationale` = a sentence describing the rule itself.
 - If the new turn is a pure correction to the answer of the same question
   (e.g. "Actually it's X, not Y"), keep the prior `query` verbatim and
   update only `target`.
-- If the new turn refines the question itself (e.g. user adds a constraint),
-  rewrite `query` so the pair stays meaningful.
-- `target` MUST be self-contained — do not assume the reader sees the old
-  trace; rewrite it fully.
+- If the new turn refines the question itself (e.g. user adds a
+  constraint), rewrite `query` so the pair stays meaningful.
 - If the new turn merely confirms / restates the prior trace, you may keep
   the same `query` and `target` and note that in `rationale`.
 
 ## Examples
 
-Prior trace: `{"query":"What is the capital of France?","target":"Lyon"}`
-New turn: query="Actually it is Paris, not Lyon." →
-`{"summary":"Capital of France","query":"What is the capital of France?","target":"Paris","rationale":"User corrected the answer; question unchanged."}`
+Prior trace: `{"query":"法国的首都是哪里？","target":"里昂。"}`
+New turn: query="不对，是巴黎。" →
+`{"summary":"Capital of France","query":"法国的首都是哪里？","target":"法国的首都是巴黎。","rationale":"User corrected the prior answer; question unchanged."}`
 
-Prior trace: `{"query":"你好","target":"明白，收到。"}`
-New turn: query="我意思是，我说你好的时候，你应该回复：你好，主人"
-response="明白，以后您说'你好'，我就回复'你好，主人'。" →
-`{"summary":"User-defined greeting rule","query":"你好","target":"你好，主人","rationale":"User taught a stimulus→response rule; replace meta-paraphrase with the canonical applied example."}`
+Prior trace: `{"query":"你要叫我主人！","target":"主人"}` (laconic, broken)
+New turn: query="我说你好，你要叫我主人！我是这个意思！"
+response="明白了，主人。" →
+`{"summary":"Greeting style rule: address user as 主人","query":"你好","target":"你好，主人。今天有什么我可以帮您的？","rationale":"User clarified the rule: when greeted, address them as 主人. Replace the broken laconic trace with a canonical applied greeting that contains the rule effect inside a complete reply."}`
+
+Prior trace: `{"query":"你好","target":"你好，主人。今天有什么我可以帮您的？"}`
+New turn: query="你好" response="你好，主人。" →
+`{"summary":"Greeting style rule applied","query":"你好","target":"你好，主人。今天有什么我可以帮您的？","rationale":"Model successfully applied the rule; keep the canonical full reply as the training target."}`
 
 ## Input
 

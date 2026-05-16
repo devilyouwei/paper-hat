@@ -100,6 +100,18 @@ def _stash_route_meta(trace: MemoryTrace, route_meta: dict | None) -> None:
         v = route_meta.get(k)
         if v is not None:
             extras[f"route_{k}"] = v
+    # Bridge the router-emitted novelty / user_signal into the legacy
+    # ``ScoreSignals`` triplet so the on-disk row carries them in the
+    # natural place. ``user_signal`` maps onto ``feedback`` (paper §3.4
+    # ``F`` channel — "is the user supervising me?"). Uncertainty is set
+    # independently by the gate and left untouched here.
+    sig = trace.metadata.signals
+    nov = route_meta.get("novelty")
+    if isinstance(nov, (int, float)):
+        sig.novelty = float(nov)
+    usig = route_meta.get("user_signal")
+    if isinstance(usig, (int, float)):
+        sig.feedback = float(usig)
 
 
 class LLMAbstractor(Abstractor):

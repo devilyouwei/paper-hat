@@ -83,7 +83,7 @@ class JsonlSessionStore:
     def _save_index(self, sessions: list[Session]) -> None:
         tmp = self.index_path.with_suffix(".json.tmp")
         payload = [s.model_dump(mode="json") for s in sessions]
-        tmp.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+        tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
         tmp.replace(self.index_path)
 
     def _session_path(self, session_id: str) -> Path:

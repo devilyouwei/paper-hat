@@ -86,7 +86,7 @@ class JsonlNeocortex(NeocortexStore):
         row = _trace_to_sft(trace, decision)
         with self._lock:
             with self.path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(row, default=str) + "\n")
+                f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
             # Sidecar: full MemoryTrace record for inspection. Optional; the
             # trainer only consumes the SFT file above.
             if self.traces_path is not None:
@@ -95,7 +95,7 @@ class JsonlNeocortex(NeocortexStore):
                     "decision": decision.model_dump(mode="json"),
                 }
                 with self.traces_path.open("a", encoding="utf-8") as f:
-                    f.write(json.dumps(full, default=str) + "\n")
+                    f.write(json.dumps(full, ensure_ascii=False, default=str) + "\n")
 
     # -- read helpers ----------------------------------------------------
 
@@ -156,7 +156,7 @@ class JsonlNeocortex(NeocortexStore):
         tmp = path.with_suffix(path.suffix + ".tmp")
         with tmp.open("w", encoding="utf-8") as f:
             for r in rows:
-                f.write(json.dumps(r, default=str) + "\n")
+                f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
         os.replace(tmp, path)
 
     def delete(self, trace_id: str) -> bool:
