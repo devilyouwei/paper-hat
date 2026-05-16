@@ -39,6 +39,8 @@ def _trace_to_sft(trace: MemoryTrace, decision: WriteDecision) -> dict:
         "messages": messages,
         "trace_id": trace.id,
         "interaction_id": trace.interaction_id,
+        "session_id": trace.session_id,
+        "interaction_ids": list(trace.interaction_ids),
         "score": float(decision.score),
         "signals": decision.signals.model_dump(mode="json"),
         "metadata": trace.metadata.model_dump(mode="json"),
@@ -55,6 +57,8 @@ def _sft_to_trace(row: dict) -> tuple[MemoryTrace, float]:
     trace = MemoryTrace(
         id=row.get("trace_id") or "",
         interaction_id=row.get("interaction_id") or "",
+        session_id=row.get("session_id"),
+        interaction_ids=list(row.get("interaction_ids") or []),
         query=user,
         target_response=assistant,
         metadata=TraceMetadata.model_validate(md) if md else TraceMetadata(),
@@ -178,9 +182,13 @@ class JsonlNeocortex(NeocortexStore):
         *,
         query: str | None = None,
         response: str | None = None,
-        score: float | None = None,
     ) -> dict | None:
-        """Edit an existing entry in place. Returns the updated row or ``None``."""
+        """Edit an existing entry in place. Returns the updated row or ``None``.
+
+        Only ``query`` and ``response`` are editable. The score is derived
+        from the cortex's uncertainty at write time and is intentionally
+        immutable: rewriting it would silently falsify the training signal.
+        """
         with self._lock:
             rows = self._read_rows()
             updated: dict | None = None
@@ -203,8 +211,6 @@ class JsonlNeocortex(NeocortexStore):
                     else:
                         msgs.append({"role": "assistant", "content": response})
                 r["messages"] = msgs
-                if score is not None:
-                    r["score"] = float(score)
                 rows[i] = r
                 updated = r
                 break
@@ -223,11 +229,120 @@ class JsonlNeocortex(NeocortexStore):
                     if response is not None:
                         trace_obj["target_response"] = response
                     tr["trace"] = trace_obj
-                    if score is not None:
-                        decision = tr.get("decision") or {}
-                        decision["score"] = float(score)
-                        tr["decision"] = decision
                     trace_rows[i] = tr
                     break
                 self._atomic_write(self.traces_path, trace_rows)
             return updated
+
+    # -- session-aware extensions ---------------------------------------
+
+    def entries_by_session(self, session_id: str) -> list[dict]:
+        """Return SFT rows whose ``session_id`` matches, oldest first."""
+        with self._lock:
+            return [
+                r for r in self._read_rows()
+                if r.get("session_id") == session_id
+            ]
+
+    def revise(
+        self,
+        trace_id: str,
+        *,
+        query: str | None = None,
+        target_response: str | None = None,
+        rationale: str | None = None,
+        append_interaction_id: str | None = None,
+        push_history_entry: dict | None = None,
+    ) -> MemoryTrace | None:
+        """Mutate an existing trace in place (REVISE path).
+
+        Updates the SFT row (``messages[user|assistant]``, ``interaction_ids``)
+        and mirrors changes into the sidecar (``query``, ``target_response``,
+        ``rationale``, ``interaction_ids``, ``metadata.extras.history``). When
+        ``query`` is supplied the user-side message is rewritten too so the
+        Q/A pair in ``train.jsonl`` stays coherent with the updated answer.
+        """
+        with self._lock:
+            rows = self._read_rows()
+            updated_row: dict | None = None
+            for i, r in enumerate(rows):
+                if r.get("trace_id") != trace_id:
+                    continue
+                if query is not None or target_response is not None:
+                    msgs = list(r.get("messages") or [])
+                    if query is not None:
+                        for m in msgs:
+                            if m.get("role") == "user":
+                                m["content"] = query
+                                break
+                        else:
+                            msgs.insert(0, {"role": "user", "content": query})
+                    if target_response is not None:
+                        for m in msgs:
+                            if m.get("role") == "assistant":
+                                m["content"] = target_response
+                                break
+                        else:
+                            msgs.append(
+                                {"role": "assistant", "content": target_response}
+                            )
+                    r["messages"] = msgs
+                if append_interaction_id:
+                    iids = list(r.get("interaction_ids") or [])
+                    if append_interaction_id not in iids:
+                        iids.append(append_interaction_id)
+                    r["interaction_ids"] = iids
+                meta = r.get("metadata") or {}
+                if rationale is not None:
+                    meta_extras = meta.setdefault("extras", {})
+                    meta_extras["rationale"] = rationale
+                if push_history_entry is not None:
+                    meta_extras = meta.setdefault("extras", {})
+                    history = meta_extras.setdefault("history", [])
+                    history.append(push_history_entry)
+                r["metadata"] = meta
+                rows[i] = r
+                updated_row = r
+                break
+            if updated_row is None:
+                return None
+            self._atomic_write(self.path, rows)
+
+            revised_trace: MemoryTrace | None = None
+            if self.traces_path is not None:
+                trace_rows = self._read_trace_rows()
+                for i, tr in enumerate(trace_rows):
+                    trace_obj = tr.get("trace") or {}
+                    if trace_obj.get("id") != trace_id:
+                        continue
+                    if query is not None:
+                        trace_obj["query"] = query
+                    if target_response is not None:
+                        trace_obj["target_response"] = target_response
+                    if rationale is not None:
+                        trace_obj["rationale"] = rationale
+                    if append_interaction_id:
+                        iids = list(trace_obj.get("interaction_ids") or [])
+                        if append_interaction_id not in iids:
+                            iids.append(append_interaction_id)
+                        trace_obj["interaction_ids"] = iids
+                    if push_history_entry is not None:
+                        meta = trace_obj.setdefault("metadata", {})
+                        extras = meta.setdefault("extras", {})
+                        history = extras.setdefault("history", [])
+                        history.append(push_history_entry)
+                    tr["trace"] = trace_obj
+                    trace_rows[i] = tr
+                    try:
+                        revised_trace = MemoryTrace.model_validate(trace_obj)
+                    except (ValueError, TypeError):
+                        revised_trace = None
+                    break
+                self._atomic_write(self.traces_path, trace_rows)
+
+            if revised_trace is None:
+                try:
+                    revised_trace, _ = _sft_to_trace(updated_row)
+                except (ValueError, TypeError, KeyError):
+                    revised_trace = None
+            return revised_trace

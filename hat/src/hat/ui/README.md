@@ -31,8 +31,9 @@ Three tabs, all backed by REST:
     session id is forwarded in the request body, and the server's
     `hat_session_id` extra is captured into JS state so follow-up turns reuse
     the same session.
-  - Optional **correction** field (feedback for the Hippocampus, sent as
-    `hat_correction`).
+  - Every assistant bubble shows a small `U=…` badge with the cortex's
+    uncertainty on its own response. Turns whose `U` falls below the gate
+    threshold display `U=… · skipped` and never become a trace.
   - "Generation settings" disclosure: temperature, max-tokens, **Enable
     thinking** (forwarded as `chat_template_kwargs.enable_thinking`), and
     **Show thinking process** (UI-only filter that styles `<think>…</think>`

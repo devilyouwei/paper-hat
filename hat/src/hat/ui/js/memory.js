@@ -4,8 +4,8 @@ import { jget, jpatch, jdelete } from "./api.js";
 let memEntries = [];
 let memEditingId = null;
 let memQuery = "";
-// Live write-policy coefficients (α, β, γ, threshold). Loaded from
-// /api/policy on first refresh and reused for the breakdown view.
+// Live write-policy config (threshold). Loaded from /api/policy on first
+// refresh and reused for the breakdown view.
 let memPolicy = null;
 
 function fmt(x, digits = 2) {
@@ -17,14 +17,8 @@ function memRowHtml(e, i) {
   const score = fmt(e.score);
   const sig = e.signals || {};
   const u = fmt(sig.uncertainty);
-  const f = fmt(sig.feedback);
-  const n = fmt(sig.novelty);
   const q = escapeHtml((e.query || "").slice(0, 100));
   const r = escapeHtml((e.response || "").slice(0, 200));
-  // Oracle-augmented traces carry ``metadata.extras.oracle = true`` and
-  // their ``metadata.source`` ends with ``+oracle``. Show a small badge
-  // so users can distinguish teacher-corrected examples from human or
-  // self-supervised ones at a glance.
   const md = e.metadata || {};
   const isOracle =
     (md.extras && md.extras.oracle) ||
@@ -34,27 +28,11 @@ function memRowHtml(e, i) {
         (md.extras && md.extras.oracle_name) || "oracle",
       )}">oracle</span>`
     : "";
-  // Highlight which of α·U / β·F / γ·N dominated this entry's score.
-  // The signal cell with the largest weighted contribution is bolded so
-  // the user can see at a glance why a trace was kept.
-  const a = memPolicy?.alpha ?? 0.4;
-  const b = memPolicy?.beta ?? 0.4;
-  const g = memPolicy?.gamma ?? 0.2;
-  const contribs = {
-    uncertainty: a * (sig.uncertainty ?? 0),
-    feedback: b * (sig.feedback ?? 0),
-    novelty: g * (sig.novelty ?? 0),
-  };
-  const dominant = Object.entries(contribs).sort((a, b) => b[1] - a[1])[0][0];
-  const cell = (k, v) =>
-    `<td class="${dominant === k ? "dominant" : ""}">${v}</td>`;
   return `<tr data-id="${e.trace_id}">
     <td>${i + 1}</td>
     <td><code>${escapeHtml((e.trace_id || "").slice(0, 8))}</code>${oracleBadge}</td>
     <td><strong>${score}</strong></td>
-    ${cell("uncertainty", u)}
-    ${cell("feedback", f)}
-    ${cell("novelty", n)}
+    <td>${u}</td>
     <td class="truncate" title="${escapeHtml(e.query || "")}">${q}</td>
     <td class="truncate" title="${escapeHtml(e.response || "")}">${r}</td>
     <td class="actions">
@@ -77,32 +55,29 @@ function renderMemRows() {
   if (filtered.length) {
     tbody.innerHTML = filtered.map(memRowHtml).join("");
   } else {
-    tbody.innerHTML = `<tr><td colspan="9" class="empty">No entries match.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">No entries match.</td></tr>`;
   }
   $("#mem-count").textContent = `${filtered.length} / ${memEntries.length}`;
 }
 
 function renderPolicy() {
   if (!memPolicy) return;
-  const { alpha, beta, gamma, threshold } = memPolicy;
-  const a = fmt(alpha);
-  const b = fmt(beta);
-  const g = fmt(gamma);
+  const { threshold } = memPolicy;
   const t = fmt(threshold);
-  $("#mem-policy-summary").textContent =
-    `score = ${a}·U + ${b}·F + ${g}·N · threshold ${t}`;
-  $("#mem-policy-alpha").textContent = a;
-  $("#mem-policy-beta").textContent = b;
-  $("#mem-policy-gamma").textContent = g;
-  $("#mem-formula").textContent =
-    `score(m) = ${a}·U(m) + ${b}·F(m) + ${g}·N(m)    ·    write if score > ${t}`;
+  const summary = $("#mem-policy-summary");
+  if (summary) summary.textContent = `score = U · threshold ${t}`;
+  const formula = $("#mem-formula");
+  if (formula) formula.textContent =
+    `score(m) = U(m)    ·    write if U ≥ ${t}`;
   if (memPolicy.oracle) {
     const o = memPolicy.oracle;
+    const el = $("#mem-oracle-summary");
+    if (!el) return;
     if (o.enabled) {
-      $("#mem-oracle-summary").textContent =
-        `Oracle: ${o.model} consulted when U > ${fmt(o.threshold)} and the user has not corrected the response. Limits: ${fmt(o.rps, 2)}/s, ${o.daily_calls}/day.`;
+      el.textContent =
+        `Oracle: ${o.model} consulted when U > ${fmt(o.threshold)}. Limits: ${fmt(o.rps, 2)}/s, ${o.daily_calls}/day.`;
     } else {
-      $("#mem-oracle-summary").textContent =
+      el.textContent =
         "Oracle: disabled (set HAT_ORACLE_ENABLED=true to consult an external teacher when the cortex is unsure).";
     }
   }
@@ -135,57 +110,113 @@ export async function refreshMemory() {
   }
 }
 
+// Cache of session details (id -> {session, messages: Interaction[]}). The
+// memory editor uses this to render where each trace came from without
+// re-fetching on every open. Cache is keyed by session_id; entries are
+// loaded lazily and dropped when the tab is left.
+const sessionCache = new Map();
+
+async function fetchSession(sessionId) {
+  if (sessionCache.has(sessionId)) return sessionCache.get(sessionId);
+  try {
+    const detail = await jget(`/api/sessions/${sessionId}`);
+    sessionCache.set(sessionId, detail);
+    return detail;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function renderSource(e) {
+  const body = $("#mem-source-body");
+  const summary = $("#mem-source-summary");
+  if (!body) return;
+  const sid = e.session_id;
+  const iids = e.interaction_ids || [];
+  if (summary) {
+    summary.textContent = sid
+      ? `session ${sid.slice(0, 8)} · ${iids.length} interaction${iids.length === 1 ? "" : "s"}`
+      : "no session linked";
+  }
+  if (!sid) {
+    body.innerHTML = `<p class="muted">This trace has no session reference (older / oracle-seeded data).</p>`;
+    return;
+  }
+  body.innerHTML = `<p class="muted">Loading session…</p>`;
+  const detail = await fetchSession(sid);
+  if (!detail) {
+    body.innerHTML = `<p class="muted">Session <code>${escapeHtml(sid)}</code> not found (it may have been deleted).</p>`;
+    return;
+  }
+  const wanted = new Set(iids);
+  const matches = (detail.messages || []).filter((m) => wanted.has(m.id));
+  const title = escapeHtml(detail.session?.title || "Untitled session");
+  const created = detail.session?.created_at || "";
+  const headerHtml = `
+    <div class="src-head">
+      <div><strong>${title}</strong></div>
+      <div class="muted small">
+        <code>${escapeHtml(sid)}</code>
+        ${created ? `· created ${escapeHtml(String(created).slice(0, 19).replace("T", " "))}` : ""}
+      </div>
+    </div>`;
+  let turnsHtml;
+  if (!matches.length) {
+    turnsHtml = `<p class="muted small">No matching interaction rows found in the raw log
+      (it may have been pruned). Linked IDs:
+      ${iids.map((i) => `<code>${escapeHtml(i.slice(0, 8))}</code>`).join(", ") || "—"}.</p>`;
+  } else {
+    turnsHtml = `<ol class="src-turns">${matches
+      .map((m, i) => {
+        const ts = m.timestamp ? String(m.timestamp).slice(11, 19) : "";
+        const q = escapeHtml(m.query || "");
+        const r = escapeHtml(m.response || "");
+        return `<li>
+          <div class="src-turn-head muted small">
+            #${i + 1} · <code>${escapeHtml((m.id || "").slice(0, 8))}</code>
+            ${ts ? `· ${ts}` : ""}
+          </div>
+          <div class="src-turn-q"><span class="src-role">user</span> ${q}</div>
+          <div class="src-turn-a"><span class="src-role">assistant</span> ${r}</div>
+        </li>`;
+      })
+      .join("")}</ol>`;
+  }
+  body.innerHTML = headerHtml + turnsHtml;
+}
+
 function renderBreakdown(e) {
   const sig = e.signals || {};
-  const a = memPolicy?.alpha ?? 0.4;
-  const b = memPolicy?.beta ?? 0.4;
-  const g = memPolicy?.gamma ?? 0.2;
   const t = memPolicy?.threshold ?? 0.3;
   const u = sig.uncertainty ?? 0;
-  const f = sig.feedback ?? 0;
-  const n = sig.novelty ?? 0;
-  const cu = a * u;
-  const cf = b * f;
-  const cn = g * n;
-  const total = cu + cf + cn;
-  const forced = f >= 1.0;
-  const accepted = forced || total > t;
+  const accepted = u >= t;
 
-  $("#mem-breakdown-formula").textContent =
-    `score = ${fmt(a)}·U + ${fmt(b)}·F + ${fmt(g)}·N`;
+  $("#mem-breakdown-formula").textContent = `score = U`;
 
-  // Bar widths are scaled to the largest single contribution so the
-  // visual comparison is honest even when the score is tiny.
-  const maxC = Math.max(cu, cf, cn, 0.001);
-  const bar = (label, weight, signal, contrib, hint) => {
-    const pct = ((contrib / maxC) * 100).toFixed(1);
+  const bar = (label, signal, hint) => {
+    const pct = (Math.min(1, Math.max(0, signal)) * 100).toFixed(1);
     return `<div class="bd-row" title="${escapeHtml(hint)}">
-      <div class="bd-label"><code>${label}</code> <span class="muted small">×${fmt(weight)}</span></div>
+      <div class="bd-label"><code>${label}</code></div>
       <div class="bd-bar"><span style="width:${pct}%"></span></div>
       <div class="bd-num">${fmt(signal)}</div>
-      <div class="bd-num bd-contrib">+${fmt(contrib, 3)}</div>
     </div>`;
   };
 
   const md = e.metadata || {};
   const oracleNote =
     md.extras && md.extras.oracle
-      ? `<p class="muted small">Augmented by ${escapeHtml(md.extras.oracle_name || "oracle")} — the response above is the teacher's correction, not the cortex's original answer.</p>`
+      ? `<p class="muted small">Augmented by ${escapeHtml(md.extras.oracle_name || "oracle")} — the response above is the teacher's answer, not the cortex's original output.</p>`
       : "";
 
   const verdict = accepted
-    ? forced
-      ? `<span class="badge ok">accepted (forced: F = 1)</span>`
-      : `<span class="badge ok">accepted (score ${fmt(total, 3)} > ${fmt(t)})</span>`
-    : `<span class="badge subtle">below threshold (${fmt(total, 3)} ≤ ${fmt(t)})</span>`;
+    ? `<span class="badge ok">accepted (U ${fmt(u, 3)} ≥ ${fmt(t)})</span>`
+    : `<span class="badge subtle">below threshold (${fmt(u, 3)} < ${fmt(t)})</span>`;
 
   $("#mem-breakdown-body").innerHTML = `
-    ${bar("U", a, u, cu, "uncertainty: 1 - exp(mean log p) over response tokens")}
-    ${bar("F", b, f, cf, "feedback: 1.0 with correction, else explicit feedback or LLM judge")}
-    ${bar("N", g, n, cn, "novelty: how new the user input is to the model")}
+    ${bar("U", u, "uncertainty: 1 - exp(mean log p) over response tokens")}
     <div class="bd-total">
-      <span>total</span>
-      <strong>${fmt(total, 3)}</strong>
+      <span>gate</span>
+      <strong>${fmt(u, 3)}</strong>
       ${verdict}
     </div>
     ${oracleNote}
@@ -199,9 +230,8 @@ function openMemEditor(id) {
   $("#mem-edit-id").textContent = id;
   $("#mem-query").value = e.query || "";
   $("#mem-response").value = e.response || "";
-  $("#mem-score").value = e.score ?? 0;
-  $("#mem-score-out").textContent = (e.score ?? 0).toFixed(2);
   renderBreakdown(e);
+  renderSource(e);
   const dlg = $("#mem-editor");
   if (typeof dlg.showModal === "function") dlg.showModal();
   else dlg.setAttribute("open", "");
@@ -220,7 +250,6 @@ async function saveMem() {
     await jpatch(`/api/neocortex/${memEditingId}`, {
       query: $("#mem-query").value,
       response: $("#mem-response").value,
-      score: parseFloat($("#mem-score").value),
     });
     $("#mem-status").textContent = `saved ${memEditingId}`;
     closeMemEditor();
@@ -266,9 +295,6 @@ export async function initMemoryTab() {
   // close on backdrop click (clicks on the <dialog> itself, not its body)
   $("#mem-editor").addEventListener("click", (ev) => {
     if (ev.target.id === "mem-editor") closeMemEditor();
-  });
-  $("#mem-score").addEventListener("input", (e) => {
-    $("#mem-score-out").textContent = parseFloat(e.target.value).toFixed(2);
   });
   await refreshMemory();
 }

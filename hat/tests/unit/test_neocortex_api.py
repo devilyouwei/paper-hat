@@ -45,7 +45,9 @@ def test_neocortex_list_and_get() -> None:
     assert detail["score"] == 0.7
 
 
-def test_neocortex_patch_updates_messages_and_score() -> None:
+def test_neocortex_patch_updates_messages_and_keeps_score() -> None:
+    """Score is intentionally immutable via the API; PATCH should ignore it
+    and persist only the editable query / response fields."""
     client = TestClient(app)
     tid = _seed_trace()
 
@@ -56,7 +58,8 @@ def test_neocortex_patch_updates_messages_and_score() -> None:
     assert patched.status_code == 200, patched.text
     body = patched.json()
     assert body["response"] == "edited answer"
-    assert body["score"] == 0.9
+    # Score from seed is preserved, the requested 0.9 is silently dropped.
+    assert body["score"] == 0.7
     # query untouched
     assert body["query"] == "what is hat"
 
@@ -76,7 +79,7 @@ def test_neocortex_unknown_id_returns_404() -> None:
     assert client.get("/api/neocortex/does-not-exist").status_code == 404
     assert (
         client.patch(
-            "/api/neocortex/does-not-exist", json={"score": 0.5}
+            "/api/neocortex/does-not-exist", json={"response": "x"}
         ).status_code
         == 404
     )

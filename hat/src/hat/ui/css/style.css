@@ -224,7 +224,7 @@ main {
 .chat-grid { flex: 1; min-height: 0; }
 .sidebar,
 .chat-main,
-.gen-settings { max-height: 100%; overflow-y: auto; }
+.trace-panel { max-height: 100%; overflow-y: auto; }
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -241,12 +241,14 @@ main {
 }
 
 /* =====================================================================
- *  Chat tab  (3-column)
+ *  Chat tab  (3-column: sidebar | chat | trace activity)
+ *  Generation settings live inside the chat column as a collapsible bar
+ *  below the composer to keep horizontal space for the conversation.
  * ===================================================================*/
 .chat-grid {
   display: grid;
-  grid-template-columns: 240px 1fr 220px;
-  gap: 16px;
+  grid-template-columns: 220px 1fr 260px;
+  gap: 14px;
   align-items: start;
 }
 
@@ -344,25 +346,53 @@ main {
   overflow-y: auto;
 }
 
-/* --- generation settings sidebar (col 3) --- */
-.gen-settings {
+/* --- inline generation settings (below composer) --- */
+.gen-settings-inline {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.gen-settings-inline > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  user-select: none;
+}
+.gen-settings-inline > summary::-webkit-details-marker { display: none; }
+.gen-settings-inline > summary::before {
+  content: "▸";
+  display: inline-block;
+  transition: transform 0.15s ease;
+  margin-right: 4px;
+  color: var(--muted);
+}
+.gen-settings-inline[open] > summary::before { transform: rotate(90deg); }
+.gen-settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 14px;
+  margin-top: 10px;
+  align-items: end;
+}
+.gen-settings-row label {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-.gen-settings label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.gen-settings label.check {
-  flex-direction: column;
-  align-items: flex-start;
   gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
 }
-.gen-settings label.check > span { display: flex; align-items: center; gap: 6px; }
-.gen-settings input[type="number"],
-.gen-settings input[type="range"] { width: 100%; }
+.gen-settings-row label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+.gen-settings-row input[type="number"] { width: 100%; }
 .divider {
   border: none;
   border-top: 1px solid var(--border);
@@ -439,7 +469,43 @@ main {
 .send-btn { display: inline-flex; align-items: center; gap: 6px; padding: 0 18px; }
 .send-arrow { font-size: 16px; }
 
-.correction { background: var(--panel-2); }
+/* Per-bubble uncertainty badge — fed by the wake-step trace events.
+ *
+ * The badge floats just above the bubble's top-right corner (outside the
+ * bubble's content box) so it never overlaps the first line of text, even
+ * for short replies where the message ends on line one. A small white
+ * stroke keeps it legible against the bubble's tinted background. */
+.bubble {
+  position: relative;
+  /* leave headroom for the floating badge so it never clips at the top
+   * of the chat scroll area. */
+  margin-top: 10px;
+}
+.uncertainty-badge {
+  position: absolute;
+  top: -9px;
+  right: 8px;
+  font: 10px/1 var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--text-muted, #6b7280);
+  background: var(--panel, #fff);
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  padding: 2px 7px;
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 1;
+}
+.uncertainty-badge.skipped {
+  color: var(--accent, #b07);
+  opacity: 0.9;
+}
+.uncertainty-badge.dropped {
+  color: var(--muted, #9ca3af);
+  opacity: 0.75;
+}
 
 /* =====================================================================
  *  Form primitives
@@ -687,6 +753,53 @@ pre.status {
   align-items: baseline;
   gap: 12px;
 }
+
+/* --- provenance ("Source") panel inside the editor modal ----------- */
+.trace-source {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.trace-source h4 {
+  margin: 0 0 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.src-head { margin-bottom: 10px; }
+.src-turns {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.src-turns > li {
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.src-turn-head { margin-bottom: 4px; }
+.src-turn-q, .src-turn-a {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.45;
+  margin-top: 2px;
+}
+.src-role {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-right: 6px;
+}
 .bd-row {
   display: grid;
   grid-template-columns: 90px 1fr 50px 60px;
@@ -909,16 +1022,113 @@ pre.status {
 }
 .model-card footer { margin-top: auto; padding-top: 4px; }
 
+/* Download progress (SSE-driven). The bar lives between the model meta
+ * and the action footer; values are updated in place each tick. */
+.model-card .dl-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.model-card .dl-bar {
+  height: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.model-card .dl-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.2s ease-out;
+}
+.model-card .dl-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
 /* =====================================================================
  *  Responsive
  * ===================================================================*/
+@media (max-width: 1200px) {
+  .chat-grid { grid-template-columns: 200px 1fr 240px; }
+  .trace-panel { max-height: 280px; }
+}
 @media (max-width: 900px) {
   .topbar { flex-wrap: wrap; gap: 12px; padding: 10px 14px; }
   .topbar-status { order: 3; margin-left: 0; }
   .chat-grid { grid-template-columns: 1fr; }
-  .gen-settings { position: static; }
   .sidebar { min-height: auto; }
+  .trace-panel { max-height: 200px; }
 }
+
+/* --- trace lifecycle panel (chat tab col 4) ------------------------- */
+.trace-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 160px);
+  overflow: hidden;
+}
+.trace-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.trace-timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trace-event {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  background: var(--panel-2);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.trace-event.created { border-left-color: #16a34a; }
+.trace-event.revised { border-left-color: #2563eb; }
+.trace-event.rejected { border-left-color: #b91c1c; opacity: 0.75; }
+.trace-event .te-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.trace-event .te-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: white;
+  background: var(--muted);
+}
+.trace-event.created .te-badge { background: #16a34a; }
+.trace-event.revised .te-badge { background: #2563eb; }
+.trace-event.rejected .te-badge { background: #b91c1c; }
+.trace-event .te-id {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.trace-event .te-body { color: var(--text); word-wrap: break-word; }
+.trace-event .te-meta { color: var(--muted); font-size: 11px; margin-top: 3px; }
 
 /* --- toast notifications -------------------------------------------- */
 .toast-stack {

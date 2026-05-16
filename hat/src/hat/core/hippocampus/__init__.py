@@ -6,19 +6,19 @@ Three composable stages:
 * :mod:`selection`  — score traces and emit a ``WriteDecision``.
 * :mod:`replay`     — convert retained traces into training-ready ``ReplayExample``\ s.
 
-Per-signal scorers (uncertainty, feedback, novelty) live under :mod:`scoring`.
+Per-signal scorers (currently uncertainty only) live under :mod:`scoring`.
 """
 
 from .abstraction import Abstractor, IdentityAbstractor, LLMAbstractor
 from .replay import ReplayBuilder, SupervisedReplayBuilder
-from .selection import LinearWritePolicy, WritePolicy
+from .selection import UncertaintyGatePolicy, WritePolicy
 
 __all__ = [
     "Abstractor",
     "IdentityAbstractor",
     "LLMAbstractor",
     "WritePolicy",
-    "LinearWritePolicy",
+    "UncertaintyGatePolicy",
     "ReplayBuilder",
     "SupervisedReplayBuilder",
 ]

@@ -22,18 +22,29 @@ def _new_id() -> str:
 
 
 class Interaction(BaseModel):
-    """Raw interaction tuple ``(c, x, y, f)`` from paper §3.1."""
+    """Raw interaction tuple ``(c, x, y)`` from paper §3.1.
+
+    Feedback / corrections are no longer separate fields — corrections appear
+    as the *next* user turn in the same session and are detected by the
+    abstractor's router prompt when comparing against prior session traces.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(default_factory=_new_id)
+    session_id: str | None = None
     context: str | None = None
     query: str
     response: str | None = None
-    feedback: float | None = None  # 0/1 binary or graded score
-    user_correction: str | None = None
     timestamp: datetime = Field(default_factory=_now)
     source: str = "user"
+    # Optional per-turn HAT annotations populated after ``wake_step`` runs.
+    # Persisted with the raw session log so the UI can re-render the
+    # uncertainty / route badges when a session is reopened. Keys in use:
+    # ``uncertainty`` (float), ``decision`` (created|revised|skipped|dropped|
+    # rejected), ``trace_id`` (str|None), ``novelty`` (float|None),
+    # ``user_signal`` (float|None), ``reason`` (str|None).
+    hat: dict | None = None
 
 
 class ScoreSignals(BaseModel):
@@ -61,6 +72,8 @@ class MemoryTrace(BaseModel):
 
     id: str = Field(default_factory=_new_id)
     interaction_id: str
+    session_id: str | None = None
+    interaction_ids: list[str] = Field(default_factory=list)
     query: str
     cortex_response: str | None = None
     target_response: str | None = None

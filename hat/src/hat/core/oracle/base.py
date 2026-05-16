@@ -10,8 +10,7 @@ class Oracle(ABC):
 
     Concrete implementations: ``OpenAICompatibleOracle`` (``hat.models.backends``)
     over GPT-4o, vLLM-served Llama-70B, or Ollama. The ``WakeSleepLoop`` only
-    queries the oracle when ``U(x) > τ_O`` or ``F(x) > 0`` — paper Eq.
-    ``oracle_query``.
+    queries the oracle when ``U(x) > τ_O`` — paper Eq. ``oracle_query``.
     """
 
     name: str = "oracle"
@@ -21,9 +20,9 @@ class Oracle(ABC):
 
 
 class NoopOracle(Oracle):
-    """Returns the user correction or the cortex response. For tests."""
+    """Returns the cortex response. For tests."""
 
     name = "noop-oracle"
 
     def consult(self, interaction: Interaction) -> str:
-        return interaction.user_correction or interaction.response or ""
+        return interaction.response or ""

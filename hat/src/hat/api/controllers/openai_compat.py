@@ -40,7 +40,6 @@ from ..schemas.openai import (
     ChatMessage,
 )
 
-
 def _split_messages(messages: list[ChatMessage]) -> tuple[list[ChatMessage], ChatMessage]:
     if not messages:
         raise ValueError("messages must be non-empty")
@@ -124,6 +123,48 @@ def _summarize_title(cortex, query: str) -> str:
     return _truncate_title(query)
 
 
+def _summarize_events(events: list[dict], trace) -> dict | None:
+    """Distil the lifecycle event stream into the compact per-turn record
+    that is persisted with the raw session log. Used so the UI can re-render
+    the uncertainty / route badge when the session is reopened.
+
+    Returns ``None`` when no useful signal was captured (e.g. the loop never
+    ran). The shape matches what ``attachUncertaintyBadge`` consumes."""
+    if not events:
+        return None
+    by_stage: dict[str, dict] = {}
+    for ev in events:
+        s = ev.get("stage")
+        if isinstance(s, str):
+            by_stage[s] = ev
+    u_ev = by_stage.get("uncertainty") or {}
+    uncertainty = u_ev.get("uncertainty")
+    if uncertainty is None:
+        sig = u_ev.get("signals") or {}
+        uncertainty = sig.get("uncertainty")
+    # Final decision in the lifecycle. Order matters: a turn can transition
+    # uncertainty -> skipped, or uncertainty -> abstracting -> dropped, etc.
+    for stage in ("revised", "created", "rejected", "dropped", "skipped"):
+        if stage in by_stage:
+            decision = stage
+            break
+    else:
+        decision = None
+    routed = by_stage.get("routed") or {}
+    record: dict = {}
+    if uncertainty is not None:
+        record["uncertainty"] = float(uncertainty)
+    if decision is not None:
+        record["decision"] = decision
+    if trace is not None and getattr(trace, "id", None):
+        record["trace_id"] = trace.id
+    for key in ("novelty", "user_signal", "reason"):
+        val = routed.get(key)
+        if val is not None:
+            record[key] = val
+    return record or None
+
+
 @dataclass
 class OpenAIChatController:
     loop: WakeSleepLoop
@@ -179,6 +220,18 @@ class OpenAIChatController:
         gen_kwargs = _build_gen_kwargs(req)
         session = self._resolve_session(req.session_id, first_query=last.content)
 
+        # Pull session-scoped prior traces so the abstractor can decide
+        # CREATE vs REVISE. Done lazily to avoid a hard import cycle.
+        prior_traces: list = []
+        if session is not None:
+            from ..deps import prior_traces_for_session
+            prior_traces = prior_traces_for_session(session.id)
+
+        events: list[dict] = []
+
+        def _sink(stage: str, payload: dict) -> None:
+            events.append({"stage": stage, **payload})
+
         cortex = self.loop.cortex
         response_text: str
         if hasattr(cortex, "chat") and callable(cortex.chat):
@@ -186,19 +239,26 @@ class OpenAIChatController:
                 [m.model_dump() for m in req.messages], **gen_kwargs
             )
             interaction = Interaction(
+                session_id=session.id if session else None,
                 context=_flatten_history(history),
                 query=last.content,
                 response=response_text,
             )
-            trace = self.loop.wake_step(interaction)
+            trace = self.loop.wake_step(
+                interaction, prior_traces=prior_traces or None, event_sink=_sink,
+            )
         else:
             interaction = Interaction(
+                session_id=session.id if session else None,
                 context=_flatten_history(history),
                 query=last.content,
             )
-            trace = self.loop.wake_step(interaction)
+            trace = self.loop.wake_step(
+                interaction, prior_traces=prior_traces or None, event_sink=_sink,
+            )
             response_text = interaction.response or ""
 
+        interaction.hat = _summarize_events(events, trace)
         self._persist_turn(session, interaction)
 
         return ChatCompletionResponse(
@@ -213,6 +273,7 @@ class OpenAIChatController:
             hat_consolidated=trace is not None,
             hat_trace_id=trace.id if trace else None,
             hat_session_id=session.id if session else None,
+            hat_trace_events=events or None,
         )
 
     # ------------------------------------------------------------------ stream
@@ -234,7 +295,8 @@ class OpenAIChatController:
         def chunk(delta: ChatCompletionDelta, finish: str | None = None,
                   *, hat_consolidated: bool | None = None,
                   hat_trace_id: str | None = None,
-                  hat_session_id: str | None = None) -> str:
+                  hat_session_id: str | None = None,
+                  hat_trace_event: dict | None = None) -> str:
             payload = ChatCompletionChunk(
                 id=chat_id,
                 model=model_name,
@@ -246,6 +308,7 @@ class OpenAIChatController:
                 hat_consolidated=hat_consolidated,
                 hat_trace_id=hat_trace_id,
                 hat_session_id=hat_session_id,
+                hat_trace_event=hat_trace_event,
             )
             return f"data: {payload.model_dump_json(exclude_none=True)}\n\n"
 
@@ -282,12 +345,33 @@ class OpenAIChatController:
 
         full = "".join(collected)
         interaction = Interaction(
+            session_id=session.id if session else None,
             context=_flatten_history(history),
             query=last.content,
             response=full,
         )
-        trace = self.loop.wake_step(interaction)
+
+        # Pull prior traces (session-scoped) so the abstractor can REVISE.
+        prior_traces: list = []
+        if session is not None:
+            from ..deps import prior_traces_for_session
+            prior_traces = prior_traces_for_session(session.id)
+
+        events: list[dict] = []
+
+        def _sink(stage: str, payload: dict) -> None:
+            events.append({"stage": stage, **payload})
+
+        trace = self.loop.wake_step(
+            interaction, prior_traces=prior_traces or None, event_sink=_sink,
+        )
+        interaction.hat = _summarize_events(events, trace)
         self._persist_turn(session, interaction)
+
+        # Forward each lifecycle event as its own chunk so the UI can render
+        # trace creation/revision in real time alongside the response.
+        for ev in events:
+            yield chunk(ChatCompletionDelta(), hat_trace_event=ev)
 
         # Closing chunk + DONE marker.
         yield chunk(

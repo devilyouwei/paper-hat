@@ -52,16 +52,6 @@ class UncertaintyEstimator(Protocol):
 
 
 @runtime_checkable
-class FeedbackExtractor(Protocol):
-    def __call__(self, interaction: Interaction) -> float: ...
-
-
-@runtime_checkable
-class NoveltyEstimator(Protocol):
-    def __call__(self, trace: MemoryTrace) -> float: ...
-
-
-@runtime_checkable
 class WritePolicy(Protocol):
     threshold: float
 
@@ -94,8 +84,6 @@ __all__ = [
     "Embedder",
     "Abstractor",
     "UncertaintyEstimator",
-    "FeedbackExtractor",
-    "NoveltyEstimator",
     "WritePolicy",
     "ReplayBuilder",
     "OracleClient",

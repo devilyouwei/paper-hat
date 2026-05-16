@@ -26,6 +26,8 @@ class NeocortexEntry(BaseModel):
 
     trace_id: str
     interaction_id: str | None = None
+    session_id: str | None = None
+    interaction_ids: list[str] = Field(default_factory=list)
     query: str
     response: str
     score: float = 0.0
@@ -38,6 +40,8 @@ class NeocortexEntry(BaseModel):
         return cls(
             trace_id=row.get("trace_id") or "",
             interaction_id=row.get("interaction_id"),
+            session_id=row.get("session_id"),
+            interaction_ids=list(row.get("interaction_ids") or []),
             query=_user(msgs),
             response=_assistant(msgs),
             score=float(row.get("score") or 0.0),
@@ -52,8 +56,12 @@ class NeocortexList(BaseModel):
 
 
 class NeocortexEntryUpdate(BaseModel):
-    """Patch payload. Any field omitted leaves the existing value untouched."""
+    """Patch payload. Any field omitted leaves the existing value untouched.
+
+    Score is intentionally NOT editable: it is derived from the cortex's
+    uncertainty at write time and rewriting it would falsify the training
+    signal. Operators who disagree with a trace should edit or delete it.
+    """
 
     query: str | None = None
     response: str | None = None
-    score: float | None = None

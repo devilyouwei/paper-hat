@@ -1,36 +1,14 @@
-"""Per-signal scorers used by the linear write policy.
+"""Scoring signals consumed by the write policy.
 
-Each scorer returns a scalar in roughly ``[0, 1]``. Bring your own implementation
-for production use; defaults here are minimal placeholders so the loop runs."""
+Only ``uncertainty`` is currently used to gate trace creation. The feedback /
+novelty channels were removed; corrections now surface through the natural
+multi-turn conversation and are detected by the abstractor's router prompt.
+"""
 
-from .feedback import BinaryFeedback, FeedbackExtractor, LLMFeedbackJudge
-from .novelty import (
-    AlwaysNovel,
-    CompositeNoveltyJudge,
-    ConstantMemoryNovelty,
-    ConstantStateNovelty,
-    LLMNoveltyJudge,
-    MemoryNoveltyChannel,
-    NoveltyBreakdown,
-    NoveltyEstimator,
-    StateNoveltyChannel,
-)
 from .uncertainty import ConstantUncertainty, LogprobUncertainty, UncertaintyEstimator
 
 __all__ = [
     "UncertaintyEstimator",
     "ConstantUncertainty",
     "LogprobUncertainty",
-    "FeedbackExtractor",
-    "BinaryFeedback",
-    "LLMFeedbackJudge",
-    "NoveltyEstimator",
-    "AlwaysNovel",
-    "LLMNoveltyJudge",
-    "NoveltyBreakdown",
-    "StateNoveltyChannel",
-    "MemoryNoveltyChannel",
-    "ConstantStateNovelty",
-    "ConstantMemoryNovelty",
-    "CompositeNoveltyJudge",
 ]

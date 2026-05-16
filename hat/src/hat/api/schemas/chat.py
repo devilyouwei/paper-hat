@@ -8,8 +8,6 @@ from ...core.schemas import ScoreSignals
 class ChatRequest(BaseModel):
     query: str
     context: str | None = None
-    feedback: float | None = None
-    user_correction: str | None = None
 
 
 class ChatResponse(BaseModel):

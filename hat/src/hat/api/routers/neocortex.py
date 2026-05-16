@@ -14,7 +14,7 @@ already accepted, which is a manual-curation surface for the operator.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ...memory.curated.jsonl_store import JsonlNeocortex
 from ..deps import get_loop
@@ -37,8 +37,13 @@ def get_neocortex() -> JsonlNeocortex:
 
 
 @router.get("", response_model=NeocortexList)
-def list_entries(store: JsonlNeocortex = Depends(get_neocortex)) -> NeocortexList:
-    rows = store.entries()
+def list_entries(
+    session_id: str | None = Query(default=None),
+    store: JsonlNeocortex = Depends(get_neocortex),
+) -> NeocortexList:
+    rows = (
+        store.entries_by_session(session_id) if session_id else store.entries()
+    )
     return NeocortexList(data=[NeocortexEntry.from_row(r) for r in rows])
 
 
@@ -59,7 +64,7 @@ def patch_entry(
     store: JsonlNeocortex = Depends(get_neocortex),
 ) -> NeocortexEntry:
     row = store.update(
-        trace_id, query=req.query, response=req.response, score=req.score
+        trace_id, query=req.query, response=req.response
     )
     if row is None:
         raise HTTPException(404, f"unknown trace {trace_id!r}")

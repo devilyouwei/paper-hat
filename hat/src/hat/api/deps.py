@@ -18,15 +18,11 @@ from ..core.cortex.noop import NoopCortex
 from ..core.hippocampus import (
     IdentityAbstractor,
     LLMAbstractor,
-    LinearWritePolicy,
     SupervisedReplayBuilder,
+    UncertaintyGatePolicy,
 )
 from ..core.hippocampus.scoring import (
-    AlwaysNovel,
-    BinaryFeedback,
     ConstantUncertainty,
-    LLMFeedbackJudge,
-    LLMNoveltyJudge,
     LogprobUncertainty,
 )
 from ..core.loop import WakeSleepLoop
@@ -84,9 +80,7 @@ def get_loop() -> WakeSleepLoop:
         cortex=cortex,
         abstractor=_make_abstractor(cortex),
         uncertainty=_make_uncertainty(cortex),
-        feedback=_make_feedback(cortex),
-        novelty=_make_novelty(cortex),
-        write_policy=LinearWritePolicy(s.alpha, s.beta, s.gamma, s.write_threshold),
+        write_policy=UncertaintyGatePolicy(s.write_threshold),
         replay_builder=SupervisedReplayBuilder(),
         neocortex=JsonlNeocortex(
             s.neocortex_path, traces_path=s.neocortex_traces_path
@@ -101,10 +95,10 @@ def get_loop() -> WakeSleepLoop:
 #
 # The wake/sleep loop is constructed once and reused across requests, but the
 # active Cortex can be hot-swapped via the management API. ``swap_active_cortex``
-# below rebuilds the LLM-backed scorers/abstractor in place so the loop's
-# uncertainty/novelty/feedback estimators always point at the current model.
-# Stub implementations are used when the cortex is the noop fallback so we
-# don't burn forward passes on placeholder text.
+# below rebuilds the LLM-backed abstractor / uncertainty estimator in place so
+# the loop always points at the current model. Stub implementations are used
+# when the cortex is the noop fallback so we don't burn forward passes on
+# placeholder text.
 
 
 def _is_noop(cortex: Cortex) -> bool:
@@ -119,18 +113,6 @@ def _make_uncertainty(cortex: Cortex):
     if _is_noop(cortex):
         return ConstantUncertainty(0.5)
     return LogprobUncertainty(cortex)
-
-
-def _make_feedback(cortex: Cortex):
-    if _is_noop(cortex):
-        return BinaryFeedback()
-    return LLMFeedbackJudge(cortex)
-
-
-def _make_novelty(cortex: Cortex):
-    if _is_noop(cortex):
-        return AlwaysNovel()
-    return LLMNoveltyJudge(cortex)
 
 
 # ---- oracle factory ---------------------------------------------------
@@ -168,15 +150,13 @@ def _make_oracle() -> Oracle | None:
 
 
 def _refresh_hippocampus(loop: WakeSleepLoop, cortex: Cortex) -> None:
-    """Re-bind the hippocampus scorers/abstractor to ``cortex`` in place.
+    """Re-bind the hippocampus abstractor / uncertainty to ``cortex`` in place.
 
-    Called after a model swap so logprob uncertainty / LLM judges talk to
-    the new Cortex instead of the previous one.
+    Called after a model swap so the LLM-backed components talk to the new
+    Cortex instead of the previous one.
     """
     loop.abstractor = _make_abstractor(cortex)
     loop.uncertainty = _make_uncertainty(cortex)
-    loop.feedback = _make_feedback(cortex)
-    loop.novelty = _make_novelty(cortex)
 
 
 def swap_active_cortex(backend: str, model_id: str) -> Cortex:
@@ -233,3 +213,31 @@ def get_raw_log() -> SessionRawLog:
     store. Callers that don't know about sessions land in the synthetic
     ``default`` session; the chat controller passes a real session id."""
     return SessionRawLog(get_session_store(), session_id=None)
+
+
+def prior_traces_for_session(session_id: str, *, limit: int = 8) -> list:
+    """Return up to ``limit`` most recent :class:`MemoryTrace` for a session.
+
+    Returns an empty list if the active neocortex backend doesn't support
+    session lookup, so the caller can simply pass the result through to
+    ``wake_step(prior_traces=...)`` without further checks.
+    """
+    if not session_id:
+        return []
+    store = get_loop().neocortex
+    fetch = getattr(store, "entries_by_session", None)
+    if fetch is None:
+        return []
+    rows = fetch(session_id)
+    if limit and len(rows) > limit:
+        rows = rows[-limit:]
+    # Map SFT rows back to MemoryTrace instances for the loop's API.
+    from ..memory.curated.jsonl_store import _sft_to_trace
+    out: list = []
+    for r in rows:
+        try:
+            trace, _ = _sft_to_trace(r)
+        except (ValueError, TypeError, KeyError):
+            continue
+        out.append(trace)
+    return out

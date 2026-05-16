@@ -5,14 +5,10 @@ import pytest
 from hat.core.cortex.noop import NoopCortex
 from hat.core.hippocampus import (
     IdentityAbstractor,
-    LinearWritePolicy,
     SupervisedReplayBuilder,
+    UncertaintyGatePolicy,
 )
-from hat.core.hippocampus.scoring import (
-    AlwaysNovel,
-    BinaryFeedback,
-    ConstantUncertainty,
-)
+from hat.core.hippocampus.scoring import ConstantUncertainty
 from hat.core.loop import WakeSleepLoop
 from hat.core.neocortex.store import (
     InMemoryNeocortex,
@@ -58,22 +54,20 @@ def test_neocortex_rejects_unauthorized_write() -> None:
         store.write(trace, rejected)
 
 
-def test_linear_write_policy_score() -> None:
-    pol = LinearWritePolicy(0.4, 0.4, 0.2, threshold=0.3)
+def test_uncertainty_gate_policy() -> None:
+    pol = UncertaintyGatePolicy(threshold=0.3)
     trace = MemoryTrace(interaction_id="i", query="q")
-    s = pol.score(trace, ScoreSignals(uncertainty=1.0, feedback=1.0, novelty=1.0))
-    assert abs(s - 1.0) < 1e-9
-    assert pol.decide(trace, ScoreSignals(uncertainty=0.0, feedback=0.0, novelty=0.0)).accepted is False
+    assert pol.score(trace, ScoreSignals(uncertainty=0.8)) == pytest.approx(0.8)
+    assert pol.decide(trace, ScoreSignals(uncertainty=0.5)).accepted is True
+    assert pol.decide(trace, ScoreSignals(uncertainty=0.1)).accepted is False
 
 
-def _build_loop() -> WakeSleepLoop:
+def _build_loop(*, uncertainty: float = 1.0) -> WakeSleepLoop:
     return WakeSleepLoop(
         cortex=NoopCortex(),
         abstractor=IdentityAbstractor(),
-        uncertainty=ConstantUncertainty(1.0),
-        feedback=BinaryFeedback(),
-        novelty=AlwaysNovel(),
-        write_policy=LinearWritePolicy(0.4, 0.4, 0.2, threshold=0.3),
+        uncertainty=ConstantUncertainty(uncertainty),
+        write_policy=UncertaintyGatePolicy(threshold=0.3),
         replay_builder=SupervisedReplayBuilder(),
         neocortex=InMemoryNeocortex(),
         trainer=DryRunTrainer(),
@@ -89,6 +83,13 @@ def test_wake_sleep_smoke() -> None:
     stats = loop.sleep_step(cycle=1, k=8)
     assert stats.cycle == 1
     assert stats.n_replayed >= 1
+
+
+def test_wake_step_skips_below_threshold() -> None:
+    loop = _build_loop(uncertainty=0.05)
+    trace = loop.wake_step(Interaction(query="hello"))
+    assert trace is None
+    assert len(loop.neocortex) == 0
 
 
 def test_chat_controller_appends_raw_log(tmp_path) -> None:

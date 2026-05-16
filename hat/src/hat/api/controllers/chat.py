@@ -23,8 +23,6 @@ class ChatController:
         interaction = Interaction(
             context=req.context,
             query=req.query,
-            feedback=req.feedback,
-            user_correction=req.user_correction,
         )
         trace = self.loop.wake_step(interaction)
         self.raw_log.append(interaction)

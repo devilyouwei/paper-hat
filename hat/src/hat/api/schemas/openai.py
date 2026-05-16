@@ -56,6 +56,9 @@ class ChatCompletionResponse(BaseModel):
     hat_consolidated: bool = False
     hat_trace_id: str | None = None
     hat_session_id: str | None = None
+    # Lifecycle events emitted during this turn's wake step
+    # (abstracting/routed/scored/created/revised/rejected).
+    hat_trace_events: list[dict] | None = None
 
 
 # ---- Streaming chunks (chat.completion.chunk) -----------------------------
@@ -82,6 +85,9 @@ class ChatCompletionChunk(BaseModel):
     hat_consolidated: bool | None = None
     hat_trace_id: str | None = None
     hat_session_id: str | None = None
+    # Single lifecycle event (carried by interim chunks so the UI can render
+    # trace creation/revision in real time alongside response tokens).
+    hat_trace_event: dict | None = None
 
 
 class ModelCard(BaseModel):

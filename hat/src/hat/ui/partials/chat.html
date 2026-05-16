@@ -42,31 +42,40 @@
       </button>
     </form>
 
-    <input type="text" id="correction" class="block correction"
-           placeholder="Optional correction (feedback for the Hippocampus)" />
+    <!-- inline generation settings: stays below the composer so it does not
+         steal horizontal space; collapsible to keep the chat area roomy. -->
+    <details class="gen-settings-inline" id="gen-settings-inline">
+      <summary>
+        <span>Generation</span>
+        <span class="muted small" id="gen-summary"></span>
+      </summary>
+      <div class="gen-settings-row">
+        <label>Temperature
+          <input type="number" id="temp" min="0" max="1.5" step="0.05" value="0.7" />
+        </label>
+        <label>Max tokens
+          <input type="number" id="max-tokens" min="32" max="4096" step="32" value="512" />
+        </label>
+        <label class="check">
+          <input type="checkbox" id="enable-thinking" />
+          Enable thinking
+          <small class="muted">(Qwen3 &lt;think&gt;…)</small>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="show-thinking" />
+          Show thinking process
+        </label>
+      </div>
+    </details>
   </div>
 
-  <!-- col 3: generation settings -->
-  <aside class="gen-settings card">
-    <h3 class="section-label" style="margin-top:0">Generation</h3>
-
-    <label>Temperature
-      <input type="number" id="temp" min="0" max="1.5" step="0.05" value="0.7" />
-    </label>
-    <label>Max tokens
-      <input type="number" id="max-tokens" min="32" max="4096" step="32" value="512" />
-    </label>
-
-    <hr class="divider" />
-
-    <label class="check">
-      <input type="checkbox" id="enable-thinking" />
-      Enable thinking
-      <small class="muted">(Qwen3 &lt;think&gt;…)</small>
-    </label>
-    <label class="check">
-      <input type="checkbox" id="show-thinking" />
-      Show thinking process
-    </label>
+  <!-- col 3: trace lifecycle -->
+  <aside class="trace-panel card" id="trace-panel">
+    <div class="trace-panel-head">
+      <h3 class="section-label" style="margin:0">Trace activity</h3>
+      <button class="ghost small" id="trace-clear-btn" title="Clear list">Clear</button>
+    </div>
+    <p class="muted small" id="trace-empty">No traces yet for this session.</p>
+    <ul class="trace-timeline" id="trace-timeline"></ul>
   </aside>
 </div>

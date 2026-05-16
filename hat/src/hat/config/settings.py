@@ -21,10 +21,8 @@ class Settings(BaseSettings):
     env: str = "dev"
     log_level: str = "INFO"
 
-    # Selection (αU + βF + γN) — paper §3.4.2 / §4 defaults
-    alpha: float = 0.4
-    beta: float = 0.4
-    gamma: float = 0.2
+    # Selection: single-signal uncertainty gate. A trace is written only when
+    # the cortex's uncertainty on its own response meets this threshold.
     write_threshold: float = 0.3
     oracle_threshold: float = 0.7
 

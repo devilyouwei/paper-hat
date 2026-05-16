@@ -13,8 +13,10 @@ own GPU/Metal context.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 import shutil
+import threading
 from threading import Lock
 
 from ..config.settings import get_settings
@@ -111,6 +113,211 @@ class ModelManager:
             raise
         log.info("download complete backend={} id={}", backend, model_id)
         return dst
+
+    # ---------- streaming download (with progress + cancel) -------------
+
+    def download_streaming(
+        self,
+        backend: str,
+        model_id: str,
+        cancel_event: threading.Event,
+        *,
+        poll_interval: float = 0.5,
+    ) -> Iterator[dict]:
+        """Yield progress events while downloading a catalog entry.
+
+        Events have a ``stage`` field:
+
+        * ``start``     — total file / byte counts known
+        * ``progress``  — per-poll snapshot (``bytes_done``, ``files_done``)
+        * ``done``      — local_dir on disk
+        * ``cancelled`` — caller set ``cancel_event``; partial dir removed
+        * ``error``     — terminal error (``message`` field)
+
+        Cancellation is *best effort*: the worker thread cannot interrupt a
+        single in-flight file download cleanly, so we wait for the current
+        file to finish (or fail) before tearing down the destination
+        directory. The next file is never started once cancellation is
+        observed between files.
+        """
+        try:
+            entry = self._entry(backend, model_id)
+        except ModelManagerError as e:
+            yield {"stage": "error", "message": str(e)}
+            return
+
+        dst = self.model_dir(backend, model_id)
+        dst.mkdir(parents=True, exist_ok=True)
+        cache_root = get_settings().model_root / ".hf-cache"
+        cache_root.mkdir(parents=True, exist_ok=True)
+
+        try:
+            from huggingface_hub import HfApi, hf_hub_download
+        except ImportError as e:  # pragma: no cover
+            yield {"stage": "error", "message": f"huggingface_hub missing: {e}"}
+            return
+
+        log.info(
+            "streaming download backend={} id={} repo={}",
+            backend, model_id, entry.repo_id,
+        )
+
+        # Resolve the list of repo files + sizes up front so we can render
+        # a meaningful progress bar instead of an indeterminate spinner.
+        try:
+            info = HfApi().model_info(entry.repo_id, files_metadata=True)
+        except Exception as e:
+            log.exception("model_info failed repo={}", entry.repo_id)
+            yield {"stage": "error", "message": f"model_info failed: {e}"}
+            return
+
+        siblings = list(getattr(info, "siblings", None) or [])
+        files: list[tuple[str, int]] = [
+            (s.rfilename, int(getattr(s, "size", 0) or 0)) for s in siblings
+        ]
+        files_total = len(files)
+        bytes_total = sum(sz for _, sz in files)
+        # Fallback when the API omits file sizes: use the catalog's
+        # advertised size_gb so the bar at least has a denominator.
+        if bytes_total <= 0 and entry.size_gb:
+            bytes_total = int(entry.size_gb * (1024**3))
+
+        yield {
+            "stage": "start",
+            "backend": backend,
+            "id": model_id,
+            "repo_id": entry.repo_id,
+            "files_total": files_total,
+            "bytes_total": bytes_total,
+            "local_dir": str(dst),
+        }
+
+        bytes_done = 0
+        files_done = 0
+
+        for rel, sz in files:
+            if cancel_event.is_set():
+                break
+
+            target_path = dst / rel
+            # If a previous run already fetched this file, skip the worker.
+            if target_path.exists() and sz and target_path.stat().st_size >= sz:
+                bytes_done += sz
+                files_done += 1
+                yield {
+                    "stage": "progress",
+                    "file": rel,
+                    "files_done": files_done,
+                    "files_total": files_total,
+                    "bytes_done": bytes_done,
+                    "bytes_total": bytes_total,
+                }
+                continue
+
+            result: dict = {"err": None}
+
+            def _worker(rel=rel) -> None:
+                try:
+                    hf_hub_download(
+                        repo_id=entry.repo_id,
+                        filename=rel,
+                        local_dir=str(dst),
+                        cache_dir=str(cache_root),
+                    )
+                except Exception as e:  # noqa: BLE001 - reported via stream
+                    result["err"] = e
+
+            t = threading.Thread(target=_worker, daemon=True)
+            t.start()
+
+            while t.is_alive():
+                # Poll partial file size on disk so very large shards show
+                # within-file progress, not just per-file ticks.
+                cur = (
+                    target_path.stat().st_size
+                    if target_path.exists()
+                    else 0
+                )
+                yield {
+                    "stage": "progress",
+                    "file": rel,
+                    "files_done": files_done,
+                    "files_total": files_total,
+                    "bytes_done": bytes_done + cur,
+                    "bytes_total": bytes_total,
+                }
+                if cancel_event.is_set():
+                    # Let the in-flight file settle to a consistent state
+                    # before we rmtree() the directory — yanking the file
+                    # out from under the worker can leave HF's atomic-write
+                    # tempfile dangling.
+                    break
+                t.join(timeout=poll_interval)
+
+            if cancel_event.is_set():
+                t.join()  # wait out the in-flight write
+                shutil.rmtree(dst, ignore_errors=True)
+                log.info(
+                    "download cancelled backend={} id={}", backend, model_id
+                )
+                yield {
+                    "stage": "cancelled",
+                    "files_done": files_done,
+                    "files_total": files_total,
+                    "bytes_done": bytes_done,
+                    "bytes_total": bytes_total,
+                }
+                return
+
+            if result["err"] is not None:
+                log.exception(
+                    "download error backend={} id={} file={}",
+                    backend, model_id, rel,
+                )
+                yield {
+                    "stage": "error",
+                    "file": rel,
+                    "message": f"{type(result['err']).__name__}: {result['err']}",
+                }
+                return
+
+            bytes_done += sz or (
+                target_path.stat().st_size if target_path.exists() else 0
+            )
+            files_done += 1
+            yield {
+                "stage": "progress",
+                "file": rel,
+                "files_done": files_done,
+                "files_total": files_total,
+                "bytes_done": bytes_done,
+                "bytes_total": bytes_total,
+            }
+
+        # Loop exit without an explicit cancel branch: either everything
+        # downloaded or the very first iteration saw ``cancel_event`` set
+        # before any file was touched. Handle the latter explicitly.
+        if cancel_event.is_set():
+            shutil.rmtree(dst, ignore_errors=True)
+            log.info("download cancelled backend={} id={}", backend, model_id)
+            yield {
+                "stage": "cancelled",
+                "files_done": files_done,
+                "files_total": files_total,
+                "bytes_done": bytes_done,
+                "bytes_total": bytes_total,
+            }
+            return
+
+        log.info("download complete backend={} id={}", backend, model_id)
+        yield {
+            "stage": "done",
+            "backend": backend,
+            "id": model_id,
+            "local_dir": str(dst),
+            "files_total": files_total,
+            "bytes_total": bytes_total,
+        }
 
     # ---------- load + activate -----------------------------------------
 

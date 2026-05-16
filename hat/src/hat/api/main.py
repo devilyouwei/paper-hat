@@ -45,21 +45,16 @@ def create_app() -> FastAPI:
     def policy() -> dict[str, object]:
         """Expose the live hippocampus selection policy and oracle config.
 
-        The Memory tab consumes this to render the scoring formula
-        ``score = αU + βF + γN`` with the actual coefficients and the
-        threshold currently in use, plus the oracle trigger settings.
-        Read-only — there is no setter; tweak via env (``HAT_*``) and
-        restart.
+        The Memory tab consumes this to render the scoring rule
+        ``score = U`` together with the gate threshold currently in use
+        and the oracle trigger settings. Read-only — there is no setter;
+        tweak via env (``HAT_*``) and restart.
         """
         s = get_settings()
         return {
             "write_policy": {
-                "kind": "linear",
-                "alpha": s.alpha,
-                "beta": s.beta,
-                "gamma": s.gamma,
+                "kind": "uncertainty_gate",
                 "threshold": s.write_threshold,
-                "feedback_bypass": True,  # F=1 force-accepts (paper §3.4.2)
             },
             "oracle": {
                 "enabled": s.oracle_enabled,
