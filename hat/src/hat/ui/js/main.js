@@ -2,6 +2,20 @@ import { $, $$ } from "./util.js";
 import { jget } from "./api.js";
 import { loadActive } from "./models.js";
 
+// ---------- boot-time fetches cache ------------------------------------
+// Other tabs (chat.js, models.js) need the same /healthz and active-model
+// info we already fetched during boot. Expose accessors so they don't issue
+// duplicate requests on page load.
+let _bootHealth = null;
+let _bootActive = null;
+
+export function getBootHealth() {
+  return _bootHealth;
+}
+export function getBootActive() {
+  return _bootActive;
+}
+
 // ---------- partial loader (lazy) --------------------------------------
 
 const initializers = {
@@ -54,6 +68,7 @@ async function loadHealth() {
   const dot = $("#health-dot");
   try {
     const h = await jget("/healthz");
+    _bootHealth = h;
     dot.classList.add("ok");
     dot.title = `backend: ${h.cortex_backend}`;
   } catch {
@@ -110,7 +125,7 @@ function initThemeToggle() {
 (async function boot() {
   initThemeToggle();
   await loadHealth();
-  await loadActive();
+  _bootActive = await loadActive();
   // First tab: render Chat immediately. Others lazy-load on click.
   await ensureTab("chat");
 })();

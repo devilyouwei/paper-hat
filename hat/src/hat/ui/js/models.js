@@ -163,8 +163,9 @@ export async function loadCatalog(backend) {
     const data = await jget(`/api/models?backend=${encodeURIComponent(backend)}`);
     _items = (data.items || []).map((i) => ({ ...i, backend }));
 
-    // Always know which model is active so the dropdowns can reflect it.
-    await loadActive();
+    // Active-model state is owned by loadActive(); callers that mutate it
+    // (activateModel / unloadActive / boot) refresh it explicitly. Avoid a
+    // redundant /api/models/active GET here on every catalog reload.
 
     const cm = $("#chat-model");
     if (cm) {
@@ -344,10 +345,11 @@ export async function initModelsTab() {
   const backendSel = $("#mgr-backend");
   // Resolve the default backend from the server: prefer whichever backend
   // hosts the currently-active model; otherwise honour HAT_CORTEX_BACKEND.
-  const [active, health] = await Promise.all([
-    loadActive(),
-    jget("/healthz").catch(() => null),
-  ]);
+  // Reuse boot-time results so opening the Models tab doesn't re-issue
+  // /healthz or /api/models/active.
+  const { getBootHealth, getBootActive } = await import("./main.js");
+  const active = getBootActive();
+  const health = getBootHealth();
   const wanted =
     (active && active.backend) ||
     (health && health.cortex_backend && health.cortex_backend !== "noop"

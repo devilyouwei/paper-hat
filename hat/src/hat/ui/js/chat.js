@@ -1,6 +1,7 @@
 import { $, $$, escapeHtml, renderBubbleHtml } from "./util.js";
 import { jget, jpost, jdelete } from "./api.js";
-import { loadCatalog, loadActive } from "./models.js";
+import { loadCatalog } from "./models.js";
+import { getBootHealth, getBootActive } from "./main.js";
 import {
   appendTraceEvent,
   clearTracePanel,
@@ -107,8 +108,7 @@ function clearChat() {
   chatbox().innerHTML = "";
 }
 
-async function loadSessions(selectId = null) {
-  const data = await jget("/api/sessions");
+function renderSessionList(data, selectId = null) {
   const list = $("#session-list");
   list.innerHTML = "";
   for (const s of data.data) {
@@ -121,6 +121,11 @@ async function loadSessions(selectId = null) {
     li.addEventListener("click", () => openSession(s.id));
     list.appendChild(li);
   }
+}
+
+async function loadSessions(selectId = null) {
+  const data = await jget("/api/sessions");
+  renderSessionList(data, selectId);
 }
 
 async function openSession(id) {
@@ -207,8 +212,11 @@ async function initSessions() {
     await newSession();
     return;
   }
-  await openSession(data.data[0].id);
-  await loadSessions();
+  // Render the list from the response we already have, then open the first
+  // session. Avoid a second GET /api/sessions on page load.
+  const firstId = data.data[0].id;
+  renderSessionList(data, firstId);
+  await openSession(firstId);
 }
 
 async function sendChat(ev) {
@@ -309,7 +317,6 @@ async function sendChat(ev) {
   }
 }
 
-initTracePanel();
 export async function initChatTab() {
   // Wiring inside the chat partial
   installScrollWatcher();
@@ -368,10 +375,10 @@ export async function initChatTab() {
   //   2. ``HAT_CORTEX_BACKEND`` from the server env (via /healthz).
   //   3. whatever option happens to be first in the dropdown.
   const sel = $("#chat-backend");
-  const [active, health] = await Promise.all([
-    loadActive(),
-    jget("/healthz").catch(() => null),
-  ]);
+  // Reuse the values main.js already fetched at boot — no duplicate
+  // /healthz or /api/models/active on page refresh.
+  const active = getBootActive();
+  const health = getBootHealth();
   const wanted =
     (active && active.backend) ||
     (health && health.cortex_backend && health.cortex_backend !== "noop"
