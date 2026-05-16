@@ -2,8 +2,10 @@
 
 The default :class:`IdentityAbstractor` copies fields verbatim — useful for
 tests and for backends without a callable Cortex. The production path is
-:class:`LLMAbstractor`, which asks the Cortex to compress the interaction
-into a JSON ``{summary, target, rationale}`` triple.
+:class:`LLMAbstractor`, which asks the Cortex itself, in a **single LLM
+call**, to read the latest turn against the session's existing traces and
+decide CREATE / REVISE / DROP plus emit the canonical ``(query, target)``
+pair to store.
 """
 
 from __future__ import annotations
@@ -20,15 +22,14 @@ class Abstractor(ABC):
     """Maps a raw :class:`Interaction` to a compact :class:`MemoryTrace`.
 
     Mirrors paper Eq. ``abstraction``: ``m = H_abs(c, x, y, f)``. Real
-    implementations call a small summarization model or prompt the Cortex itself
-    under an instruction template.
+    implementations call a small summarization model or prompt the Cortex
+    itself under an instruction template.
 
     Implementations may additionally accept ``prior_traces`` (a list of dicts
-    summarising existing traces for the current session) and route the
-    interaction to either a CREATE or REVISE path. The base contract returns a
-    :class:`MemoryTrace`; REVISE intent is signalled via
-    ``trace.metadata.extras["revise_of"] = <trace_id>`` so the caller can
-    rewrite the existing entry in place.
+    summarising existing traces for the current session) so they can route
+    the interaction to either a CREATE, REVISE, or DROP path. REVISE intent
+    is signalled via ``trace.metadata.extras["revise_of"] = <trace_id>``;
+    DROP is signalled by returning ``None``.
     """
 
     @abstractmethod
@@ -37,7 +38,7 @@ class Abstractor(ABC):
         interaction: Interaction,
         *,
         prior_traces: list[dict] | None = None,
-    ) -> MemoryTrace: ...
+    ) -> MemoryTrace | None: ...
 
 
 class IdentityAbstractor(Abstractor):
@@ -85,62 +86,50 @@ def _extract_json(text: str) -> dict | None:
         return None
 
 
-def _stash_route_meta(trace: MemoryTrace, route_meta: dict | None) -> None:
-    """Persist the router's novelty / user_signal / reason into ``extras``.
+def _stash_signals(trace: MemoryTrace, data: dict) -> None:
+    """Persist the model's own novelty / user_signal / rationale judgement.
 
-    These are the model's *own* judgements about why the trace was kept;
-    they replace the old fixed-weight ``ScoreSignals`` channels and are
-    surfaced in the UI for inspection. We keep only the well-known keys to
-    avoid leaking arbitrary router output.
+    Numeric scores are mirrored into ``metadata.signals`` (bridging the
+    legacy 3-channel ``ScoreSignals`` shape so on-disk rows are intuitive)
+    and the full record is also kept in ``extras`` for the UI.
     """
-    if not route_meta:
-        return
     extras = trace.metadata.extras
-    for k in ("novelty", "user_signal", "reason"):
-        v = route_meta.get(k)
+    for k_src, k_dst in (
+        ("novelty", "route_novelty"),
+        ("user_signal", "route_user_signal"),
+        ("rationale", "route_reason"),
+    ):
+        v = data.get(k_src)
         if v is not None:
-            extras[f"route_{k}"] = v
-    # Bridge the router-emitted novelty / user_signal into the legacy
-    # ``ScoreSignals`` triplet so the on-disk row carries them in the
-    # natural place. ``user_signal`` maps onto ``feedback`` (paper §3.4
-    # ``F`` channel — "is the user supervising me?"). Uncertainty is set
-    # independently by the gate and left untouched here.
+            extras[k_dst] = v
     sig = trace.metadata.signals
-    nov = route_meta.get("novelty")
+    nov = data.get("novelty")
     if isinstance(nov, (int, float)):
         sig.novelty = float(nov)
-    usig = route_meta.get("user_signal")
+    usig = data.get("user_signal")
     if isinstance(usig, (int, float)):
         sig.feedback = float(usig)
 
 
+def _is_nonempty_str(v) -> bool:
+    return isinstance(v, str) and v.strip() != ""
+
+
 class LLMAbstractor(Abstractor):
-    """Use the Cortex itself to summarise the turn into a memory trace.
+    """Single-call abstractor.
 
-    Two-step routing when ``prior_traces`` is supplied:
-
-    1. Ask the model to route the turn into one of CREATE / REVISE / DROP.
-       The router itself judges novelty (is the answer new to the model?)
-       and the strength of the user signal (is the user teaching/correcting
-       the model?) — fixed numeric weights are not used.
-    2. Depending on (1) either run the summary prompt (CREATE), the revise
-       prompt (REVISE) and tag the resulting trace with
-       ``metadata.extras["revise_of"] = <prior_trace_id>``, or return
-       ``None`` (DROP) so the wake step writes nothing.
-
-    On any failure we fall back to the identity abstraction so the wake step
-    is robust to prompt drift on small models.
+    Asks the Cortex *once*, given the session's existing traces and the new
+    turn, to emit a JSON envelope with the routing decision plus the
+    canonical ``(query, target)`` pair to store. On any parse failure we
+    fall back to :class:`IdentityAbstractor` so the wake step stays robust
+    on tiny / drifted models.
     """
 
-    def __init__(self, cortex, *, max_tokens: int = 256) -> None:
+    def __init__(self, cortex, *, max_tokens: int = 384) -> None:
         self.cortex = cortex
         self.max_tokens = max_tokens
         self._template = load_prompt("abstraction")
-        self._router_template = load_prompt("abstraction_router")
-        self._revise_template = load_prompt("abstraction_revise")
         self._fallback = IdentityAbstractor()
-
-    # -- helpers ----------------------------------------------------------
 
     @staticmethod
     def _split_system_user(template: str) -> tuple[str, str]:
@@ -150,49 +139,16 @@ class LLMAbstractor(Abstractor):
             return system.strip(), (marker + body).strip()
         return template.strip(), ""
 
-    def _route(
+    def _ask_llm(
         self,
         interaction: Interaction,
         prior_traces: list[dict],
-    ) -> tuple[str, str | None, dict]:
-        """Return ``(decision, prior_trace_id, raw_data)``.
-
-        ``decision`` is one of CREATE / REVISE / DROP. Falls back to CREATE
-        on parse errors so the loop stays robust. ``raw_data`` carries any
-        side fields (``novelty``, ``user_signal``, ``reason``) the router
-        emitted so we can stash them in the trace's ``extras`` for later
-        inspection.
-        """
-        prior_json = json.dumps(prior_traces, ensure_ascii=False, default=str)
-        system, user = self._split_system_user(self._router_template)
-        rendered = render(
-            user,
-            prior_traces_json=prior_json,
-            query=interaction.query or "",
-            response=interaction.response or "",
-        )
-        raw = call_judge(
-            self.cortex, system=system, user=rendered,
-            max_tokens=min(192, self.max_tokens),
-        )
-        data = _extract_json(raw) or {}
-        decision = str(data.get("decision") or "").strip().upper()
-        if decision not in ("CREATE", "REVISE", "DROP"):
-            return "CREATE", None, data
-        if decision == "REVISE":
-            trace_id = data.get("trace_id")
-            valid_ids = {t.get("trace_id") for t in prior_traces}
-            if not trace_id or trace_id not in valid_ids:
-                # Router asked for REVISE but pointed at a non-existent id;
-                # safer to CREATE than to silently drop user-tagged content.
-                return "CREATE", None, data
-            return "REVISE", str(trace_id), data
-        return decision, None, data
-
-    def _summarise_create(self, interaction: Interaction) -> MemoryTrace | None:
+    ) -> dict | None:
         system, user = self._split_system_user(self._template)
         rendered = render(
             user,
+            context=(interaction.context or "").strip() or "(none)",
+            prior_traces_json=json.dumps(prior_traces, ensure_ascii=False, default=str),
             query=interaction.query or "",
             response=interaction.response or "",
         )
@@ -200,73 +156,7 @@ class LLMAbstractor(Abstractor):
             self.cortex, system=system, user=rendered,
             max_tokens=self.max_tokens,
         )
-        data = _extract_json(raw)
-        if not data:
-            return None
-        target = data.get("target") or interaction.response
-        # Honor a model-supplied ``query`` so behaviour-rule turns can be
-        # canonicalised into a stimulus->response pair (see abstraction.md,
-        # "Behavior-rule extraction"). Fall back to the verbatim user input
-        # when the model omits it.
-        rewritten_q = data.get("query")
-        query = rewritten_q if isinstance(rewritten_q, str) and rewritten_q.strip() else interaction.query
-        return MemoryTrace(
-            interaction_id=interaction.id,
-            session_id=interaction.session_id,
-            interaction_ids=[interaction.id],
-            query=query,
-            cortex_response=interaction.response,
-            target_response=target,
-            rationale=(data.get("rationale") or data.get("summary") or None),
-            metadata=TraceMetadata(source=interaction.source),
-        )
-
-    def _summarise_revise(
-        self,
-        interaction: Interaction,
-        prior_trace: dict,
-    ) -> MemoryTrace | None:
-        system, user = self._split_system_user(self._revise_template)
-        rendered = render(
-            user,
-            prior_trace_json=json.dumps(prior_trace, ensure_ascii=False, default=str),
-            query=interaction.query or "",
-            response=interaction.response or "",
-        )
-        raw = call_judge(
-            self.cortex, system=system, user=rendered,
-            max_tokens=self.max_tokens,
-        )
-        data = _extract_json(raw)
-        if not data:
-            return None
-        target = (
-            data.get("target")
-            or interaction.response
-            or prior_trace.get("target")
-        )
-        # The revise prompt also asks for a consolidated ``query`` so the
-        # stored Q/A pair stays coherent after we overwrite ``target``. Fall
-        # back to the prior query (then the new query) only when the model
-        # forgot to supply one.
-        query = (
-            data.get("query")
-            or prior_trace.get("query")
-            or interaction.query
-        )
-        extras: dict = {"revise_of": prior_trace.get("trace_id")}
-        return MemoryTrace(
-            interaction_id=interaction.id,
-            session_id=interaction.session_id,
-            interaction_ids=[interaction.id],
-            query=query,
-            cortex_response=interaction.response,
-            target_response=target,
-            rationale=(data.get("rationale") or data.get("summary") or None),
-            metadata=TraceMetadata(source=interaction.source, extras=extras),
-        )
-
-    # -- public entrypoint -----------------------------------------------
+        return _extract_json(raw)
 
     def __call__(
         self,
@@ -274,27 +164,54 @@ class LLMAbstractor(Abstractor):
         *,
         prior_traces: list[dict] | None = None,
     ) -> MemoryTrace | None:
-        # No prior context → single-step CREATE path (legacy behaviour).
-        if not prior_traces:
-            trace = self._summarise_create(interaction)
-            return trace if trace is not None else self._fallback(interaction)
+        priors = prior_traces or []
+        data = self._ask_llm(interaction, priors)
 
-        decision, prior_trace_id, route_meta = self._route(interaction, prior_traces)
+        # Hard fallback when the model produced unparseable output: keep the
+        # turn rather than silently drop it so the loop stays useful.
+        if not isinstance(data, dict):
+            return self._fallback(interaction)
+
+        decision = str(data.get("decision") or "").strip().upper()
         if decision == "DROP":
-            # The router judged the turn not worth remembering; honour it.
             return None
-        if decision == "REVISE" and prior_trace_id is not None:
-            prior = next(
-                (t for t in prior_traces if t.get("trace_id") == prior_trace_id),
-                None,
-            )
-            if prior is not None:
-                revised = self._summarise_revise(interaction, prior)
-                if revised is not None:
-                    _stash_route_meta(revised, route_meta)
-                    return revised
-        trace = self._summarise_create(interaction)
-        if trace is None:
-            trace = self._fallback(interaction)
-        _stash_route_meta(trace, route_meta)
+
+        # Validate REVISE target id; fall back to CREATE if the model pointed
+        # at a non-existent trace.
+        prior: dict | None = None
+        if decision == "REVISE":
+            tid = data.get("trace_id")
+            if _is_nonempty_str(tid):
+                prior = next(
+                    (t for t in priors if t.get("trace_id") == tid), None
+                )
+            if prior is None:
+                decision = "CREATE"
+
+        # Pull and sanity-check the Q/A pair. Reject one-word / fragment
+        # targets — they pollute the training set.
+        q_raw = data.get("query")
+        t_raw = data.get("target")
+        query = q_raw if _is_nonempty_str(q_raw) else interaction.query
+        target = t_raw if _is_nonempty_str(t_raw) else interaction.response
+        if not _is_nonempty_str(target) or len(target.strip()) < 4:
+            # Treat malformed output the same as a parse failure rather than
+            # writing a broken row.
+            return self._fallback(interaction)
+
+        extras: dict = {}
+        if decision == "REVISE" and prior is not None:
+            extras["revise_of"] = prior.get("trace_id")
+
+        trace = MemoryTrace(
+            interaction_id=interaction.id,
+            session_id=interaction.session_id,
+            interaction_ids=[interaction.id],
+            query=query,
+            cortex_response=interaction.response,
+            target_response=target,
+            rationale=data.get("rationale") or None,
+            metadata=TraceMetadata(source=interaction.source, extras=extras),
+        )
+        _stash_signals(trace, data)
         return trace
