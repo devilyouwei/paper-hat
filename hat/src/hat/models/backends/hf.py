@@ -15,7 +15,10 @@ from collections.abc import Sequence
 from typing import Any
 import warnings
 
+from ...utils.logging import get_logger
 from ..registry import register
+
+log = get_logger(__name__)
 
 
 def _resolve_dtype(name: str):
@@ -82,6 +85,10 @@ class HFLanguageModel:
 
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_path, trust_remote_code=True
+        )
+        log.info(
+            "[hf] loading model path={} device={} dtype={} offload={} 4bit={}",
+            model_path, self.device, dtype, offload, load_in_4bit,
         )
 
         load_kwargs: dict[str, Any] = {
@@ -165,10 +172,15 @@ class HFLanguageModel:
                 "the default behaviour.",
                 RuntimeWarning,
             )
+            log.warning(
+                "[hf] CUDA OOM during load path={}; retrying with offload",
+                model_path,
+            )
             self.model = AutoModelForCausalLM.from_pretrained(model_path, **retry_kwargs)
         if not offload and self.device == "mps":
             self.model = self.model.to("mps")
         self.model.eval()
+        log.info("[hf] model loaded path={} device={}", model_path, self.device)
 
         # Chat-template stop tokens. Many instruct models (Qwen2.5, Llama-3,
         # ChatML-style families) use a turn terminator like ``<|im_end|>`` or
@@ -314,8 +326,16 @@ class HFLanguageModel:
         if do_sample:
             gen_kwargs.setdefault("top_p", float(kwargs.get("top_p", 0.9)))
 
-        with torch.no_grad():
-            out = self.model.generate(**inputs, **gen_kwargs)
+        log.debug(
+            "[hf] chat request msgs={} max_new_tokens={} temp={} do_sample={}",
+            len(messages), max_new_tokens, temperature, do_sample,
+        )
+        try:
+            with torch.no_grad():
+                out = self.model.generate(**inputs, **gen_kwargs)
+        except Exception:
+            log.exception("[hf] chat generation failed")
+            raise
 
         new_tokens = out[0][inputs["input_ids"].shape[-1] :]
         return self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()

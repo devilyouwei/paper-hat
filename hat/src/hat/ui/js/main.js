@@ -16,7 +16,7 @@ async function ensureTab(name) {
   if (loaded.has(name)) return;
   const host = $(`#tab-${name}`);
   if (!host) return;
-  const url = `/ui/static/partials/${name}.html`;
+  const url = `/ui/partials/${name}.html`;
   const r = await fetch(url, { cache: "no-cache" });
   if (!r.ok) {
     host.innerHTML = `<p class="status">failed to load ${name}: ${r.status}</p>`;

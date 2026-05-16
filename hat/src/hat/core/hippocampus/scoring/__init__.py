@@ -4,7 +4,17 @@ Each scorer returns a scalar in roughly ``[0, 1]``. Bring your own implementatio
 for production use; defaults here are minimal placeholders so the loop runs."""
 
 from .feedback import BinaryFeedback, FeedbackExtractor, LLMFeedbackJudge
-from .novelty import AlwaysNovel, LLMNoveltyJudge, NoveltyEstimator
+from .novelty import (
+    AlwaysNovel,
+    CompositeNoveltyJudge,
+    ConstantMemoryNovelty,
+    ConstantStateNovelty,
+    LLMNoveltyJudge,
+    MemoryNoveltyChannel,
+    NoveltyBreakdown,
+    NoveltyEstimator,
+    StateNoveltyChannel,
+)
 from .uncertainty import ConstantUncertainty, LogprobUncertainty, UncertaintyEstimator
 
 __all__ = [
@@ -17,4 +27,10 @@ __all__ = [
     "NoveltyEstimator",
     "AlwaysNovel",
     "LLMNoveltyJudge",
+    "NoveltyBreakdown",
+    "StateNoveltyChannel",
+    "MemoryNoveltyChannel",
+    "ConstantStateNovelty",
+    "ConstantMemoryNovelty",
+    "CompositeNoveltyJudge",
 ]

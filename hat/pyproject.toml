@@ -24,8 +24,6 @@ dependencies = [
 [project.optional-dependencies]
 hf = ["transformers>=4.40", "torch>=2.2", "accelerate>=0.30"]
 mlx = ["mlx-lm>=0.18"]
-vllm = ["vllm>=0.4"]
-ollama = ["ollama>=0.2"]
 train = ["peft>=0.11", "datasets>=2.19"]
 vector = ["chromadb>=0.5", "sentence-transformers>=2.7"]
 dev = [

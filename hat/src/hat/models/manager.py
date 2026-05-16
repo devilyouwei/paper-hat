@@ -19,7 +19,10 @@ from threading import Lock
 
 from ..config.settings import get_settings
 from ..core.cortex.base import Cortex
+from ..utils.logging import get_logger
 from .catalog import SUPPORTED_BACKENDS, CatalogEntry, load_catalog
+
+log = get_logger(__name__)
 
 
 class ModelManagerError(RuntimeError):
@@ -90,17 +93,30 @@ class ModelManager:
         # the snapshot layout flat under model/<backend>/<id>/.
         cache_root = get_settings().model_root / ".hf-cache"
         cache_root.mkdir(parents=True, exist_ok=True)
-        snapshot_download(
-            repo_id=entry.repo_id,
-            local_dir=str(dst),
-            cache_dir=str(cache_root),
+        log.info(
+            "downloading model backend={} id={} repo={} -> {}",
+            backend, model_id, entry.repo_id, dst,
         )
+        try:
+            snapshot_download(
+                repo_id=entry.repo_id,
+                local_dir=str(dst),
+                cache_dir=str(cache_root),
+            )
+        except Exception:
+            log.exception(
+                "download failed backend={} id={} repo={}",
+                backend, model_id, entry.repo_id,
+            )
+            raise
+        log.info("download complete backend={} id={}", backend, model_id)
         return dst
 
     # ---------- load + activate -----------------------------------------
 
     def _build_cortex(self, backend: str, path: str) -> Cortex:
         s = get_settings()
+        log.info("building cortex backend={} path={}", backend, path)
         if backend == "mlx":
             from ..core.cortex.mlx_cortex import MLXCortex
             from .backends.mlx import build_mlx_model
@@ -128,13 +144,28 @@ class ModelManager:
         key = (backend, model_id)
         with self._lock:
             if key in self._cache:
+                log.debug("model cache hit backend={} id={}", backend, model_id)
                 return self._cache[key]
             if not self.is_installed(backend, model_id):
+                log.error(
+                    "load aborted: model not installed backend={} id={}",
+                    backend, model_id,
+                )
                 raise ModelManagerError(
                     f"model {model_id!r} not installed; download it first"
                 )
-            cortex = self._build_cortex(backend, str(self.model_dir(backend, model_id)))
+            log.info("loading model backend={} id={}", backend, model_id)
+            try:
+                cortex = self._build_cortex(
+                    backend, str(self.model_dir(backend, model_id))
+                )
+            except Exception:
+                log.exception(
+                    "model load failed backend={} id={}", backend, model_id
+                )
+                raise
             self._cache[key] = cortex
+            log.info("model loaded backend={} id={}", backend, model_id)
             return cortex
 
     def _release_cortex(self, cortex: Cortex) -> None:
@@ -187,8 +218,11 @@ class ModelManager:
             if self._active == key:
                 self._active = None
         if cortex is None:
+            log.debug("unload no-op (not cached) backend={} id={}", backend, model_id)
             return False
+        log.info("unloading model backend={} id={}", backend, model_id)
         self._release_cortex(cortex)
+        log.info("model unloaded backend={} id={}", backend, model_id)
         return True
 
     def unload_all(self) -> int:
@@ -197,6 +231,8 @@ class ModelManager:
             evicted = list(self._cache.values())
             self._cache.clear()
             self._active = None
+        if evicted:
+            log.info("unloading all models count={}", len(evicted))
         for old in evicted:
             self._release_cortex(old)
         return len(evicted)
@@ -217,7 +253,9 @@ class ModelManager:
             self._release_cortex(cortex)
         d = self.model_dir(backend, model_id)
         if not d.exists():
+            log.debug("delete no-op (not on disk) backend={} id={}", backend, model_id)
             return False
+        log.warning("deleting model weights backend={} id={} dir={}", backend, model_id, d)
         shutil.rmtree(d, ignore_errors=False)
         return True
 
@@ -237,9 +275,11 @@ class ModelManager:
                 self._cache.clear()
                 self._active = None
         if evicted:
+            log.info("evicting {} cached model(s) before activating {}/{}", len(evicted), backend, model_id)
             for old in evicted:
                 self._release_cortex(old)
         if cortex is not None:
+            log.info("active model set (cached) backend={} id={}", backend, model_id)
             return cortex
 
         # Slow path: build the new cortex *after* freeing the old one so the
@@ -248,10 +288,18 @@ class ModelManager:
             raise ModelManagerError(
                 f"model {model_id!r} not installed; download it first"
             )
-        cortex = self._build_cortex(backend, str(self.model_dir(backend, model_id)))
+        log.info("activating model backend={} id={}", backend, model_id)
+        try:
+            cortex = self._build_cortex(
+                backend, str(self.model_dir(backend, model_id))
+            )
+        except Exception:
+            log.exception("activation failed backend={} id={}", backend, model_id)
+            raise
         with self._lock:
             self._cache[new_key] = cortex
             self._active = new_key
+        log.info("active model set backend={} id={}", backend, model_id)
         return cortex
 
     def active(self) -> dict | None:

@@ -13,11 +13,7 @@ from .routers import neocortex as neocortex_router
 from .routers import openai_compat as openai_router
 from .routers import sessions as sessions_router
 
-# Project-root assets (logo, etc.) — repo layout is hat/<asset> at the same
-# level as src/. Resolve once so the path survives reloads.
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
-_LOGO_PATH = _PROJECT_ROOT / "logo.png"
-_STATIC_DIR = Path(__file__).resolve().parents[1] / "ui" / "static"
+_STATIC_DIR = Path(__file__).resolve().parents[1] / "ui"
 
 
 def create_app() -> FastAPI:
@@ -34,11 +30,7 @@ def create_app() -> FastAPI:
 
     # Static frontend (vanilla HTML/CSS/JS), served from the same origin so
     # ``make serve`` is the only command needed.
-    app.mount(
-        "/ui/static",
-        StaticFiles(directory=str(_STATIC_DIR)),
-        name="ui-static",
-    )
+    app.mount("/ui", StaticFiles(directory=str(_STATIC_DIR)), name="ui",)
 
     @app.get("/healthz")
     def healthz() -> dict[str, object]:
@@ -77,10 +69,6 @@ def create_app() -> FastAPI:
                 "daily_calls": s.oracle_daily_calls,
             },
         }
-
-    @app.get("/logo.png", include_in_schema=False)
-    def logo() -> FileResponse:
-        return FileResponse(_LOGO_PATH, media_type="image/png")
 
     @app.get("/favicon.ico", include_in_schema=False)
     def favicon() -> FileResponse:

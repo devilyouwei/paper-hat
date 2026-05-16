@@ -19,7 +19,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from ...utils.logging import get_logger
 from ..registry import register
+
+log = get_logger(__name__)
 
 
 class MLXLanguageModel:
@@ -46,7 +49,13 @@ class MLXLanguageModel:
 
         # `load` accepts a local directory or a HF repo id; the latter is fetched
         # on first use and cached under ~/.cache/huggingface.
-        self.model, self.tokenizer = load(model_path)
+        log.info("[mlx] loading model path={} max_tokens={} temp={}", model_path, max_tokens, temperature)
+        try:
+            self.model, self.tokenizer = load(model_path)
+        except Exception:
+            log.exception("[mlx] failed to load model path={}", model_path)
+            raise
+        log.info("[mlx] model loaded path={}", model_path)
 
         # Same problem as the HF backend: many ChatML-style instruct models
         # use ``<|im_end|>`` (Qwen, Yi) or ``<|eot_id|>`` (Llama-3) as the
@@ -126,19 +135,26 @@ class MLXLanguageModel:
             kwargs.get("repetition_context_size", 256)
         )
 
-        # `mlx-lm.generate` returns the decoded continuation only.
-        text = generate(
-            self.model,
-            self.tokenizer,
-            prompt=prompt,
-            max_tokens=max_tokens,
-            sampler=make_sampler(temp=temperature),
-            logits_processors=make_logits_processors(
-                repetition_penalty=repetition_penalty,
-                repetition_context_size=repetition_context_size,
-            ),
-            verbose=False,
+        log.debug(
+            "[mlx] chat request msgs={} max_tokens={} temp={}",
+            len(messages), max_tokens, temperature,
         )
+        try:
+            text = generate(
+                self.model,
+                self.tokenizer,
+                prompt=prompt,
+                max_tokens=max_tokens,
+                sampler=make_sampler(temp=temperature),
+                logits_processors=make_logits_processors(
+                    repetition_penalty=repetition_penalty,
+                    repetition_context_size=repetition_context_size,
+                ),
+                verbose=False,
+            )
+        except Exception:
+            log.exception("[mlx] chat generation failed")
+            raise
         return text.strip()
 
     def stream_chat(
