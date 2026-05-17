@@ -2,10 +2,15 @@
 
 The default :class:`IdentityAbstractor` copies fields verbatim — useful for
 tests and for backends without a callable Cortex. The production path is
-:class:`LLMAbstractor`, which asks the Cortex itself, in a **single LLM
-call**, to read the latest turn against the session's existing traces and
-decide CREATE / REVISE / DROP plus emit the canonical ``(query, target)``
-pair to store.
+:class:`LLMAbstractor`, a **two-step workflow**:
+
+1. **Triage** — given only the current ``(query, response)`` and a short
+   context, decide whether the turn carries a knowledge point worth
+   remembering at all. No prior_traces are loaded; trivial small-talk
+   gets dropped here without ever touching the routing step.
+2. **Route** — only invoked when triage says *keep*. Receives the
+   session's existing traces plus the new turn, decides CREATE vs
+   REVISE, and emits the canonical ``(query, target)`` pair to store.
 """
 
 from __future__ import annotations
@@ -116,19 +121,50 @@ def _is_nonempty_str(v) -> bool:
 
 
 class LLMAbstractor(Abstractor):
-    """Single-call abstractor.
+    """Two-step abstractor (paper Eq. ``abstraction``).
 
-    Asks the Cortex *once*, given the session's existing traces and the new
-    turn, to emit a JSON envelope with the routing decision plus the
-    canonical ``(query, target)`` pair to store. On any parse failure we
-    fall back to :class:`IdentityAbstractor` so the wake step stays robust
-    on tiny / drifted models.
+    The wake step is split into two LLM calls so that each call has a
+    single, narrow responsibility and a small prompt:
+
+    1. **Triage** — given ONLY the current ``(query, response)`` (and a
+       short context), decide whether the turn carries a knowledge point
+       worth remembering. No prior traces are consulted here; the model
+       is just answering "keep or drop?". Cheap; small output budget.
+    2. **Route** — only invoked when triage says *keep*. Receives the
+       session's existing traces plus the new turn, and emits the routing
+       decision (CREATE vs REVISE) together with the canonical
+       ``(query, target)`` pair to store.
+
+    Splitting these concerns keeps the route prompt focused (it no longer
+    has to also argue about novelty) and prevents wasting tokens on
+    pleasantries — those are dropped at step 1 without ever loading the
+    prior_traces context.
+
+    On any parse failure we fall back to :class:`IdentityAbstractor` —
+    but only when ``priors`` is empty. If priors exist we must DROP
+    instead, because copying the raw user utterance (often a meta
+    correction like "错误，X 其实是 Y") into ``query`` would poison the
+    training set.
     """
 
-    def __init__(self, cortex, *, max_tokens: int = 384) -> None:
+    def __init__(
+        self,
+        cortex,
+        *,
+        max_tokens_triage: int = 192,
+        max_tokens_route: int = 512,
+        context_char_budget: int = 1200,
+    ) -> None:
         self.cortex = cortex
-        self.max_tokens = max_tokens
-        self._template = load_prompt("abstraction")
+        self.max_tokens_triage = max_tokens_triage
+        self.max_tokens_route = max_tokens_route
+        # Cap the rendered ``{context}`` so a long prior turn doesn't blow
+        # the prompt budget and cause the JSON output to get truncated
+        # (which silently routes the turn through the IdentityAbstractor
+        # fallback and forces an unwanted CREATE).
+        self.context_char_budget = context_char_budget
+        self._triage_template = load_prompt("abstraction_triage")
+        self._route_template = load_prompt("abstraction_route")
         self._fallback = IdentityAbstractor()
 
     @staticmethod
@@ -139,24 +175,69 @@ class LLMAbstractor(Abstractor):
             return system.strip(), (marker + body).strip()
         return template.strip(), ""
 
-    def _ask_llm(
-        self,
-        interaction: Interaction,
-        prior_traces: list[dict],
-    ) -> dict | None:
-        system, user = self._split_system_user(self._template)
+    def _truncate_context(self, interaction: Interaction) -> str:
+        ctx = (interaction.context or "").strip() or "(none)"
+        if self.context_char_budget and len(ctx) > self.context_char_budget:
+            # Keep the tail — the most recent turn is the most relevant
+            # for both triage and routing on the current exchange.
+            ctx = "…\n" + ctx[-self.context_char_budget :]
+        return ctx
+
+    def _triage(self, interaction: Interaction) -> dict | None:
+        system, user = self._split_system_user(self._triage_template)
         rendered = render(
             user,
-            context=(interaction.context or "").strip() or "(none)",
+            context=self._truncate_context(interaction),
+            query=interaction.query or "",
+            response=interaction.response or "",
+        )
+        raw = call_judge(
+            self.cortex, system=system, user=rendered,
+            max_tokens=self.max_tokens_triage,
+        )
+        return _extract_json(raw)
+
+    def _route(
+        self, interaction: Interaction, prior_traces: list[dict]
+    ) -> dict | None:
+        system, user = self._split_system_user(self._route_template)
+        rendered = render(
+            user,
+            context=self._truncate_context(interaction),
             prior_traces_json=json.dumps(prior_traces, ensure_ascii=False, default=str),
             query=interaction.query or "",
             response=interaction.response or "",
         )
         raw = call_judge(
             self.cortex, system=system, user=rendered,
-            max_tokens=self.max_tokens,
+            max_tokens=self.max_tokens_route,
         )
         return _extract_json(raw)
+
+    def _fallback_or_drop(
+        self, interaction: Interaction, priors: list[dict]
+    ) -> MemoryTrace | None:
+        """Handle an unparseable / malformed LLM response.
+
+        A trace's ``query`` is supposed to be the *canonical applied form*
+        of the lesson, produced by the abstractor LLM. When the LLM call
+        fails we have two bad options:
+
+        * Identity-copy the raw interaction. Safe only when there are no
+          priors — there is nothing to confuse with and the raw Q/A
+          *is* the knowledge point.
+        * Drop the turn. Required whenever ``priors`` is non-empty: this
+          turn is almost certainly a correction / clarification of an
+          existing trace, and copying the user's meta-instruction
+          (e.g. "错误，黄有为是...") verbatim into ``query`` would poison
+          the dataset. Better to lose this row than to forge one.
+        """
+        if priors:
+            return None
+        trace = self._fallback(interaction)
+        if trace is not None:
+            trace.metadata.extras["abstractor_fallback"] = True
+        return trace
 
     def __call__(
         self,
@@ -165,19 +246,24 @@ class LLMAbstractor(Abstractor):
         prior_traces: list[dict] | None = None,
     ) -> MemoryTrace | None:
         priors = prior_traces or []
-        data = self._ask_llm(interaction, priors)
 
-        # Hard fallback when the model produced unparseable output: keep the
-        # turn rather than silently drop it so the loop stays useful.
-        if not isinstance(data, dict):
-            return self._fallback(interaction)
-
-        decision = str(data.get("decision") or "").strip().upper()
-        if decision == "DROP":
+        # ---- Step 1: triage --------------------------------------------
+        triage = self._triage(interaction)
+        # An explicit `keep: false` is the only path to DROP. A parse
+        # failure here errs toward keeping the turn (routing will then
+        # apply its own malformed-output policy via _fallback_or_drop).
+        if isinstance(triage, dict) and triage.get("keep") is False:
             return None
 
-        # Validate REVISE target id; fall back to CREATE if the model pointed
-        # at a non-existent trace.
+        # ---- Step 2: route ---------------------------------------------
+        data = self._route(interaction, priors)
+        if not isinstance(data, dict):
+            return self._fallback_or_drop(interaction, priors)
+
+        decision = str(data.get("decision") or "").strip().upper()
+
+        # Validate REVISE target id; fall back to CREATE if the model
+        # pointed at a non-existent trace.
         prior: dict | None = None
         if decision == "REVISE":
             tid = data.get("trace_id")
@@ -195,9 +281,7 @@ class LLMAbstractor(Abstractor):
         query = q_raw if _is_nonempty_str(q_raw) else interaction.query
         target = t_raw if _is_nonempty_str(t_raw) else interaction.response
         if not _is_nonempty_str(target) or len(target.strip()) < 4:
-            # Treat malformed output the same as a parse failure rather than
-            # writing a broken row.
-            return self._fallback(interaction)
+            return self._fallback_or_drop(interaction, priors)
 
         extras: dict = {}
         if decision == "REVISE" and prior is not None:
@@ -213,5 +297,9 @@ class LLMAbstractor(Abstractor):
             rationale=data.get("rationale") or None,
             metadata=TraceMetadata(source=interaction.source, extras=extras),
         )
-        _stash_signals(trace, data)
+        # Triage owns novelty / user_signal; route owns rationale. Merge
+        # so _stash_signals sees a single dict with both halves populated.
+        merged = dict(triage or {})
+        merged.update(data)
+        _stash_signals(trace, merged)
         return trace
