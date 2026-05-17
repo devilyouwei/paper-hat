@@ -27,17 +27,27 @@ You may NOT decide to drop the turn here — triage owns that decision.
 
 - `query` is the user-side input the trace will be replayed against at
   inference time.
-  - If the user's actual turn is a clean standalone question, reuse it.
-  - If the user is **teaching** a rule or correcting a fact, set
-    `query` to the most likely future *application* of that rule —
-    NEVER copy a meta-instruction verbatim
-    ("错误，X 其实是 Y", "以后叫我主人", "记住"). The stored query is
-    a future user utterance, not the current correction utterance.
+  - **On REVISE: copy the prior trace's `query` verbatim.** The whole
+    point of REVISE is that the *question* is the same — only the
+    answer is being refined or corrected. Do NOT rewrite the question,
+    do NOT mix in the current user utterance. (If you actually need a
+    new question, the right decision was CREATE, not REVISE.)
+  - On CREATE: if the user's actual turn is a clean standalone
+    question, reuse it. If the user is **teaching** a rule or
+    correcting a fact, set `query` to the most likely future
+    *application* of that rule — NEVER copy a meta-instruction
+    verbatim ("错误，X 其实是 Y", "以后叫我主人", "记住"). The stored
+    query is a future user utterance, not the current correction
+    utterance.
 - `target` MUST be a complete assistant message (at least one full
   sentence written as a normal reply). Never emit a fragment, a single
   word, or just an addressee token ("master", "yes", "OK"). If the
   model's actual reply was laconic, rewrite into a complete sentence
   that carries the same information.
+  - On REVISE: the new `target` should be the *consolidated, fully
+    corrected* answer, integrating every fact the user has supplied
+    across the conversation so far — not just a restatement of the
+    latest correction.
 - The `(query, target)` pair must be coherent on its own: someone
   reading the two strings with no surrounding context must be able to
   use them as a training example.
@@ -114,6 +124,25 @@ New turn:
 ```
 {"decision":"REVISE","trace_id":"t-bio","query":"你认识黄有为吗？","target":"黄有为是中国科学院计算技术研究所 2020 届研究员，专业方向为区块链与人工智能，现任深圳跃瓦（LeapWatt）创新科技有限公司监事、高管、技术总监。","rationale":"User corrected the identity stored under the same name; question (the future re-asking) is unchanged."}
 ```
+
+### REVISE — user incrementally adds facts about the same subject
+
+Prior traces:
+```
+[{"trace_id":"t-bio","query":"你认识黄有为吗？","target":"黄有为是中国科学院计算技术研究所研究员，现任 LeapWatt 技术总监。"}]
+```
+New turn:
+- query: "哦，需要补充下，他还是 LeapWatt 的监事，毕业于美国罗格斯大学计算机系，硕士学位，并且是 CMU 在读博士。"
+- response: "收到，已记下补充信息……"
+
+→
+```
+{"decision":"REVISE","trace_id":"t-bio","query":"你认识黄有为吗？","target":"黄有为是中国科学院计算技术研究所研究员，现任 LeapWatt 技术总监并兼任监事；本科毕业于美国罗格斯大学计算机系，获硕士学位，目前在 CMU 攻读博士。","rationale":"User supplied additional biographical facts; consolidate them into the existing answer while keeping the original question."}
+```
+
+Note how `query` is copied verbatim from the prior trace, and `target`
+merges the old answer with the newly supplied facts into one
+self-contained reply.
 
 ### REVISE — new turn applies an existing rule
 

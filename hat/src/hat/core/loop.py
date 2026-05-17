@@ -105,12 +105,16 @@ class WakeSleepLoop:
                 oracle_used = True
 
         # Build the prompt-friendly view of prior traces for the abstractor.
+        # The query is the **canonical** user-side input that the trace
+        # will be replayed against; it is the abstractor's main signal on
+        # REVISE and must NOT be silently clipped. Keep it whole (queries
+        # are short by construction) and only truncate the long target.
         prior_view: list[dict] | None = None
         if prior_traces:
             prior_view = []
             for t in prior_traces:
-                q = (t.query or "")[:120]
-                tgt = (t.target_response or t.cortex_response or "")[:200]
+                q = (t.query or "")[:512]
+                tgt = (t.target_response or t.cortex_response or "")[:512]
                 prior_view.append(
                     {"trace_id": t.id, "query": q, "target": tgt}
                 )

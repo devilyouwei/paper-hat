@@ -17,10 +17,11 @@ Strategy:
 
 from __future__ import annotations
 
+import threading
 import uuid
 import re
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ...core.loop import WakeSleepLoop
 from ...core.schemas import Interaction
@@ -96,28 +97,27 @@ def _summarize_title(cortex, query: str) -> str:
     """Best-effort short-title generation. Falls back to the truncated query
     if the cortex is the noop one or if anything throws."""
     try:
-        if hasattr(cortex, "chat") and callable(cortex.chat):
-            prompt = (
-                "Summarize the user's message into a short, plain-text chat "
-                "title (max 8 words, no quotes, no punctuation at the end)."
-            )
-            text = cortex.chat(
-                [
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": query},
-                ],
-                max_tokens=64,
-                temperature=0.2,
-                # Disable Qwen3-style <think> blocks for title generation.
-                # Backends that don't understand the kwarg simply ignore it.
-                chat_template_kwargs={"enable_thinking": False},
-            )
-            cleaned = _strip_think(text or "").strip().strip('"').strip("'")
-            # First non-empty line only — titles should be a single line.
-            if cleaned:
-                cleaned = cleaned.splitlines()[0].strip().strip('"').strip("'")
-            if cleaned and not cleaned.lower().startswith("[noop]"):
-                return _truncate_title(cleaned)
+        prompt = (
+            "Summarize the user's message into a short, plain-text chat "
+            "title (max 8 words, no quotes, no punctuation at the end)."
+        )
+        text = cortex.chat(
+            [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": query},
+            ],
+            max_tokens=64,
+            temperature=0.2,
+            # Disable Qwen3-style <think> blocks for title generation.
+            # Backends that don't understand the kwarg simply ignore it.
+            chat_template_kwargs={"enable_thinking": False},
+        )
+        cleaned = _strip_think(text or "").strip().strip('"').strip("'")
+        # First non-empty line only — titles should be a single line.
+        if cleaned:
+            cleaned = cleaned.splitlines()[0].strip().strip('"').strip("'")
+        if cleaned and not cleaned.lower().startswith("[noop]"):
+            return _truncate_title(cleaned)
     except Exception:
         pass
     return _truncate_title(query)
@@ -163,6 +163,68 @@ def _summarize_events(events: list[dict], trace) -> dict | None:
         if val is not None:
             record[key] = val
     return record or None
+
+
+# --------------------------------------------------------------------------
+# Per-session generation lock
+# --------------------------------------------------------------------------
+# A session may have at most one *in-flight* model generation at any time.
+# When a new turn arrives while the previous turn is still streaming tokens,
+# we (1) signal the prior turn to stop, (2) wait for it to persist whatever
+# it had generated so far, and (3) then let the new turn proceed. The wake
+# step (abstraction) is intentionally NOT covered by this lock — it runs
+# after the lock has been released so a fast follow-up does not block on
+# the (slower) memory-routing LLM call.
+
+_GEN_REGISTRY_LOCK = threading.Lock()
+
+
+@dataclass
+class _GenSlot:
+    """Handle on an in-flight generation for a given session.
+
+    ``stop`` is set by a later turn that wants to preempt this one;
+    ``done`` is set by this turn once it has finished persisting (whether
+    completed normally or interrupted), so the next turn knows it is safe
+    to start generating.
+    """
+
+    stop: threading.Event = field(default_factory=threading.Event)
+    done: threading.Event = field(default_factory=threading.Event)
+
+
+_GEN_LOCKS: dict[str, _GenSlot] = {}
+
+
+def _acquire_gen_slot(session_id: str | None) -> _GenSlot:
+    """Reserve the generation slot for ``session_id``.
+
+    If a previous turn is still generating for the same session, signal it
+    to stop and wait (briefly) for it to drain. Then atomically register
+    ourselves as the active slot.
+    """
+    slot = _GenSlot()
+    if not session_id:
+        return slot
+    with _GEN_REGISTRY_LOCK:
+        prior = _GEN_LOCKS.get(session_id)
+        _GEN_LOCKS[session_id] = slot
+    if prior is not None and prior is not slot:
+        prior.stop.set()
+        # Bounded wait — never let a stuck prior turn deadlock the session.
+        prior.done.wait(timeout=15.0)
+    return slot
+
+
+def _release_gen_slot(session_id: str | None, slot: _GenSlot) -> None:
+    """Release the slot. Safe to call multiple times."""
+    if session_id:
+        with _GEN_REGISTRY_LOCK:
+            # Only drop ourselves; a later turn may have already replaced
+            # us in the registry.
+            if _GEN_LOCKS.get(session_id) is slot:
+                _GEN_LOCKS.pop(session_id, None)
+    slot.done.set()
 
 
 @dataclass
@@ -268,8 +330,9 @@ class OpenAIChatController:
         gen_kwargs = _build_gen_kwargs(req)
         session = self._resolve_session(req.session_id, first_query=last.content)
 
-        # Authoritative history: rebuild from the session store when one is
-        # available so we don't trust whatever the client sent.
+        # Authoritative history: rebuild from the session store. The client
+        # is no longer expected to send the prior turns — ``runs/raw`` is
+        # the single source of truth.
         rebuilt_history, rebuilt_full = self._rebuild_history(session, last)
         if rebuilt_full:
             history = rebuilt_history
@@ -278,20 +341,10 @@ class OpenAIChatController:
             history = req.messages[:-1]
             effective_messages = list(req.messages)
 
-        # Pull session-scoped prior traces so the abstractor can decide
-        # CREATE vs REVISE. Done lazily to avoid a hard import cycle.
-        prior_traces: list = []
-        if session is not None:
-            from ..deps import prior_traces_for_session
-            prior_traces = prior_traces_for_session(session.id)
-
-        events: list[dict] = []
-
-        def _sink(stage: str, payload: dict) -> None:
-            events.append({"stage": stage, **payload})
-
-        cortex = self.loop.cortex
-        if hasattr(cortex, "chat") and callable(cortex.chat):
+        session_key = session.id if session else None
+        slot = _acquire_gen_slot(session_key)
+        try:
+            cortex = self.loop.cortex
             response_text = cortex.chat(
                 [m.model_dump() for m in effective_messages], **gen_kwargs
             )
@@ -301,23 +354,24 @@ class OpenAIChatController:
                 query=last.content,
                 response=response_text,
             )
-        else:
-            # Legacy generate() path — produce the answer eagerly so the
-            # row we persist is complete.
-            response_text = cortex.generate(
-                last.content, context=_flatten_history(history)
-            )
-            interaction = Interaction(
-                session_id=session.id if session else None,
-                context=_flatten_history(history),
-                query=last.content,
-                response=response_text,
-            )
+            # Persist BEFORE wake_step / before releasing the lock so a
+            # fast follow-up turn always sees this exchange.
+            self._persist_turn(session, interaction)
+        finally:
+            _release_gen_slot(session_key, slot)
 
-        # Persist BEFORE the wake step so a fast follow-up turn always sees
-        # this exchange in the history. The hat metadata is written back
-        # once the abstractor finishes.
-        self._persist_turn(session, interaction)
+        # Wake step runs OUTSIDE the generation lock: a fast follow-up
+        # turn can start generating immediately while this turn's
+        # abstractor LLM call (slower) finishes in parallel.
+        prior_traces: list = []
+        if session is not None:
+            from ..deps import prior_traces_for_session
+            prior_traces = prior_traces_for_session(session.id)
+
+        events: list[dict] = []
+
+        def _sink(stage: str, payload: dict) -> None:
+            events.append({"stage": stage, **payload})
 
         trace = self.loop.wake_step(
             interaction, prior_traces=prior_traces or None, event_sink=_sink,
@@ -393,42 +447,63 @@ class OpenAIChatController:
 
         msgs = [m.model_dump() for m in effective_messages]
         collected: list[str] = []
+        interrupted = False
 
-        if hasattr(cortex, "stream_chat") and callable(cortex.stream_chat):
+        session_key = session.id if session else None
+        slot = _acquire_gen_slot(session_key)
+        try:
             try:
                 for piece in cortex.stream_chat(msgs, **gen_kwargs):
+                    # Cooperative cancellation: a later turn on this
+                    # session has asked us to stop. Persist what we
+                    # have and exit cleanly.
+                    if slot.stop.is_set():
+                        interrupted = True
+                        break
                     if not piece:
                         continue
                     collected.append(piece)
                     yield chunk(ChatCompletionDelta(content=piece))
             except Exception as e:  # pragma: no cover - runtime safety net
                 yield chunk(
-                    ChatCompletionDelta(content=f"\n[stream error] {type(e).__name__}: {e}")
+                    ChatCompletionDelta(
+                        content=f"\n[stream error] {type(e).__name__}: {e}"
+                    )
                 )
-        else:
-            # No streaming support — fall back to a single blocking chat() call.
-            text = (
-                cortex.chat(msgs, **gen_kwargs)
-                if hasattr(cortex, "chat") and callable(cortex.chat)
-                else cortex.generate(last.content, context=_flatten_history(history))
+
+            full = "".join(collected)
+            interaction = Interaction(
+                session_id=session.id if session else None,
+                context=_flatten_history(history),
+                query=last.content,
+                response=full,
             )
-            collected.append(text)
-            yield chunk(ChatCompletionDelta(content=text))
 
-        full = "".join(collected)
-        interaction = Interaction(
-            session_id=session.id if session else None,
-            context=_flatten_history(history),
-            query=last.content,
-            response=full,
-        )
+            # Persist BEFORE releasing the lock so the next turn (which
+            # is currently waiting on ``slot.done``) is guaranteed to see
+            # this exchange when it rebuilds history from disk. For an
+            # interrupted turn ``full`` is whatever tokens we had time to
+            # collect — that is the "已生成的上下文" we promise to keep.
+            self._persist_turn(session, interaction)
+        finally:
+            _release_gen_slot(session_key, slot)
 
-        # Persist BEFORE the wake step so a fast follow-up turn always sees
-        # this exchange in the history. The hat metadata is written back
-        # once the abstractor finishes.
-        self._persist_turn(session, interaction)
+        # If we were interrupted mid-generation, the next turn is already
+        # queued and waiting. End the stream now; the abstractor decision
+        # for this partial turn (if any) will be written back to disk
+        # asynchronously and surface on the next session refresh.
+        if interrupted:
+            yield chunk(
+                ChatCompletionDelta(),
+                finish="stop",
+                hat_session_id=session.id if session else None,
+            )
+            yield "data: [DONE]\n\n"
+            self._run_wake_async(session, interaction)
+            return
 
-        # Pull prior traces (session-scoped) so the abstractor can REVISE.
+        # Wake step runs OUTSIDE the generation lock: a fast follow-up
+        # turn does not have to wait for the (slower) abstractor LLM call.
         prior_traces: list = []
         if session is not None:
             from ..deps import prior_traces_for_session
@@ -459,3 +534,40 @@ class OpenAIChatController:
             hat_session_id=session.id if session else None,
         )
         yield "data: [DONE]\n\n"
+
+    # ----- background wake (used for interrupted turns) -----------------
+
+    def _run_wake_async(
+        self, session: Session | None, interaction: Interaction
+    ) -> None:
+        """Run ``wake_step`` for an interrupted turn in a background
+        thread so the user-facing SSE stream can close immediately.
+
+        Used only for partial / interrupted turns where the client has
+        already moved on to the next message. For completed turns we run
+        wake_step inline so the lifecycle events still stream live.
+        """
+        def _run() -> None:
+            try:
+                prior_traces: list = []
+                if session is not None:
+                    from ..deps import prior_traces_for_session
+                    prior_traces = prior_traces_for_session(session.id)
+                events: list[dict] = []
+
+                def _sink(stage: str, payload: dict) -> None:
+                    events.append({"stage": stage, **payload})
+
+                trace = self.loop.wake_step(
+                    interaction,
+                    prior_traces=prior_traces or None,
+                    event_sink=_sink,
+                )
+                interaction.hat = _summarize_events(events, trace)
+                self._update_hat(session, interaction.hat)
+            except Exception:  # pragma: no cover - background safety net
+                pass
+
+        threading.Thread(
+            target=_run, name="hat-wake-async", daemon=True
+        ).start()

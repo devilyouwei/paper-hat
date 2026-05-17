@@ -128,20 +128,16 @@ def call_judge(
     fall back to a default score without raising.
     """
     try:
-        if hasattr(cortex, "chat") and callable(cortex.chat):
-            return cortex.chat(
-                [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                max_tokens=max_tokens,
-                temperature=temperature,
-                # Disable Qwen3-style thinking so the parser sees the answer
-                # directly. Backends that don't recognise the kwarg ignore it.
-                chat_template_kwargs={"enable_thinking": False},
-            )
-        if hasattr(cortex, "generate") and callable(cortex.generate):
-            return cortex.generate(user, context=system)
+        return cortex.chat(
+            [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+            # Disable Qwen3-style thinking so the parser sees the answer
+            # directly. Backends that don't recognise the kwarg ignore it.
+            chat_template_kwargs={"enable_thinking": False},
+        )
     except Exception:
         return ""
-    return ""

@@ -17,9 +17,13 @@ function memRowHtml(e, i) {
   const score = fmt(e.score);
   const sig = e.signals || {};
   const u = fmt(sig.uncertainty);
+  const md = e.metadata || {};
+  const extras = (md && md.extras) || {};
+  const n = fmt(extras.route_novelty ?? sig.novelty);
+  const s = fmt(extras.route_user_signal ?? sig.feedback);
+  const reason = escapeHtml(extras.route_reason || "");
   const q = escapeHtml((e.query || "").slice(0, 100));
   const r = escapeHtml((e.response || "").slice(0, 200));
-  const md = e.metadata || {};
   const isOracle =
     (md.extras && md.extras.oracle) ||
     (typeof md.source === "string" && md.source.includes("oracle"));
@@ -33,6 +37,9 @@ function memRowHtml(e, i) {
     <td><code>${escapeHtml((e.trace_id || "").slice(0, 8))}</code>${oracleBadge}</td>
     <td><strong>${score}</strong></td>
     <td>${u}</td>
+    <td>${n}</td>
+    <td>${s}</td>
+    <td class="truncate" title="${reason}">${reason}</td>
     <td class="truncate" title="${escapeHtml(e.query || "")}">${q}</td>
     <td class="truncate" title="${escapeHtml(e.response || "")}">${r}</td>
     <td class="actions">
@@ -189,6 +196,11 @@ function renderBreakdown(e) {
   const sig = e.signals || {};
   const t = memPolicy?.threshold ?? 0.3;
   const u = sig.uncertainty ?? 0;
+  const md = e.metadata || {};
+  const extras = (md && md.extras) || {};
+  const n = extras.route_novelty ?? sig.novelty;
+  const s = extras.route_user_signal ?? sig.feedback;
+  const reason = extras.route_reason || "";
   const accepted = u >= t;
 
   $("#mem-breakdown-formula").textContent = `score = U`;
@@ -202,7 +214,6 @@ function renderBreakdown(e) {
     </div>`;
   };
 
-  const md = e.metadata || {};
   const oracleNote =
     md.extras && md.extras.oracle
       ? `<p class="muted small">Augmented by ${escapeHtml(md.extras.oracle_name || "oracle")} — the response above is the teacher's answer, not the cortex's original output.</p>`
@@ -214,6 +225,8 @@ function renderBreakdown(e) {
 
   $("#mem-breakdown-body").innerHTML = `
     ${bar("U", u, "uncertainty: 1 - exp(mean log p) over response tokens")}
+    ${bar("N", n, "novelty: how new is this knowledge point")}
+    ${bar("S", s, "user_signal: how strongly the user is teaching/correcting")}
     <div class="bd-total">
       <span>gate</span>
       <strong>${fmt(u, 3)}</strong>
@@ -221,6 +234,7 @@ function renderBreakdown(e) {
     </div>
     ${oracleNote}
   `;
+  $("#mem-extras-body").innerHTML = reason ? `<div class="bd-reason"><b>Reason:</b> ${escapeHtml(reason)}</div>` : "";
 }
 
 function openMemEditor(id) {

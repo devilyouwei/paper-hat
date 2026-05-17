@@ -10,14 +10,11 @@ import {
 } from "./traces.js";
 
 let currentSessionId = null;
-// In-memory transcript for the active session, mirroring what the backend
-// has on disk. The backend rebuilds history from disk anyway (single source
-// of truth), but we still send it so that for unsaved/new sessions the
-// model still sees prior turns immediately.
-let history = [];
 // Aborts the in-flight stream when the user switches/creates/deletes a
-// session, so the previous turn's late ``history.push`` can never land in
-// the wrong session.
+// session, so the previous turn's late side-effects can never land in the
+// wrong session. The backend also enforces a per-session generation lock
+// and will interrupt its own in-flight turn when a new request arrives;
+// this client-side abort just stops reading the (now-stale) SSE body.
 let currentStreamAbort = null;
 
 function abortInflightStream(reason = "session changed") {
@@ -134,15 +131,12 @@ async function openSession(id) {
   $("#session-status").textContent = "";
   const detail = await jget(`/api/sessions/${id}`);
   clearChat();
-  history = [];
   for (const it of detail.messages) {
     if (it.query) {
       appendBubble("user", it.query);
-      history.push({ role: "user", content: it.query });
     }
     if (it.response) {
       const aBubble = appendBubble("assistant", it.response);
-      history.push({ role: "assistant", content: it.response });
       // Re-attach the uncertainty / route badge from the persisted record so
       // the user sees the same annotation after a page refresh.
       if (it.hat) {
@@ -180,7 +174,6 @@ async function newSession() {
   try {
     const created = await jpost("/api/sessions", {});
     currentSessionId = created.id;
-    history = [];
     clearChat();
     clearTracePanel();
     await loadSessions(created.id);
@@ -198,7 +191,6 @@ async function deleteCurrentSession() {
   try {
     await jdelete(`/api/sessions/${currentSessionId}`);
     currentSessionId = null;
-    history = [];
     clearChat();
     await initSessions();
   } catch (e) {
@@ -231,21 +223,20 @@ async function sendChat(ev) {
   let buffer = "";
 
   // Pin the session id this turn belongs to. If the user switches sessions
-  // mid-stream we abort below; this guards the post-stream ``history.push``
-  // from landing in the wrong session.
+  // mid-stream we abort the client-side fetch; the backend also enforces a
+  // per-session generation lock that interrupts the prior in-flight turn
+  // on its end and persists whatever it had time to generate.
   const turnSessionId = currentSessionId;
   abortInflightStream("new send");
   const ac = new AbortController();
   currentStreamAbort = ac;
 
-  // Build the full message list: prior turns + this user turn. The backend
-  // rebuilds it from disk when session_id is set; we still include it so
-  // unsaved sessions also get context.
-  const outgoing = history.concat([{ role: "user", content: text }]);
-
+  // Send ONLY the new user message. The backend rebuilds the full prior
+  // history from ``runs/raw`` (the single source of truth) before feeding
+  // the model; the client no longer needs to mirror it.
   const body = {
     model: "hat-cortex",
-    messages: outgoing,
+    messages: [{ role: "user", content: text }],
     stream: true,
     temperature: parseFloat($("#temp").value),
     max_tokens: parseInt($("#max-tokens").value, 10),
@@ -299,12 +290,11 @@ async function sendChat(ev) {
         }
       }
     }
-    // Only commit if the user is still looking at the same session. If they
-    // switched away (currentSessionId !== turnSessionId) or the stream was
-    // aborted, dropping the push prevents cross-session history pollution.
+    // Only refresh the sidebar (so message_count updates) if the user is
+    // still looking at the same session and the stream wasn't aborted.
+    // No in-memory history to maintain — the next turn will rebuild from
+    // the backend's persisted log.
     if (currentSessionId === turnSessionId && !ac.signal.aborted) {
-      history.push({ role: "user", content: text });
-      if (buffer) history.push({ role: "assistant", content: buffer });
       await loadSessions(currentSessionId);
     }
   } catch (e) {

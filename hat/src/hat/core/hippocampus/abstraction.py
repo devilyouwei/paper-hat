@@ -280,6 +280,19 @@ class LLMAbstractor(Abstractor):
         t_raw = data.get("target")
         query = q_raw if _is_nonempty_str(q_raw) else interaction.query
         target = t_raw if _is_nonempty_str(t_raw) else interaction.response
+
+        # On REVISE the canonical user-side question is supposed to be
+        # *unchanged* — only the target answer / rationale gets refined.
+        # Small models routinely violate this and parrot the current
+        # user message (often a meta-correction like "不对，X 应该是 Y")
+        # into ``query``, which then poisons future replays. Override
+        # deterministically with the prior trace's stored query so the
+        # decision is the abstractor's, the canonical form is ours.
+        if decision == "REVISE" and prior is not None:
+            prior_q = prior.get("query")
+            if _is_nonempty_str(prior_q):
+                query = prior_q
+
         if not _is_nonempty_str(target) or len(target.strip()) < 4:
             return self._fallback_or_drop(interaction, priors)
 
