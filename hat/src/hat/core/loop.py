@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from ..utils.logging import format_text_block, get_logger, truncate
 from .cortex.base import Cortex
 from .hippocampus.abstraction import Abstractor
 from .hippocampus.replay import ReplayBuilder
@@ -22,6 +23,8 @@ from .schemas import (
     SWSStats,
 )
 from .sws.trainer import SWSTrainer
+
+log = get_logger(__name__)
 
 
 @dataclass
@@ -68,9 +71,24 @@ class WakeSleepLoop:
                 pass
 
         if interaction.response is None:
+            log.info(
+                "wake.generate iid={} sid={} query='{}'",
+                interaction.id, interaction.session_id,
+                truncate(interaction.query or "", limit=160),
+            )
             interaction.response = self.cortex.generate(
                 interaction.query, context=interaction.context
             )
+
+        log.info(
+            "wake.step iid={} sid={} response_chars={}",
+            interaction.id, interaction.session_id,
+            len(interaction.response or ""),
+        )
+        log.debug(
+            "wake.step.response\n{}",
+            format_text_block(interaction.response or "", title="cortex response"),
+        )
 
         u = self.uncertainty(interaction)
         signals = ScoreSignals(uncertainty=u)
@@ -86,6 +104,10 @@ class WakeSleepLoop:
         # Uncertainty gate: if the cortex was confident enough, the turn isn't
         # worth remembering. Skip abstraction entirely to save model calls.
         if u < self.write_policy.threshold:
+            log.info(
+                "wake.gate skipped iid={} U={:.4f} < threshold={:.4f}",
+                interaction.id, u, self.write_policy.threshold,
+            )
             _emit(
                 "skipped",
                 interaction_id=interaction.id,
@@ -94,15 +116,31 @@ class WakeSleepLoop:
             )
             return None
 
+        log.info(
+            "wake.gate pass iid={} U={:.4f} >= threshold={:.4f}",
+            interaction.id, u, self.write_policy.threshold,
+        )
+
         # Oracle policy (paper §3.5): consult the external teacher when the
         # cortex was unsure of its own answer. The oracle output overrides
         # the response that gets persisted to the curated trace.
         oracle_used = False
         if self.oracle is not None and u > self.oracle_threshold:
+            log.info(
+                "wake.oracle.consult iid={} U={:.4f} > oracle_threshold={:.4f} name={}",
+                interaction.id, u, self.oracle_threshold,
+                getattr(self.oracle, "name", "oracle"),
+            )
             correction = self.oracle.consult(interaction)
             if correction:
+                log.info(
+                    "wake.oracle.applied iid={} correction_chars={}",
+                    interaction.id, len(correction),
+                )
                 interaction.response = correction
                 oracle_used = True
+            else:
+                log.info("wake.oracle.empty iid={} (no correction)", interaction.id)
 
         # Build the prompt-friendly view of prior traces for the abstractor.
         # The query is the **canonical** user-side input that the trace
@@ -136,6 +174,10 @@ class WakeSleepLoop:
         if trace is None:
             # Abstractor explicitly dropped the turn (router decided neither
             # novel nor user-supervised). Skip writing entirely.
+            log.info(
+                "wake.abstractor.dropped iid={} sid={}",
+                interaction.id, interaction.session_id,
+            )
             _emit(
                 "dropped",
                 interaction_id=interaction.id,
@@ -165,6 +207,11 @@ class WakeSleepLoop:
                 trace.metadata.source = f"{trace.metadata.source}+oracle"
 
         decision = self.write_policy.decide(trace, signals)
+        log.info(
+            "wake.write.decide trace_id={} score={:.4f} threshold={:.4f} accepted={} signals={}",
+            trace.id, decision.score, decision.threshold,
+            decision.accepted, signals.model_dump(),
+        )
         _emit(
             "scored",
             trace_id=trace.id,
@@ -175,6 +222,10 @@ class WakeSleepLoop:
         )
 
         if not decision.accepted:
+            log.info(
+                "wake.write.rejected trace_id={} score={:.4f} < threshold={:.4f}",
+                trace.id, decision.score, decision.threshold,
+            )
             _emit(
                 "rejected",
                 trace_id=trace.id,
@@ -209,6 +260,11 @@ class WakeSleepLoop:
                 if interaction.id not in ids:
                     ids.append(interaction.id)
                 trace.interaction_ids = ids
+                log.info(
+                    "wake.write.revised trace_id={} iid={} target='{}'",
+                    revise_of, interaction.id,
+                    truncate(trace.target_response or "", limit=120),
+                )
                 _emit(
                     "revised",
                     trace_id=revise_of,
@@ -222,6 +278,11 @@ class WakeSleepLoop:
 
         # CREATE path (default).
         self.neocortex.write(trace, decision)
+        log.info(
+            "wake.write.created trace_id={} iid={} sid={} target='{}'",
+            trace.id, interaction.id, trace.session_id,
+            truncate(trace.target_response or "", limit=120),
+        )
         _emit(
             "created",
             trace_id=trace.id,
@@ -244,4 +305,13 @@ class WakeSleepLoop:
         traces = list(self.neocortex.sample(k))
         examples = [ex for t in traces for ex in self.replay_builder(t)]
         batch = ReplayBatch(examples=examples, cycle=cycle)
-        return self.trainer.fit(batch, objective)
+        log.info(
+            "sleep.step cycle={} k={} n_traces={} n_examples={} trainer={}",
+            cycle, k, len(traces), len(examples), type(self.trainer).__name__,
+        )
+        stats = self.trainer.fit(batch, objective)
+        log.info(
+            "sleep.done cycle={} loss_sup={:.4f} duration={:.2f}s",
+            cycle, getattr(stats, "loss_sup", 0.0), getattr(stats, "duration_seconds", 0.0),
+        )
+        return stats

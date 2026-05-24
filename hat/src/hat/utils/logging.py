@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +68,23 @@ def setup(
     global _configured
     if _configured:
         return
+
+    # ``.env`` is the canonical place users set ``HAT_LOG_LEVEL`` /
+    # ``HAT_LOG_FILE``. Pydantic-Settings only loads it into ``Settings``
+    # instances, not into ``os.environ``, so logging (which fires at
+    # import time, before ``Settings`` is built) would otherwise miss it.
+    # Walk up from cwd looking for the first ``.env`` and merge it in
+    # without clobbering values already set in the real environment.
+    try:
+        from dotenv import load_dotenv
+
+        for parent in (Path.cwd(), *Path.cwd().parents):
+            candidate = parent / ".env"
+            if candidate.is_file():
+                load_dotenv(candidate, override=False)
+                break
+    except ImportError:  # python-dotenv missing — tolerate gracefully
+        pass
 
     level = (level or os.environ.get("HAT_LOG_LEVEL") or "INFO").upper()
     logger.remove()
@@ -113,4 +131,109 @@ def get_logger(name: str | None = None, **extra: Any):
     return logger.bind(module=name or "hat", **extra)
 
 
-__all__ = ["get_logger", "logger", "setup"]
+# --------------------------------------------------------------------------
+# Conversation / payload pretty-printers
+# --------------------------------------------------------------------------
+# Used by every component that talks to an LLM (cortex chat, abstractor
+# triage/route, oracle, …) so the exact prompt — with newlines preserved
+# and role boundaries clearly marked — shows up in the logs at DEBUG.
+# Wrap large fields in :func:`truncate` so a single multi-megabyte trace
+# does not flood the terminal.
+
+
+_ROLE_GLYPHS: dict[str, str] = {
+    "system": "⚙",
+    "user": "👤",
+    "assistant": "🤖",
+    "tool": "🔧",
+    "function": "🔧",
+}
+
+
+def _coerce_message(msg: Any) -> tuple[str, str]:
+    """Return ``(role, content)`` for either a dict or a pydantic-ish object."""
+    if isinstance(msg, Mapping):
+        role = str(msg.get("role") or "?")
+        content = msg.get("content")
+    else:
+        role = str(getattr(msg, "role", "?") or "?")
+        content = getattr(msg, "content", "")
+    if content is None:
+        content = ""
+    elif not isinstance(content, str):
+        content = str(content)
+    return role, content
+
+
+def truncate(text: str, *, limit: int = 4000) -> str:
+    """Clip ``text`` to ``limit`` chars with a trailing "+N more" marker.
+
+    ``limit <= 0`` disables truncation. Newlines are preserved as-is.
+    """
+    if not text or limit <= 0 or len(text) <= limit:
+        return text or ""
+    return text[:limit] + f"\n… (+{len(text) - limit} more chars)"
+
+
+def format_messages(
+    messages: Sequence[Any] | Iterable[Any],
+    *,
+    title: str | None = None,
+    max_chars_per_message: int = 2000,
+) -> str:
+    """Render a chat-completions-style message list as a multi-line block.
+
+    Each message is printed with a role marker (``system``/``user``/
+    ``assistant``/``tool``); content is indented and **newlines are
+    preserved** so the exact prompt sent to the model is readable in the
+    log. Per-message content longer than ``max_chars_per_message`` is
+    truncated with a ``+N more`` marker (set to ``0`` to disable).
+
+    Intended use::
+
+        log.debug("cortex.chat\\n{}", format_messages(messages, title="cortex.chat"))
+    """
+    msgs = list(messages or [])
+    header = f"┌─ {title} ({len(msgs)} msg{'s' if len(msgs) != 1 else ''})" if title \
+        else f"┌─ messages ({len(msgs)})"
+    lines: list[str] = [header]
+    for idx, raw in enumerate(msgs):
+        role, content = _coerce_message(raw)
+        glyph = _ROLE_GLYPHS.get(role.lower(), "•")
+        lines.append(f"├─ [{idx}] {glyph} {role}")
+        body = truncate(content, limit=max_chars_per_message)
+        if body == "":
+            lines.append("│  (empty)")
+        else:
+            for ln in body.splitlines() or [""]:
+                lines.append(f"│  {ln}")
+    lines.append("└─")
+    return "\n".join(lines)
+
+
+def format_text_block(text: str, *, title: str | None = None, max_chars: int = 4000) -> str:
+    """Render a single multi-line string inside a labelled box.
+
+    Useful for logging a raw LLM response (newlines preserved, optionally
+    clipped). Pair with :func:`format_messages` for request/response logs.
+    """
+    body = truncate(text or "", limit=max_chars)
+    header = f"┌─ {title}" if title else "┌─"
+    lines = [header]
+    if body == "":
+        lines.append("│  (empty)")
+    else:
+        for ln in body.splitlines() or [""]:
+            lines.append(f"│  {ln}")
+    lines.append("└─")
+    return "\n".join(lines)
+
+
+__all__ = [
+    "get_logger",
+    "logger",
+    "setup",
+    "format_messages",
+    "format_text_block",
+    "truncate",
+]

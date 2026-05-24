@@ -18,10 +18,13 @@ import json
 import urllib.error
 import urllib.request
 
+from ...utils.logging import format_messages, format_text_block, get_logger, truncate
 from ..schemas import Interaction
 from .base import Oracle
 from .cost_guard import CostGuard, OracleQuotaExceeded
 from .prompts import ORACLE_SYSTEM
+
+log = get_logger(__name__)
 
 
 class OpenAICompatibleOracle(Oracle):
@@ -59,7 +62,11 @@ class OpenAICompatibleOracle(Oracle):
         if self.cost_guard is not None:
             try:
                 self.cost_guard.acquire(reason="wake_step")
-            except OracleQuotaExceeded:
+            except OracleQuotaExceeded as e:
+                log.warning(
+                    "oracle.quota_exceeded iid={} name={} : {}",
+                    interaction.id, self.name, e,
+                )
                 return ""
 
         messages = [
@@ -73,6 +80,14 @@ class OpenAICompatibleOracle(Oracle):
                 ),
             },
         ]
+        log.info(
+            "oracle.consult iid={} name={} model={} url={}",
+            interaction.id, self.name, self.model, self.base_url,
+        )
+        log.debug(
+            "oracle.consult.prompt\n{}",
+            format_messages(messages, title="oracle.consult"),
+        )
         payload = {
             "model": self.model,
             "messages": messages,
@@ -88,10 +103,25 @@ class OpenAICompatibleOracle(Oracle):
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
+            log.warning(
+                "oracle.consult.failed iid={} {}: {}",
+                interaction.id, type(e).__name__, e,
+            )
             return ""
 
         try:
-            return (data["choices"][0]["message"]["content"] or "").strip()
-        except (KeyError, IndexError, TypeError):
+            reply = (data["choices"][0]["message"]["content"] or "").strip()
+        except (KeyError, IndexError, TypeError) as e:
+            log.warning(
+                "oracle.consult.bad_response iid={} {}: {} raw='{}'",
+                interaction.id, type(e).__name__, e,
+                truncate(json.dumps(data, ensure_ascii=False), limit=400),
+            )
             return ""
+        log.debug(
+            "oracle.consult.reply iid={} chars={}\n{}",
+            interaction.id, len(reply),
+            format_text_block(reply, title="oracle reply"),
+        )
+        return reply

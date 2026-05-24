@@ -19,8 +19,11 @@ import json
 import re
 from abc import ABC, abstractmethod
 
+from ...utils.logging import get_logger, truncate
 from ..schemas import Interaction, MemoryTrace, TraceMetadata
 from .scoring.llm_judge import call_judge, load_prompt, render
+
+log = get_logger(__name__)
 
 
 class Abstractor(ABC):
@@ -191,11 +194,24 @@ class LLMAbstractor(Abstractor):
             query=interaction.query or "",
             response=interaction.response or "",
         )
+        log.info(
+            "abstractor.triage.start iid={} sid={} query_chars={} response_chars={}",
+            interaction.id, interaction.session_id,
+            len(interaction.query or ""), len(interaction.response or ""),
+        )
         raw = call_judge(
             self.cortex, system=system, user=rendered,
             max_tokens=self.max_tokens_triage,
         )
-        return _extract_json(raw)
+        result = _extract_json(raw)
+        log.info(
+            "abstractor.triage.done iid={} keep={} parsed={} raw_chars={}",
+            interaction.id,
+            (result.get("keep") if isinstance(result, dict) else None),
+            isinstance(result, dict),
+            len(raw or ""),
+        )
+        return result
 
     def _route(
         self, interaction: Interaction, prior_traces: list[dict]
@@ -208,11 +224,33 @@ class LLMAbstractor(Abstractor):
             query=interaction.query or "",
             response=interaction.response or "",
         )
+        log.info(
+            "abstractor.route.start iid={} sid={} n_priors={}",
+            interaction.id, interaction.session_id, len(prior_traces),
+        )
         raw = call_judge(
             self.cortex, system=system, user=rendered,
             max_tokens=self.max_tokens_route,
         )
-        return _extract_json(raw)
+        result = _extract_json(raw)
+        if isinstance(result, dict):
+            log.info(
+                "abstractor.route.done iid={} decision={} trace_id={} "
+                "query_chars={} target_chars={} novelty={} user_signal={}",
+                interaction.id,
+                result.get("decision"),
+                result.get("trace_id"),
+                len(str(result.get("query") or "")),
+                len(str(result.get("target") or "")),
+                result.get("novelty"),
+                result.get("user_signal"),
+            )
+        else:
+            log.warning(
+                "abstractor.route.unparseable iid={} raw='{}'",
+                interaction.id, truncate(raw or "", limit=400),
+            )
+        return result
 
     def _fallback_or_drop(
         self, interaction: Interaction, priors: list[dict]
@@ -233,10 +271,18 @@ class LLMAbstractor(Abstractor):
           the dataset. Better to lose this row than to forge one.
         """
         if priors:
+            log.info(
+                "abstractor.fallback drop iid={} reason=unparseable_with_priors n_priors={}",
+                interaction.id, len(priors),
+            )
             return None
         trace = self._fallback(interaction)
         if trace is not None:
             trace.metadata.extras["abstractor_fallback"] = True
+            log.warning(
+                "abstractor.fallback identity iid={} reason=unparseable_no_priors",
+                interaction.id,
+            )
         return trace
 
     def __call__(
@@ -246,6 +292,10 @@ class LLMAbstractor(Abstractor):
         prior_traces: list[dict] | None = None,
     ) -> MemoryTrace | None:
         priors = prior_traces or []
+        log.info(
+            "abstractor.call iid={} sid={} n_priors={}",
+            interaction.id, interaction.session_id, len(priors),
+        )
 
         # ---- Step 1: triage --------------------------------------------
         triage = self._triage(interaction)
@@ -253,6 +303,10 @@ class LLMAbstractor(Abstractor):
         # failure here errs toward keeping the turn (routing will then
         # apply its own malformed-output policy via _fallback_or_drop).
         if isinstance(triage, dict) and triage.get("keep") is False:
+            log.info(
+                "abstractor.dropped iid={} stage=triage reason={}",
+                interaction.id, triage.get("reason") or triage.get("rationale"),
+            )
             return None
 
         # ---- Step 2: route ---------------------------------------------
@@ -272,6 +326,10 @@ class LLMAbstractor(Abstractor):
                     (t for t in priors if t.get("trace_id") == tid), None
                 )
             if prior is None:
+                log.warning(
+                    "abstractor.route.bad_revise_target iid={} requested_tid={} -> CREATE",
+                    interaction.id, tid,
+                )
                 decision = "CREATE"
 
         # Pull and sanity-check the Q/A pair. Reject one-word / fragment
@@ -294,7 +352,19 @@ class LLMAbstractor(Abstractor):
                 query = prior_q
 
         if not _is_nonempty_str(target) or len(target.strip()) < 4:
+            log.info(
+                "abstractor.target_rejected iid={} target='{}' (too short)",
+                interaction.id, truncate(target or "", limit=80),
+            )
             return self._fallback_or_drop(interaction, priors)
+
+        log.info(
+            "abstractor.decision iid={} decision={} revise_of={} query='{}' target='{}'",
+            interaction.id, decision,
+            prior.get("trace_id") if prior else None,
+            truncate(query or "", limit=120),
+            truncate(target or "", limit=120),
+        )
 
         extras: dict = {}
         if decision == "REVISE" and prior is not None:

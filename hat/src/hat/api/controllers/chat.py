@@ -5,7 +5,10 @@ from dataclasses import dataclass
 from ...core.loop import WakeSleepLoop
 from ...core.schemas import Interaction
 from ...memory.raw.log import RawInteractionLog
+from ...utils.logging import get_logger, truncate
 from ..schemas.chat import ChatRequest, ChatResponse
+
+log = get_logger(__name__)
 
 
 @dataclass
@@ -24,8 +27,19 @@ class ChatController:
             context=req.context,
             query=req.query,
         )
+        log.info(
+            "chat.handle iid={} has_context={} query='{}'",
+            interaction.id, bool(req.context),
+            truncate(req.query or "", limit=160),
+        )
         trace = self.loop.wake_step(interaction)
         self.raw_log.append(interaction)
+        log.info(
+            "chat.handle.done iid={} consolidated={} trace_id={} response_chars={}",
+            interaction.id, trace is not None,
+            trace.id if trace else None,
+            len(interaction.response or ""),
+        )
         return ChatResponse(
             response=interaction.response or "",
             consolidated=trace is not None,

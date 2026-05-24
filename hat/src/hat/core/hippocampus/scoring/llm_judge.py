@@ -15,6 +15,10 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ....utils.logging import format_messages, format_text_block, get_logger
+
+log = get_logger(__name__)
+
 # Prompt files live next to the scoring package. Using ``__file__`` keeps
 # them packaged together with the source — no run-time path config needed.
 _PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
@@ -127,17 +131,26 @@ def call_judge(
     parser strips them). Returns an empty string on failure so callers can
     fall back to a default score without raising.
     """
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+    log.debug(
+        "llm_judge.call max_tokens={} temperature={} system_chars={} user_chars={}",
+        max_tokens, temperature, len(system or ""), len(user or ""),
+    )
+    log.debug("llm_judge.prompt\n{}", format_messages(messages, title="llm_judge"))
     try:
-        return cortex.chat(
-            [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+        out = cortex.chat(
+            messages,
             max_tokens=max_tokens,
             temperature=temperature,
             # Disable Qwen3-style thinking so the parser sees the answer
             # directly. Backends that don't recognise the kwarg ignore it.
             chat_template_kwargs={"enable_thinking": False},
         )
-    except Exception:
+    except Exception as e:
+        log.warning("llm_judge.call failed: {}: {}", type(e).__name__, e)
         return ""
+    log.debug("llm_judge.response\n{}", format_text_block(out or "", title="raw output"))
+    return out

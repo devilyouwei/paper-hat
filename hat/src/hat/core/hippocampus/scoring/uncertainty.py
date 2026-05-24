@@ -18,7 +18,10 @@ from __future__ import annotations
 import math
 from abc import ABC, abstractmethod
 
+from ....utils.logging import get_logger
 from ...schemas import Interaction
+
+log = get_logger(__name__)
 
 
 class UncertaintyEstimator(ABC):
@@ -74,14 +77,30 @@ class LogprobUncertainty(UncertaintyEstimator):
                 if interaction.context:
                     prompt = f"{interaction.context}\n\n{prompt}"
                 return list(lm.token_logprobs(prompt, interaction.response))
-        except Exception:
+        except Exception as e:
+            log.warning(
+                "uncertainty.logprobs failed iid={} : {}: {}",
+                interaction.id, type(e).__name__, e,
+            )
             return []
+        log.debug(
+            "uncertainty.logprobs unavailable iid={} cortex={}",
+            interaction.id, type(self.cortex).__name__,
+        )
         return []
 
     def __call__(self, interaction: Interaction) -> float:
         lps = self._logprobs(interaction)
         if not lps:
+            log.debug(
+                "uncertainty iid={} fallback={:.3f} (no logprobs)",
+                interaction.id, self.fallback,
+            )
             return self.fallback
         mean_lp = sum(lps) / len(lps)
-        # 1 - geometric mean probability, clipped for numerical safety.
-        return max(0.0, min(1.0, 1.0 - math.exp(mean_lp)))
+        u = max(0.0, min(1.0, 1.0 - math.exp(mean_lp)))
+        log.info(
+            "uncertainty iid={} n_tokens={} mean_logp={:.4f} U={:.4f}",
+            interaction.id, len(lps), mean_lp, u,
+        )
+        return u

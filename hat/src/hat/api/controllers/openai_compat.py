@@ -31,6 +31,7 @@ from ...memory.raw.sessions import (
     Session,
     SessionStoreError,
 )
+from ...utils.logging import format_messages, get_logger
 from ..schemas.openai import (
     ChatCompletionChoice,
     ChatCompletionChunk,
@@ -76,6 +77,8 @@ def _truncate_title(text: str, *, limit: int = 48) -> str:
 
 
 _THINK_RE = re.compile(r"<think\b[^>]*>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+log = get_logger(__name__)
 
 
 def _strip_think(text: str) -> str:
@@ -341,6 +344,20 @@ class OpenAIChatController:
             history = req.messages[:-1]
             effective_messages = list(req.messages)
 
+        log.info(
+            "openai.handle sid={} client_msgs={} effective_msgs={} model={} gen_kwargs={}",
+            session.id if session else None,
+            len(req.messages), len(effective_messages),
+            req.model, sorted(gen_kwargs.keys()),
+        )
+        log.debug(
+            "openai.handle.prompt\n{}",
+            format_messages(
+                [m.model_dump() for m in effective_messages],
+                title="openai.handle",
+            ),
+        )
+
         session_key = session.id if session else None
         slot = _acquire_gen_slot(session_key)
         try:
@@ -379,6 +396,13 @@ class OpenAIChatController:
         interaction.hat = _summarize_events(events, trace)
         self._update_hat(session, interaction.hat)
 
+        log.info(
+            "openai.handle.done sid={} iid={} response_chars={} consolidated={} trace_id={} n_events={}",
+            session.id if session else None, interaction.id,
+            len(response_text or ""), trace is not None,
+            trace.id if trace else None, len(events),
+        )
+
         return ChatCompletionResponse(
             model=getattr(cortex, "name", req.model),
             choices=[
@@ -413,6 +437,20 @@ class OpenAIChatController:
             effective_messages = rebuilt_full
         else:
             effective_messages = list(req.messages)
+
+        log.info(
+            "openai.stream sid={} client_msgs={} effective_msgs={} model={} gen_kwargs={}",
+            session.id if session else None,
+            len(req.messages), len(effective_messages),
+            req.model, sorted(gen_kwargs.keys()),
+        )
+        log.debug(
+            "openai.stream.prompt\n{}",
+            format_messages(
+                [m.model_dump() for m in effective_messages],
+                title="openai.stream",
+            ),
+        )
 
         cortex = self.loop.cortex
         chat_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
@@ -493,6 +531,10 @@ class OpenAIChatController:
         # for this partial turn (if any) will be written back to disk
         # asynchronously and surface on the next session refresh.
         if interrupted:
+            log.info(
+                "openai.stream.interrupted sid={} iid={} streamed_chars={}",
+                session.id if session else None, interaction.id, len(full),
+            )
             yield chunk(
                 ChatCompletionDelta(),
                 finish="stop",
@@ -519,6 +561,13 @@ class OpenAIChatController:
         )
         interaction.hat = _summarize_events(events, trace)
         self._update_hat(session, interaction.hat)
+
+        log.info(
+            "openai.stream.done sid={} iid={} response_chars={} consolidated={} trace_id={} n_events={}",
+            session.id if session else None, interaction.id,
+            len(full), trace is not None,
+            trace.id if trace else None, len(events),
+        )
 
         # Forward each lifecycle event as its own chunk so the UI can render
         # trace creation/revision in real time alongside the response.
