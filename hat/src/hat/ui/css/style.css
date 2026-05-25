@@ -346,53 +346,49 @@ main {
   overflow-y: auto;
 }
 
-/* --- inline generation settings (below composer) --- */
+/* --- inline generation settings (always-expanded bar under composer) --- */
 .gen-settings-inline {
   margin-top: 10px;
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-}
-.gen-settings-inline > summary {
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--muted);
-  list-style: none;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.04));
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  user-select: none;
+  gap: 14px;
+  flex-wrap: wrap;
 }
-.gen-settings-inline > summary::-webkit-details-marker { display: none; }
-.gen-settings-inline > summary::before {
-  content: "▸";
-  display: inline-block;
-  transition: transform 0.15s ease;
-  margin-right: 4px;
+.gen-settings-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
+  flex: 0 0 auto;
 }
-.gen-settings-inline[open] > summary::before { transform: rotate(90deg); }
 .gen-settings-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px 14px;
-  margin-top: 10px;
-  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .gen-settings-row label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: var(--muted);
 }
 .gen-settings-row label.check {
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
   color: var(--text);
 }
-.gen-settings-row input[type="number"] { width: 100%; }
+.gen-settings-row input[type="number"] {
+  width: 84px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
 .divider {
   border: none;
   border-top: 1px solid var(--border);
@@ -400,7 +396,7 @@ main {
 }
 .chatbox {
   flex: 1;
-  min-height: 0;
+  min-height: 50vh;
   overflow-y: auto;
   background: var(--bg-2);
   border: 1px solid var(--border);

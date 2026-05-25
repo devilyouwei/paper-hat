@@ -63,9 +63,7 @@ function installScrollWatcher() {
 function appendBubble(role, content) {
   const div = document.createElement("div");
   div.className = `bubble ${role}`;
-  div.innerHTML = renderBubbleHtml(content, {
-    showThink: $("#show-thinking")?.checked,
-  });
+  div.innerHTML = renderBubbleHtml(content);
   chatbox().appendChild(div);
   // A new bubble means a new turn — always pin to bottom and re-arm the lock.
   stickToBottom = true;
@@ -258,7 +256,6 @@ async function sendChat(ev) {
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let pending = "";
-    const showThink = $("#show-thinking").checked;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -282,7 +279,7 @@ async function sendChat(ev) {
           const delta = obj.choices?.[0]?.delta?.content || "";
           if (delta) {
             buffer += delta;
-            assistantDiv.innerHTML = renderBubbleHtml(buffer, { showThink });
+            assistantDiv.innerHTML = renderBubbleHtml(buffer);
             scrollToBottom(); // only scrolls if user is still near bottom
           }
         } catch {
@@ -343,22 +340,6 @@ export async function initChatTab() {
       $("#chat-form").requestSubmit();
     }
   });
-
-  // Inline generation-settings summary: shows current temp / max-tokens
-  // when the panel is collapsed so the user does not need to expand it.
-  const updateGenSummary = () => {
-    const el = $("#gen-summary");
-    if (!el) return;
-    const t = $("#temp")?.value;
-    const m = $("#max-tokens")?.value;
-    const think = $("#enable-thinking")?.checked ? " · think" : "";
-    el.textContent = `T=${t} · max=${m}${think}`;
-  };
-  ["#temp", "#max-tokens", "#enable-thinking"].forEach((sel) => {
-    const el = $(sel);
-    if (el) el.addEventListener("change", updateGenSummary);
-  });
-  updateGenSummary();
 
   // Resolve the backend to display *before* loading the catalog. Priority:
   //   1. backend hosting the currently-active model (post-refresh state).

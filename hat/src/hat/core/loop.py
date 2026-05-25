@@ -165,11 +165,16 @@ class WakeSleepLoop:
         )
 
         try:
-            trace = self.abstractor(interaction, prior_traces=prior_view)
+            trace = self.abstractor(
+                interaction, prior_traces=prior_view, event_sink=_emit,
+            )
         except TypeError:
-            # Backward-compat with abstractors that haven't been updated to
-            # accept the keyword argument.
-            trace = self.abstractor(interaction)
+            # Backward-compat with abstractors that don't accept the
+            # new ``event_sink`` kwarg (older third-party subclasses).
+            try:
+                trace = self.abstractor(interaction, prior_traces=prior_view)
+            except TypeError:
+                trace = self.abstractor(interaction)
 
         if trace is None:
             # Abstractor explicitly dropped the turn (router decided neither

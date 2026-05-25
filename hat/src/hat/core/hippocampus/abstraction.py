@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 
 from ...utils.logging import get_logger, truncate
 from ..schemas import Interaction, MemoryTrace, TraceMetadata
@@ -186,7 +187,11 @@ class LLMAbstractor(Abstractor):
             ctx = "…\n" + ctx[-self.context_char_budget :]
         return ctx
 
-    def _triage(self, interaction: Interaction) -> dict | None:
+    def _triage(
+        self,
+        interaction: Interaction,
+        emit: Callable[[str, dict], None] | None = None,
+    ) -> dict | None:
         system, user = self._split_system_user(self._triage_template)
         rendered = render(
             user,
@@ -199,6 +204,14 @@ class LLMAbstractor(Abstractor):
             interaction.id, interaction.session_id,
             len(interaction.query or ""), len(interaction.response or ""),
         )
+        if emit is not None:
+            emit(
+                "triage_start",
+                {
+                    "interaction_id": interaction.id,
+                    "session_id": interaction.session_id,
+                },
+            )
         raw = call_judge(
             self.cortex, system=system, user=rendered,
             max_tokens=self.max_tokens_triage,
@@ -211,10 +224,27 @@ class LLMAbstractor(Abstractor):
             isinstance(result, dict),
             len(raw or ""),
         )
+        if emit is not None:
+            keep = result.get("keep") if isinstance(result, dict) else None
+            emit(
+                "triage_done",
+                {
+                    "interaction_id": interaction.id,
+                    "session_id": interaction.session_id,
+                    "keep": keep,
+                    "reason": (
+                        (result.get("reason") or result.get("rationale"))
+                        if isinstance(result, dict) else None
+                    ),
+                },
+            )
         return result
 
     def _route(
-        self, interaction: Interaction, prior_traces: list[dict]
+        self,
+        interaction: Interaction,
+        prior_traces: list[dict],
+        emit: Callable[[str, dict], None] | None = None,
     ) -> dict | None:
         system, user = self._split_system_user(self._route_template)
         rendered = render(
@@ -228,6 +258,15 @@ class LLMAbstractor(Abstractor):
             "abstractor.route.start iid={} sid={} n_priors={}",
             interaction.id, interaction.session_id, len(prior_traces),
         )
+        if emit is not None:
+            emit(
+                "route_start",
+                {
+                    "interaction_id": interaction.id,
+                    "session_id": interaction.session_id,
+                    "n_priors": len(prior_traces),
+                },
+            )
         raw = call_judge(
             self.cortex, system=system, user=rendered,
             max_tokens=self.max_tokens_route,
@@ -249,6 +288,25 @@ class LLMAbstractor(Abstractor):
             log.warning(
                 "abstractor.route.unparseable iid={} raw='{}'",
                 interaction.id, truncate(raw or "", limit=400),
+            )
+        if emit is not None:
+            parsed = isinstance(result, dict)
+            emit(
+                "route_done",
+                {
+                    "interaction_id": interaction.id,
+                    "session_id": interaction.session_id,
+                    "parsed": parsed,
+                    "decision": (result.get("decision") if parsed else None),
+                    "trace_id": (result.get("trace_id") if parsed else None),
+                    "novelty": (result.get("novelty") if parsed else None),
+                    "user_signal": (
+                        result.get("user_signal") if parsed else None
+                    ),
+                    "rationale": (
+                        result.get("rationale") if parsed else None
+                    ),
+                },
             )
         return result
 
@@ -290,6 +348,7 @@ class LLMAbstractor(Abstractor):
         interaction: Interaction,
         *,
         prior_traces: list[dict] | None = None,
+        event_sink: Callable[[str, dict], None] | None = None,
     ) -> MemoryTrace | None:
         priors = prior_traces or []
         log.info(
@@ -298,7 +357,7 @@ class LLMAbstractor(Abstractor):
         )
 
         # ---- Step 1: triage --------------------------------------------
-        triage = self._triage(interaction)
+        triage = self._triage(interaction, emit=event_sink)
         # An explicit `keep: false` is the only path to DROP. A parse
         # failure here errs toward keeping the turn (routing will then
         # apply its own malformed-output policy via _fallback_or_drop).
@@ -310,7 +369,7 @@ class LLMAbstractor(Abstractor):
             return None
 
         # ---- Step 2: route ---------------------------------------------
-        data = self._route(interaction, priors)
+        data = self._route(interaction, priors, emit=event_sink)
         if not isinstance(data, dict):
             return self._fallback_or_drop(interaction, priors)
 

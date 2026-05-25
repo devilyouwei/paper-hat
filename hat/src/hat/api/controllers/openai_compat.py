@@ -17,6 +17,7 @@ Strategy:
 
 from __future__ import annotations
 
+import queue
 import threading
 import uuid
 import re
@@ -546,19 +547,59 @@ class OpenAIChatController:
 
         # Wake step runs OUTSIDE the generation lock: a fast follow-up
         # turn does not have to wait for the (slower) abstractor LLM call.
+        # We run it in a background thread and pipe lifecycle events
+        # through a queue so each one (uncertainty, triage_start/done,
+        # route_start/done, scored, created/revised/…) reaches the UI
+        # as soon as the loop emits it — instead of buffering until the
+        # full wake_step returns. This is the difference between "user
+        # sees U score the instant generation ends" vs. "user waits for
+        # two more LLM calls before any feedback shows up".
         prior_traces: list = []
         if session is not None:
             from ..deps import prior_traces_for_session
             prior_traces = prior_traces_for_session(session.id)
 
         events: list[dict] = []
+        ev_queue: queue.Queue = queue.Queue()
+        _DONE = object()  # sentinel: wake_step finished
 
         def _sink(stage: str, payload: dict) -> None:
-            events.append({"stage": stage, **payload})
+            ev = {"stage": stage, **payload}
+            events.append(ev)
+            ev_queue.put(ev)
 
-        trace = self.loop.wake_step(
-            interaction, prior_traces=prior_traces or None, event_sink=_sink,
+        wake_result: dict = {"trace": None, "error": None}
+
+        def _run_wake() -> None:
+            try:
+                wake_result["trace"] = self.loop.wake_step(
+                    interaction,
+                    prior_traces=prior_traces or None,
+                    event_sink=_sink,
+                )
+            except Exception as e:  # pragma: no cover - safety net
+                wake_result["error"] = e
+                log.exception("wake_step crashed iid={}", interaction.id)
+            finally:
+                ev_queue.put(_DONE)
+
+        wake_thread = threading.Thread(
+            target=_run_wake, name="hat-wake-stream", daemon=True,
         )
+        wake_thread.start()
+
+        # Pump events to the client as they arrive. The queue.get()
+        # blocks the SSE generator just like ``cortex.stream_chat`` did
+        # above; FastAPI's StreamingResponse will keep the connection
+        # open until we yield the final ``[DONE]``.
+        while True:
+            ev = ev_queue.get()
+            if ev is _DONE:
+                break
+            yield chunk(ChatCompletionDelta(), hat_trace_event=ev)
+
+        wake_thread.join()
+        trace = wake_result["trace"]
         interaction.hat = _summarize_events(events, trace)
         self._update_hat(session, interaction.hat)
 
@@ -568,11 +609,6 @@ class OpenAIChatController:
             len(full), trace is not None,
             trace.id if trace else None, len(events),
         )
-
-        # Forward each lifecycle event as its own chunk so the UI can render
-        # trace creation/revision in real time alongside the response.
-        for ev in events:
-            yield chunk(ChatCompletionDelta(), hat_trace_event=ev)
 
         # Closing chunk + DONE marker.
         yield chunk(
