@@ -25,3 +25,8 @@ model/**
 !model/
 !model/*/
 !model/*/catalog.yaml
+
+# Vue UI: source is checked in, build output and node_modules are not
+src/hat/ui_vue/node_modules/
+src/hat/ui_vue/dist/
+src/hat/ui/dist/

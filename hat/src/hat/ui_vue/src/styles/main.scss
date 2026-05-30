@@ -1,0 +1,102 @@
+@use "./tokens" as *;
+
+:root {
+  --hat-accent: #{$accent-dark};
+  --hat-bg: #0e1117;
+  --hat-bg-2: #151a23;
+  --hat-panel: #1a2030;
+  --hat-panel-2: #20283a;
+  --hat-border: rgba(255, 255, 255, 0.08);
+  --hat-text: #e8ecf3;
+  --hat-muted: #8b95a8;
+  --hat-danger: #ff6b6b;
+  --hat-ok: #4ade80;
+  --hat-user-bubble: linear-gradient(135deg, #4f6cf7 0%, #6c8eff 100%);
+  --hat-assistant-bubble: #1f2737;
+}
+
+:root[data-theme="light"] {
+  --hat-accent: #{$accent-light};
+  --hat-bg: #f5f7fb;
+  --hat-bg-2: #ffffff;
+  --hat-panel: #ffffff;
+  --hat-panel-2: #f1f4f9;
+  --hat-border: rgba(15, 23, 42, 0.08);
+  --hat-text: #1a2030;
+  --hat-muted: #5a6478;
+  --hat-danger: #d83a4a;
+  --hat-ok: #16a34a;
+  --hat-user-bubble: linear-gradient(135deg, #3361d8 0%, #4f7be0 100%);
+  --hat-assistant-bubble: #eef2f8;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: $font-stack;
+  background: var(--hat-bg);
+  color: var(--hat-text);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code,
+pre,
+kbd {
+  font-family: $font-mono;
+}
+
+a {
+  color: var(--hat-accent);
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--hat-border);
+  border-radius: 5px;
+  &:hover {
+    background: var(--hat-muted);
+  }
+}
+
+// Utility helpers reused across views
+.hat-card {
+  background: var(--hat-panel);
+  border: 1px solid var(--hat-border);
+  border-radius: $radius;
+  padding: $space-4;
+}
+
+.hat-muted {
+  color: var(--hat-muted);
+}
+
+.hat-mono {
+  font-family: $font-mono;
+}
+
+.hat-row {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+}

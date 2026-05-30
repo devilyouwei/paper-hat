@@ -28,9 +28,16 @@ def create_app() -> FastAPI:
         neocortex_router.router, prefix="/api/neocortex", tags=["neocortex"]
     )
 
-    # Static frontend (vanilla HTML/CSS/JS), served from the same origin so
-    # ``make serve`` is the only command needed.
-    app.mount("/ui", StaticFiles(directory=str(_STATIC_DIR)), name="ui",)
+    # Static frontends. The new Vue SPA lives in ``ui/dist`` (built by
+    # ``make ui-build``); the legacy vanilla UI remains under ``/ui``.
+    _DIST_DIR = _STATIC_DIR / "dist"
+    if _DIST_DIR.is_dir():
+        app.mount(
+            "/ui/dist",
+            StaticFiles(directory=str(_DIST_DIR)),
+            name="ui-dist",
+        )
+    app.mount("/ui", StaticFiles(directory=str(_STATIC_DIR)), name="ui")
 
     @app.get("/healthz")
     def healthz() -> dict[str, object]:
@@ -73,6 +80,13 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
+        spa_index = _DIST_DIR / "index.html"
+        if spa_index.is_file():
+            return FileResponse(spa_index, media_type="text/html")
+        return FileResponse(_STATIC_DIR / "index.html", media_type="text/html")
+
+    @app.get("/legacy", include_in_schema=False)
+    def legacy_index() -> FileResponse:
         return FileResponse(_STATIC_DIR / "index.html", media_type="text/html")
 
     return app

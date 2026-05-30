@@ -1,7 +1,15 @@
-.PHONY: install serve sleep test lint typecheck format clean
+.PHONY: install serve sleep test lint typecheck format clean ui-build ui-dev
+
+UI_DIR := src/hat/ui_vue
 
 install:
 	uv sync
+
+ui-build:
+	cd $(UI_DIR) && corepack pnpm install --frozen-lockfile && corepack pnpm build
+
+ui-dev:
+	cd $(UI_DIR) && corepack pnpm dev
 
 serve:
 	uv run uvicorn hat.api.main:app --reload --host 0.0.0.0 --port 8000

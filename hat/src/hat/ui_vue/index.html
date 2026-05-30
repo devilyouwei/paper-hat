@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>HAT</title>
+    <link rel="icon" href="/favicon.ico" />
+    <script>
+      // Prevent FOUC on theme: set data-theme on <html> before paint.
+      (function () {
+        try {
+          const saved = localStorage.getItem("hat-theme");
+          const sysDark =
+            window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+          const eff = saved === "light" || saved === "dark" ? saved : sysDark ? "dark" : "light";
+          document.documentElement.dataset.theme = eff;
+        } catch (_) {
+          document.documentElement.dataset.theme = "dark";
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
