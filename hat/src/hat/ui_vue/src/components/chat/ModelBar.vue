@@ -17,25 +17,42 @@ const installedOptions = computed<SelectOption[]>(() =>
   models.items.filter((it) => it.installed).map((it) => ({ label: it.display, value: it.id })),
 );
 
+// Source of truth for "currently active model" is app.active (from /api/models/active,
+// fetched during app.boot()). The select reflects it whenever the chosen backend
+// matches the active model's backend.
 const selectedModel = computed({
-  get: () => models.active?.backend === models.backend ? models.active?.id : undefined,
+  get: () =>
+    app.active && app.active.backend === models.backend ? app.active.id : undefined,
   set: (v: string | undefined) => {
     if (v) activate(v);
   },
 });
 
-async function refresh() {
-  // Boot priority: active backend → health.cortex_backend → mlx
-  const initial =
-    models.active?.backend ||
-    (app.health?.cortex_backend && app.health.cortex_backend !== "noop"
-      ? app.health.cortex_backend
-      : "mlx");
-  models.backend = initial;
-  await models.loadCatalog();
+function pickInitialBackend(): string {
+  if (app.active?.backend) return app.active.backend;
+  const cb = app.health?.cortex_backend;
+  if (cb && cb !== "noop") return cb;
+  return "mlx";
+}
+
+async function syncFromActive() {
+  const target = pickInitialBackend();
+  if (models.backend !== target) {
+    models.backend = target;
+    // The watch below will reload the catalog.
+  } else if (!models.items.length) {
+    await models.loadCatalog();
+  }
 }
 
 watch(() => models.backend, () => models.loadCatalog());
+
+// React to async arrival of /api/models/active (boot() resolves after mount).
+watch(
+  () => [app.booted, app.active?.backend, app.active?.id] as const,
+  syncFromActive,
+  { immediate: false },
+);
 
 async function activate(id: string) {
   try {
@@ -57,7 +74,10 @@ async function unload() {
   }
 }
 
-onMounted(refresh);
+onMounted(async () => {
+  models.backend = pickInitialBackend();
+  await models.loadCatalog();
+});
 </script>
 
 <template>
@@ -85,7 +105,7 @@ onMounted(refresh);
       <NButton size="small" type="primary" :disabled="!selectedModel" @click="selectedModel && activate(selectedModel)">
         Use
       </NButton>
-      <NButton size="small" tertiary :disabled="!models.active" @click="unload">Unload</NButton>
+      <NButton size="small" tertiary :disabled="!app.active" @click="unload">Unload</NButton>
     </div>
     <NTag v-if="app.active" size="small" type="success" round class="active-tag">
       {{ app.active.backend }}/{{ app.active.id }}
