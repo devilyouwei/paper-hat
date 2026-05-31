@@ -10,6 +10,7 @@ Per-signal scorers (currently uncertainty only) live under :mod:`scoring`.
 """
 
 from .abstraction import Abstractor, IdentityAbstractor, LLMAbstractor
+from .dedup import DedupResult, EmbeddingDeduper
 from .replay import ReplayBuilder, SupervisedReplayBuilder
 from .selection import UncertaintyGatePolicy, WritePolicy
 
@@ -17,6 +18,8 @@ __all__ = [
     "Abstractor",
     "IdentityAbstractor",
     "LLMAbstractor",
+    "DedupResult",
+    "EmbeddingDeduper",
     "WritePolicy",
     "UncertaintyGatePolicy",
     "ReplayBuilder",

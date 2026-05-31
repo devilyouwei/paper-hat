@@ -9,6 +9,7 @@ from typing import Any
 from ..utils.logging import format_text_block, get_logger, truncate
 from .cortex.base import Cortex
 from .hippocampus.abstraction import Abstractor
+from .hippocampus.dedup import EmbeddingDeduper
 from .hippocampus.replay import ReplayBuilder
 from .hippocampus.scoring.uncertainty import UncertaintyEstimator
 from .hippocampus.selection import WritePolicy
@@ -32,9 +33,8 @@ class WakeSleepLoop:
     """Pure-plumbing orchestration of the paper Algorithm.
 
     Scoring is single-signal: only the cortex's logprob-based uncertainty on
-    the original response gates trace creation. Feedback / novelty signals
-    were removed in favour of letting the session-aware abstractor decide
-    CREATE vs REVISE from the natural multi-turn conversation.
+    the original response gates trace creation. The session-aware abstractor
+    decides CREATE vs REVISE from the natural multi-turn conversation.
     """
 
     cortex: Cortex
@@ -46,6 +46,13 @@ class WakeSleepLoop:
     trainer: SWSTrainer
     oracle: Oracle | None = None
     oracle_threshold: float = 0.7
+    deduper: EmbeddingDeduper | None = None
+    embed_tag: str | None = None
+    """Stable identifier of the embedder writing this turn (``"<backend>/<id>"``).
+    Stamped on every accepted trace's ``metadata.extras['embed_model']`` so
+    memory rows can be filtered by the embedder that wrote them. ``None``
+    when no managed embedder is active (in which case dedup is also off
+    and rows are not stamped)."""
 
     def wake_step(
         self,
@@ -53,13 +60,23 @@ class WakeSleepLoop:
         *,
         prior_traces: list[MemoryTrace] | None = None,
         event_sink: Callable[[str, dict[str, Any]], None] | None = None,
-    ) -> MemoryTrace | None:
-        """Process one interaction; may write a trace into the Neocortex.
+    ) -> list[MemoryTrace]:
+        """Process one interaction; may write zero or more traces.
 
-        ``prior_traces`` is the (optionally session-scoped) list of traces the
-        abstractor may revise instead of creating a new one. ``event_sink`` is
-        a callback invoked at key lifecycle points so controllers can forward
-        live progress to the UI.
+        Returns the list of accepted traces (each one corresponds to an
+        independent knowledge point extracted from the turn). An empty
+        list signals "nothing was written" — uncertainty gate failed,
+        triage dropped the turn, no knowledge points survived
+        extraction, or the write policy rejected every candidate.
+
+        ``prior_traces`` is kept on the public API for backwards
+        compatibility (older controllers pass it from
+        ``prior_traces_for_session``); it is no longer used to route
+        CREATE vs REVISE — that decision is made by the embedding
+        deduper against the global vector index.
+
+        ``event_sink`` is a callback invoked at key lifecycle points so
+        controllers can forward live progress to the UI.
         """
 
         def _emit(stage: str, **payload: Any) -> None:
@@ -114,7 +131,7 @@ class WakeSleepLoop:
                 uncertainty=float(u),
                 threshold=float(self.write_policy.threshold),
             )
-            return None
+            return []
 
         log.info(
             "wake.gate pass iid={} U={:.4f} >= threshold={:.4f}",
@@ -142,21 +159,6 @@ class WakeSleepLoop:
             else:
                 log.info("wake.oracle.empty iid={} (no correction)", interaction.id)
 
-        # Build the prompt-friendly view of prior traces for the abstractor.
-        # The query is the **canonical** user-side input that the trace
-        # will be replayed against; it is the abstractor's main signal on
-        # REVISE and must NOT be silently clipped. Keep it whole (queries
-        # are short by construction) and only truncate the long target.
-        prior_view: list[dict] | None = None
-        if prior_traces:
-            prior_view = []
-            for t in prior_traces:
-                q = (t.query or "")[:512]
-                tgt = (t.target_response or t.cortex_response or "")[:512]
-                prior_view.append(
-                    {"trace_id": t.id, "query": q, "target": tgt}
-                )
-
         _emit(
             "abstracting",
             interaction_id=interaction.id,
@@ -164,21 +166,26 @@ class WakeSleepLoop:
             prior_trace_ids=[t.id for t in (prior_traces or [])],
         )
 
+        # ---- abstractor: triage + multi-knowledge-point extraction -----
+        # Routing (CREATE/REVISE) is no longer the abstractor's job; it
+        # only decides keep-vs-drop and emits canonical Q/A pairs.
         try:
-            trace = self.abstractor(
-                interaction, prior_traces=prior_view, event_sink=_emit,
-            )
+            traces = self.abstractor(interaction, event_sink=_emit)
         except TypeError:
-            # Backward-compat with abstractors that don't accept the
-            # new ``event_sink`` kwarg (older third-party subclasses).
+            # Backward-compat: third-party abstractors without ``event_sink``.
             try:
-                trace = self.abstractor(interaction, prior_traces=prior_view)
+                traces = self.abstractor(interaction)
             except TypeError:
-                trace = self.abstractor(interaction)
+                # Very old signature with prior_traces=. Nothing else to do.
+                traces = self.abstractor(interaction, prior_traces=None)
 
-        if trace is None:
-            # Abstractor explicitly dropped the turn (router decided neither
-            # novel nor user-supervised). Skip writing entirely.
+        # Tolerate legacy single-trace abstractors during the migration.
+        if traces is None:
+            traces = []
+        elif isinstance(traces, MemoryTrace):
+            traces = [traces]
+
+        if not traces:
             log.info(
                 "wake.abstractor.dropped iid={} sid={}",
                 interaction.id, interaction.session_id,
@@ -188,115 +195,212 @@ class WakeSleepLoop:
                 interaction_id=interaction.id,
                 session_id=interaction.session_id,
             )
-            return None
-
-        revise_of = (trace.metadata.extras or {}).get("revise_of")
-        prior_by_id = {t.id: t for t in (prior_traces or [])}
-        prior_target = prior_by_id.get(revise_of) if revise_of else None
+            return []
 
         _emit(
-            "routed",
-            decision="REVISE" if revise_of else "CREATE",
-            trace_id=revise_of or trace.id,
+            "extracted",
             interaction_id=interaction.id,
-            novelty=trace.metadata.extras.get("route_novelty"),
-            user_signal=trace.metadata.extras.get("route_user_signal"),
-            reason=trace.metadata.extras.get("route_reason"),
+            session_id=interaction.session_id,
+            n_kps=len(traces),
+            kps=[
+                {
+                    "trace_id": t.id,
+                    "query": t.query,
+                    "target": t.target_response,
+                }
+                for t in traces
+            ],
         )
 
-        trace.metadata.signals = signals
-        if oracle_used:
-            trace.metadata.extras["oracle"] = True
-            trace.metadata.extras["oracle_name"] = getattr(self.oracle, "name", "oracle")
-            if "oracle" not in trace.metadata.source:
-                trace.metadata.source = f"{trace.metadata.source}+oracle"
+        written: list[MemoryTrace] = []
+        for kp_idx, trace in enumerate(traces):
+            trace.metadata.signals = signals
+            if self.embed_tag:
+                trace.metadata.extras["embed_model"] = self.embed_tag
+            if oracle_used:
+                trace.metadata.extras["oracle"] = True
+                trace.metadata.extras["oracle_name"] = getattr(
+                    self.oracle, "name", "oracle"
+                )
+                if "oracle" not in trace.metadata.source:
+                    trace.metadata.source = f"{trace.metadata.source}+oracle"
 
-        decision = self.write_policy.decide(trace, signals)
-        log.info(
-            "wake.write.decide trace_id={} score={:.4f} threshold={:.4f} accepted={} signals={}",
-            trace.id, decision.score, decision.threshold,
-            decision.accepted, signals.model_dump(),
-        )
-        _emit(
-            "scored",
-            trace_id=trace.id,
-            score=float(decision.score),
-            threshold=float(decision.threshold),
-            accepted=bool(decision.accepted),
-            signals=signals.model_dump(),
-        )
+            # ---- dedup routing ----------------------------------------
+            decision_kind = "create"
+            matched_trace_id: str | None = None
+            similarity = 0.0
+            if self.deduper is not None:
+                result = self.deduper.route(trace)
+                decision_kind = result.decision
+                matched_trace_id = result.matched_trace_id
+                similarity = result.similarity
+                _emit(
+                    "dedup",
+                    trace_id=trace.id,
+                    kp_index=kp_idx,
+                    decision=decision_kind,
+                    matched_trace_id=matched_trace_id,
+                    similarity=float(similarity),
+                    threshold=float(self.deduper.threshold),
+                )
 
-        if not decision.accepted:
+            _emit(
+                "routed",
+                decision="REVISE" if decision_kind == "revise" else "CREATE",
+                trace_id=matched_trace_id or trace.id,
+                kp_index=kp_idx,
+                interaction_id=interaction.id,
+                similarity=float(similarity),
+                reason=trace.metadata.extras.get("extract_rationale"),
+            )
+
+            # ---- write policy -----------------------------------------
+            decision = self.write_policy.decide(trace, signals)
             log.info(
-                "wake.write.rejected trace_id={} score={:.4f} < threshold={:.4f}",
-                trace.id, decision.score, decision.threshold,
+                "wake.write.decide trace_id={} kp_idx={} score={:.4f} threshold={:.4f} accepted={}",
+                trace.id, kp_idx, decision.score, decision.threshold,
+                decision.accepted,
             )
             _emit(
-                "rejected",
+                "scored",
                 trace_id=trace.id,
+                kp_index=kp_idx,
                 score=float(decision.score),
                 threshold=float(decision.threshold),
+                accepted=bool(decision.accepted),
+                signals=signals.model_dump(),
             )
-            return None
 
-        if revise_of and prior_target is not None:
-            history_entry = {
-                "interaction_id": prior_target.interaction_id,
-                "query": prior_target.query,
-                "target_response": prior_target.target_response,
-                "rationale": prior_target.rationale,
-                "timestamp": prior_target.metadata.timestamp.isoformat()
-                if prior_target.metadata and prior_target.metadata.timestamp
-                else None,
-            }
-            try:
-                self.neocortex.revise(
-                    revise_of,
-                    query=trace.query,
-                    target_response=trace.target_response,
-                    rationale=trace.rationale,
-                    append_interaction_id=interaction.id,
-                    push_history_entry=history_entry,
-                )
-                trace.id = revise_of
-                ids = list(prior_target.interaction_ids or [])
-                if not ids:
-                    ids = [prior_target.interaction_id]
-                if interaction.id not in ids:
-                    ids.append(interaction.id)
-                trace.interaction_ids = ids
-                log.info(
-                    "wake.write.revised trace_id={} iid={} target='{}'",
-                    revise_of, interaction.id,
-                    truncate(trace.target_response or "", limit=120),
-                )
+            if not decision.accepted:
                 _emit(
-                    "revised",
-                    trace_id=revise_of,
-                    interaction_id=interaction.id,
-                    target_response=trace.target_response,
-                    rationale=trace.rationale,
+                    "rejected",
+                    trace_id=trace.id,
+                    kp_index=kp_idx,
+                    score=float(decision.score),
+                    threshold=float(decision.threshold),
                 )
-                return trace
-            except NotImplementedError:
-                trace.metadata.extras.pop("revise_of", None)
+                continue
 
-        # CREATE path (default).
-        self.neocortex.write(trace, decision)
-        log.info(
-            "wake.write.created trace_id={} iid={} sid={} target='{}'",
-            trace.id, interaction.id, trace.session_id,
-            truncate(trace.target_response or "", limit=120),
-        )
-        _emit(
-            "created",
-            trace_id=trace.id,
-            interaction_id=interaction.id,
-            session_id=trace.session_id,
-            target_response=trace.target_response,
-            rationale=trace.rationale,
-        )
-        return trace
+            query_vec = trace.metadata.extras.pop("query_embedding", None)
+
+            # ---- REVISE path (matched existing trace) -----------------
+            if decision_kind == "revise" and matched_trace_id:
+                prior_target = self._fetch_trace_by_id(matched_trace_id)
+                history_entry = None
+                if prior_target is not None:
+                    history_entry = {
+                        "interaction_id": prior_target.interaction_id,
+                        "query": prior_target.query,
+                        "target_response": prior_target.target_response,
+                        "rationale": prior_target.rationale,
+                        "timestamp": prior_target.metadata.timestamp.isoformat()
+                        if prior_target.metadata
+                        and prior_target.metadata.timestamp
+                        else None,
+                    }
+                try:
+                    self.neocortex.revise(
+                        matched_trace_id,
+                        query=trace.query,
+                        target_response=trace.target_response,
+                        rationale=trace.rationale,
+                        append_interaction_id=interaction.id,
+                        push_history_entry=history_entry,
+                    )
+                    trace.id = matched_trace_id
+                    if prior_target is not None:
+                        ids = list(prior_target.interaction_ids or [])
+                        if not ids:
+                            ids = [prior_target.interaction_id]
+                        if interaction.id not in ids:
+                            ids.append(interaction.id)
+                        trace.interaction_ids = ids
+                    if (
+                        self.deduper is not None
+                        and query_vec is not None
+                    ):
+                        try:
+                            self.deduper.index.update(
+                                matched_trace_id, query_vec
+                            )
+                        except Exception as e:  # noqa: BLE001
+                            log.warning(
+                                "vector_index.update failed trace_id={}: {}: {}",
+                                matched_trace_id, type(e).__name__, e,
+                            )
+                    log.info(
+                        "wake.write.revised trace_id={} iid={} target='{}'",
+                        matched_trace_id, interaction.id,
+                        truncate(trace.target_response or "", limit=120),
+                    )
+                    _emit(
+                        "revised",
+                        trace_id=matched_trace_id,
+                        kp_index=kp_idx,
+                        interaction_id=interaction.id,
+                        target_response=trace.target_response,
+                        rationale=trace.rationale,
+                    )
+                    written.append(trace)
+                    continue
+                except NotImplementedError:
+                    # Backend doesn't support in-place revise; fall through
+                    # to CREATE so the data isn't lost.
+                    trace.metadata.extras.pop("revise_of", None)
+
+            # ---- CREATE path (default) --------------------------------
+            self.neocortex.write(trace, decision)
+            if self.deduper is not None and query_vec is not None:
+                try:
+                    self.deduper.index.append(trace.id, query_vec)
+                except Exception as e:  # noqa: BLE001
+                    log.warning(
+                        "vector_index.append failed trace_id={}: {}: {}",
+                        trace.id, type(e).__name__, e,
+                    )
+            log.info(
+                "wake.write.created trace_id={} iid={} sid={} target='{}'",
+                trace.id, interaction.id, trace.session_id,
+                truncate(trace.target_response or "", limit=120),
+            )
+            _emit(
+                "created",
+                trace_id=trace.id,
+                kp_index=kp_idx,
+                interaction_id=interaction.id,
+                session_id=trace.session_id,
+                target_response=trace.target_response,
+                rationale=trace.rationale,
+            )
+            written.append(trace)
+
+        return written
+
+    # ------------------------------------------------------------------
+    def _fetch_trace_by_id(self, trace_id: str) -> MemoryTrace | None:
+        """Best-effort lookup of an existing trace from the neocortex.
+
+        Used on the REVISE path to preserve the prior target as a
+        history entry. Returns ``None`` if the backend doesn't expose a
+        single-trace fetch — the revise still proceeds, just without a
+        history entry.
+        """
+        getter = getattr(self.neocortex, "get_entry", None)
+        if getter is None:
+            return None
+        try:
+            row = getter(trace_id)
+        except Exception:  # noqa: BLE001
+            return None
+        if not row:
+            return None
+        try:
+            from ..memory.curated.jsonl_store import _sft_to_trace
+
+            trace, _ = _sft_to_trace(row)
+            return trace
+        except Exception:  # noqa: BLE001
+            return None
 
     def sleep_step(
         self,

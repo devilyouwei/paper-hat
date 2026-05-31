@@ -12,6 +12,10 @@ const STAGE_BADGE: Record<string, string> = {
   abstracting: "ABS",
   triage_start: "TRIAGE",
   triage_done: "TRIAGE",
+  extract_start: "EXTRACT",
+  extract_done: "EXTRACT",
+  extracted: "KP",
+  dedup: "DEDUP",
   route_start: "ROUTE",
   route_done: "ROUTE",
   routed: "ROUTE",
@@ -25,9 +29,15 @@ const STAGE_BADGE: Record<string, string> = {
 
 function classify(stage: string): "created" | "revised" | "rejected" | "pending" | "info" {
   if (stage === "created") return "created";
-  if (stage === "revised") return "revised";
+  if (stage === "revised" || stage === "dedup") return "revised";
   if (stage === "rejected" || stage === "dropped" || stage === "skipped") return "rejected";
-  if (stage === "triage_start" || stage === "route_start" || stage === "abstracting") return "pending";
+  if (
+    stage === "triage_start" ||
+    stage === "route_start" ||
+    stage === "extract_start" ||
+    stage === "abstracting"
+  )
+    return "pending";
   return "info";
 }
 
@@ -56,6 +66,25 @@ function bodyText(c: TraceCard): string {
     case "triage_done": {
       const verdict = ev.keep === false ? "drop" : ev.keep === true ? "keep" : "?";
       return `triage: ${verdict}${ev.reason ? ` · ${ev.reason}` : ""}`;
+    }
+    case "extract_start":
+      return "extracting knowledge points…";
+    case "extract_done": {
+      const n = (ev.n_kps as number) ?? 0;
+      return ev.parsed === false
+        ? "extraction unparseable"
+        : `extracted ${n} knowledge point${n === 1 ? "" : "s"}`;
+    }
+    case "extracted": {
+      const n = (ev.n_kps as number) ?? 0;
+      return `${n} knowledge point${n === 1 ? "" : "s"} extracted`;
+    }
+    case "dedup": {
+      const dec = String(ev.decision || "?").toUpperCase();
+      const sim = fmt(ev.similarity, 3);
+      const thr = fmt(ev.threshold, 2);
+      const matched = ev.matched_trace_id ? ` · matched ${shortId(String(ev.matched_trace_id))}` : "";
+      return `${dec} · sim=${sim} (≥${thr})${matched}`;
     }
     case "route_start": {
       const n = (ev.n_priors as number) || 0;

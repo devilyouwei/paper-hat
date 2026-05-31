@@ -1,12 +1,7 @@
-"""Chat-session management.
+"""Chat-session endpoints (mounted at ``/api/sessions``).
 
-Endpoints:
-
-* ``GET    /api/sessions``               — list all sessions (newest first)
-* ``POST   /api/sessions``               — create a new (empty) session
-* ``GET    /api/sessions/{id}``          — session metadata + full message log
-* ``PATCH  /api/sessions/{id}``          — rename a session
-* ``DELETE /api/sessions/{id}``          — delete a session and its log
+The store itself is the business logic; this module is a thin shim plus
+``404`` mapping.
 """
 
 from __future__ import annotations
@@ -14,7 +9,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from ...memory.raw.sessions import SessionStoreError
-from ..deps import get_session_store
 from ..schemas.sessions import (
     Session,
     SessionCreateRequest,
@@ -22,6 +16,7 @@ from ..schemas.sessions import (
     SessionMessages,
     SessionRenameRequest,
 )
+from ..services.container import get_session_store
 
 router = APIRouter()
 
@@ -41,7 +36,9 @@ def create_session(
 
 
 @router.get("/{session_id}", response_model=SessionMessages)
-def get_session(session_id: str, store=Depends(get_session_store)) -> SessionMessages:
+def get_session(
+    session_id: str, store=Depends(get_session_store)
+) -> SessionMessages:
     try:
         session = store.get(session_id)
     except SessionStoreError as e:
@@ -62,8 +59,9 @@ def rename_session(
 
 
 @router.delete("/{session_id}")
-def delete_session(session_id: str, store=Depends(get_session_store)) -> dict:
-    ok = store.delete(session_id)
-    if not ok:
+def delete_session(
+    session_id: str, store=Depends(get_session_store)
+) -> dict:
+    if not store.delete(session_id):
         raise HTTPException(404, f"unknown session {session_id!r}")
     return {"deleted": session_id}

@@ -2,16 +2,22 @@
 
 ```
 api/
-├── main.py            # create_app() + /healthz + /logo.png
-├── deps.py            # singleton container: settings → manager → loop → log
-├── routers/           # thin path → controller adapters (FastAPI types)
-│   ├── chat.py        # POST /chat              (HAT-native shape)
-│   ├── openai_compat.py  # GET /v1/models, POST /v1/chat/completions
-│   └── models.py      # /api/models{,/download,/active}
-├── controllers/       # pure-Python orchestration; no FastAPI imports
-│   ├── chat.py
-│   └── openai_compat.py
-└── schemas/           # Pydantic request/response models
+├── main.py                # create_app(), /healthz, /api/policy, static mounts
+├── controllers/           # thin FastAPI routers (req/resp shaping + status mapping)
+│   ├── chat.py            # POST /chat                     (HAT-native)
+│   ├── openai.py          # /v1/models, /v1/chat/completions (OpenAI-compatible)
+│   ├── models.py          # /api/models{,/download,/active}
+│   ├── embedding_models.py# /api/embedding-models{,/download,/active}
+│   ├── neocortex.py       # /api/neocortex
+│   └── sessions.py        # /api/sessions
+├── services/              # business logic; controllers call into here
+│   ├── container.py       # singletons (loop, sessions, raw log) + active-model swaps
+│   ├── chat.py            # ChatService — single-turn wake step
+│   ├── openai.py          # OpenAIChatService — sessioned streaming, auto-titles
+│   ├── models.py          # cortex lifecycle + SSE download registry
+│   ├── embedding_models.py# embedder lifecycle + SSE download registry
+│   └── neocortex.py       # curated-memory CRUD + index re-embed
+└── schemas/               # Pydantic request/response models
 ```
 
 ## Endpoints
@@ -39,21 +45,22 @@ api/
 
 ## Layering
 
-Routers depend on FastAPI; controllers depend only on Protocols/ABCs from
-`hat.core` and `hat.memory`. The web UI under `/` (vanilla HTML/CSS/JS,
-mounted from [`src/hat/ui/static/`](../ui/static/)) calls the same REST
-surface, so
-behaviour is identical between the two front-ends.
+`controllers/` depend on FastAPI and call `services/`. `services/` depend
+on Protocols/ABCs from `hat.core` and `hat.memory` plus the singletons in
+`services/container.py`. The Vue SPA built into `ui/dist/` (and the
+fallback vanilla shell under `/ui`) call this same REST surface.
 
-`deps.py` is the single dependency container. `swap_active_cortex` /
-`deactivate_cortex` are the only helpers that mutate the loop's `cortex`
-reference; both go through `ModelManager` so allocator caches are released
-correctly (see ADR-004).
+`services/container.py` is the single dependency container.
+`swap_active_cortex` / `deactivate_cortex` (and the embedder analogues)
+are the only helpers that mutate the loop's `cortex` reference; both go
+through `ModelManager` so allocator caches are released correctly (see
+ADR-004).
 
-## Streaming controller
+## Streaming service
 
-`OpenAIChatController.handle_stream(req)` is a generator that yields
+`OpenAIChatService.handle_stream(req)` is a generator that yields
 `data: {chunk_json}\n\n` lines (an opening role chunk, one chunk per text
-delta, a closing chunk with `finish_reason="stop"` plus the HAT extras, then
-`data: [DONE]\n\n`). It runs `loop.wake_step` **after** the stream completes
-on the accumulated text, so consolidation still happens on streamed turns.
+delta, a closing chunk with `finish_reason="stop"` plus the HAT extras,
+then `data: [DONE]\n\n`). It runs `loop.wake_step` **after** the stream
+completes on the accumulated text, so consolidation still happens on
+streamed turns.

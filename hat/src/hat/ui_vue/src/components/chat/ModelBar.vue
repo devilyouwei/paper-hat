@@ -1,115 +1,186 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from "vue";
-import { NSelect, NButton, NTag, useMessage, type SelectOption } from "naive-ui";
+import { computed, onMounted, ref, watch } from "vue";
+import { NSelect, useMessage, type SelectOption } from "naive-ui";
 import { useAppStore } from "@/stores/app";
 import { useModelsStore } from "@/stores/models";
+import { useEmbeddingModelsStore } from "@/stores/embeddingModels";
 
 const app = useAppStore();
 const models = useModelsStore();
+const embeds = useEmbeddingModelsStore();
 const message = useMessage();
 
-const backendOptions: SelectOption[] = [
+const platformOptions: SelectOption[] = [
   { label: "MLX", value: "mlx" },
   { label: "HF", value: "hf" },
 ];
 
-const installedOptions = computed<SelectOption[]>(() =>
-  models.items.filter((it) => it.installed).map((it) => ({ label: it.display, value: it.id })),
+const platform = ref<string>("mlx");
+const busy = ref(false);
+
+const embedBackend = computed(() => (platform.value === "hf" ? "hf_embed" : "mlx_embed"));
+
+const llmOptions = computed<SelectOption[]>(() =>
+  models.items
+    .filter((it) => it.installed)
+    .map((it) => ({ label: it.display, value: it.id })),
 );
 
-// Source of truth for "currently active model" is app.active (from /api/models/active,
-// fetched during app.boot()). The select reflects it whenever the chosen backend
-// matches the active model's backend.
-const selectedModel = computed({
+const embedOptions = computed<SelectOption[]>(() =>
+  embeds.items
+    .filter((it) => it.installed)
+    .map((it) => ({ label: it.display, value: it.id })),
+);
+
+const selectedLlm = computed({
   get: () =>
-    app.active && app.active.backend === models.backend ? app.active.id : undefined,
-  set: (v: string | undefined) => {
-    if (v) activate(v);
+    app.active && app.active.backend === platform.value ? app.active.id : null,
+  set: (v: string | null) => {
+    if (v) activateLlm(v);
+    else unloadLlm();
   },
 });
 
-function pickInitialBackend(): string {
-  if (app.active?.backend) return app.active.backend;
+const selectedEmbed = computed({
+  get: () =>
+    embeds.active && embeds.active.backend === embedBackend.value
+      ? embeds.active.id
+      : null,
+  set: (v: string | null) => {
+    if (v) activateEmbed(v);
+    else unloadEmbed();
+  },
+});
+
+function pickInitialPlatform(): string {
+  if (app.active?.backend === "mlx" || app.active?.backend === "hf") {
+    return app.active.backend;
+  }
   const cb = app.health?.cortex_backend;
-  if (cb && cb !== "noop") return cb;
+  if (cb === "mlx" || cb === "hf") return cb;
   return "mlx";
 }
 
-async function syncFromActive() {
-  const target = pickInitialBackend();
-  if (models.backend !== target) {
-    models.backend = target;
-    // The watch below will reload the catalog.
-  } else if (!models.items.length) {
-    await models.loadCatalog();
+async function reloadForPlatform() {
+  busy.value = true;
+  try {
+    models.backend = platform.value;
+    embeds.backend = embedBackend.value;
+    await Promise.all([
+      models.loadCatalog(platform.value),
+      embeds.loadCatalog(embedBackend.value),
+    ]);
+  } finally {
+    busy.value = false;
   }
 }
 
-watch(() => models.backend, () => models.loadCatalog());
+watch(platform, reloadForPlatform);
 
 // React to async arrival of /api/models/active (boot() resolves after mount).
 watch(
   () => [app.booted, app.active?.backend, app.active?.id] as const,
-  syncFromActive,
-  { immediate: false },
+  () => {
+    const target = pickInitialPlatform();
+    if (platform.value !== target) platform.value = target;
+  },
 );
 
-async function activate(id: string) {
+async function activateLlm(id: string) {
+  busy.value = true;
   try {
-    await models.activate(models.backend, id);
+    await models.activate(platform.value, id);
     app.setActive(models.active);
-    message.success(`Activated ${models.backend}/${id}`);
+    message.success(`Activated ${platform.value}/${id}`);
   } catch (e) {
     message.error(`Activate failed: ${(e as Error).message}`);
+  } finally {
+    busy.value = false;
   }
 }
 
-async function unload() {
+async function unloadLlm() {
+  busy.value = true;
   try {
     await models.unload();
     app.setActive(null);
-    message.success("Model unloaded");
   } catch (e) {
     message.error(`Unload failed: ${(e as Error).message}`);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function activateEmbed(id: string) {
+  busy.value = true;
+  try {
+    await embeds.activate(embedBackend.value, id);
+    message.success(`Embedder: ${embedBackend.value}/${id}`);
+  } catch (e) {
+    message.error(`Embedder activate failed: ${(e as Error).message}`);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function unloadEmbed() {
+  busy.value = true;
+  try {
+    await embeds.unload();
+  } catch (e) {
+    message.error(`Embedder unload failed: ${(e as Error).message}`);
+  } finally {
+    busy.value = false;
   }
 }
 
 onMounted(async () => {
-  models.backend = pickInitialBackend();
-  await models.loadCatalog();
+  platform.value = pickInitialPlatform();
+  await Promise.all([
+    models.loadCatalog(platform.value),
+    embeds.loadCatalog(embedBackend.value),
+    embeds.refreshActive(),
+  ]);
 });
 </script>
 
 <template>
   <div class="bar">
     <div class="cell">
-      <label>Backend</label>
+      <label>Platform</label>
       <NSelect
-        v-model:value="models.backend"
-        :options="backendOptions"
+        v-model:value="platform"
+        :options="platformOptions"
+        :disabled="busy"
         size="small"
       />
     </div>
     <div class="cell grow">
       <label>Model</label>
       <NSelect
-        v-model:value="selectedModel"
-        :options="installedOptions"
-        placeholder="Pick an installed model…"
+        v-model:value="selectedLlm"
+        :options="llmOptions"
+        :disabled="busy"
+        :loading="busy"
+        placeholder="Pick a model…"
         size="small"
         clearable
         filterable
       />
     </div>
-    <div class="actions">
-      <NButton size="small" type="primary" :disabled="!selectedModel" @click="selectedModel && activate(selectedModel)">
-        Use
-      </NButton>
-      <NButton size="small" tertiary :disabled="!app.active" @click="unload">Unload</NButton>
+    <div class="cell grow">
+      <label>Embedder</label>
+      <NSelect
+        v-model:value="selectedEmbed"
+        :options="embedOptions"
+        :disabled="busy"
+        :loading="busy"
+        placeholder="Pick an embedder…"
+        size="small"
+        clearable
+        filterable
+      />
     </div>
-    <NTag v-if="app.active" size="small" type="success" round class="active-tag">
-      {{ app.active.backend }}/{{ app.active.id }}
-    </NTag>
   </div>
 </template>
 
@@ -139,18 +210,9 @@ onMounted(async () => {
     letter-spacing: 0.05em;
   }
 }
+
 .cell.grow {
   flex: 1 1 auto;
   min-width: 220px;
-}
-
-.actions {
-  display: inline-flex;
-  gap: $space-2;
-  align-self: flex-end;
-}
-
-.active-tag {
-  margin-left: auto;
 }
 </style>

@@ -1,18 +1,50 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref } from "vue";
-import { NDataTable, NInput, NButton, NTag, NBadge, type DataTableColumns } from "naive-ui";
+import {
+  NDataTable,
+  NInput,
+  NButton,
+  NTag,
+  NBadge,
+  NSelect,
+  type DataTableColumns,
+  type SelectOption,
+} from "naive-ui";
 import { Refresh, Search } from "@vicons/tabler";
 import { NIcon } from "naive-ui";
 import { useMemoryStore } from "@/stores/memory";
+import { useEmbeddingModelsStore } from "@/stores/embeddingModels";
 import type { NeocortexEntry } from "@/api/types";
 import ScoreExplainer from "@/components/memory/ScoreExplainer.vue";
 import MemoryEditorDrawer from "@/components/memory/MemoryEditorDrawer.vue";
 
 const mem = useMemoryStore();
+const embeds = useEmbeddingModelsStore();
 const editing = ref<NeocortexEntry | null>(null);
 const drawerOpen = ref(false);
 
-onMounted(mem.refresh);
+onMounted(async () => {
+  await embeds.loadCatalog();
+  await embeds.refreshActive();
+  await mem.refresh();
+});
+
+const embedFilterOptions = computed<SelectOption[]>(() => {
+  const opts: SelectOption[] = [{ label: "All embedders", value: "__all__" }];
+  for (const it of embeds.items) {
+    if (!it.installed) continue;
+    const tag = `${it.backend}/${it.id}`;
+    opts.push({ label: tag, value: tag });
+  }
+  return opts;
+});
+
+const embedFilterValue = computed({
+  get: () => mem.embedFilter ?? "__all__",
+  set: (v: string) => {
+    mem.setEmbedFilter(v === "__all__" ? null : v);
+  },
+});
 
 function fmt(n: unknown, d = 2): string {
   return typeof n === "number" ? n.toFixed(d) : "—";
@@ -63,34 +95,6 @@ const columns = computed<DataTableColumns<NeocortexEntry>>(() => [
     render: (row) => h("span", { class: "hat-mono hat-muted" }, fmt(row.signals?.uncertainty)),
   },
   {
-    title: "N",
-    key: "n",
-    width: 64,
-    render: (row) =>
-      h(
-        "span",
-        { class: "hat-mono hat-muted" },
-        fmt(
-          ((row.metadata?.extras as Record<string, unknown>)?.["route_novelty"] as number) ??
-            row.signals?.novelty,
-        ),
-      ),
-  },
-  {
-    title: "S",
-    key: "s",
-    width: 64,
-    render: (row) =>
-      h(
-        "span",
-        { class: "hat-mono hat-muted" },
-        fmt(
-          ((row.metadata?.extras as Record<string, unknown>)?.["route_user_signal"] as number) ??
-            row.signals?.feedback,
-        ),
-      ),
-  },
-  {
     title: "Query",
     key: "query",
     ellipsis: { tooltip: true },
@@ -139,6 +143,12 @@ const columns = computed<DataTableColumns<NeocortexEntry>>(() => [
     <ScoreExplainer />
 
     <div class="toolbar">
+      <NSelect
+        v-model:value="embedFilterValue"
+        :options="embedFilterOptions"
+        size="small"
+        style="min-width: 220px;"
+      />
       <NInput
         :value="mem.query"
         placeholder="Search query / response / trace…"

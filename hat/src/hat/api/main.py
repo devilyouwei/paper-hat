@@ -7,25 +7,63 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from ..config.settings import get_settings
-from .routers import chat as chat_router
-from .routers import models as models_router
-from .routers import neocortex as neocortex_router
-from .routers import openai_compat as openai_router
-from .routers import sessions as sessions_router
+from .controllers import chat as chat_controller
+from .controllers import embedding_models as embedding_models_controller
+from .controllers import models as models_controller
+from .controllers import neocortex as neocortex_controller
+from .controllers import openai as openai_controller
+from .controllers import sessions as sessions_controller
 
 _STATIC_DIR = Path(__file__).resolve().parents[1] / "ui"
 
 
+def _dedup_policy(s) -> dict[str, object]:  # type: ignore[no-untyped-def]
+    """Build the ``dedup`` block for ``/api/policy``.
+
+    Includes the active managed embedder (if any) and the per-model NPZ
+    path so the UI can show which embedding store rows are landing in.
+    Without an active embedder, dedup is effectively disabled even when
+    ``dedup_enabled`` is true.
+    """
+    from ..config.settings import embed_index_path_for  # noqa: PLC0415
+    from ..models.embedding_manager import get_embedding_manager  # noqa: PLC0415
+
+    active = get_embedding_manager().active()
+    if active is not None:
+        active_payload: dict[str, str] | None = {
+            "backend": active["backend"], "id": active["id"],
+        }
+        index_path: str | None = str(
+            embed_index_path_for(active["backend"], active["id"])
+        )
+    else:
+        active_payload = None
+        index_path = None
+    return {
+        "enabled": s.dedup_enabled,
+        "threshold": s.dedup_threshold,
+        "active_embedder": active_payload,
+        "index_path": index_path,
+    }
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="HAT", version="0.0.1")
-    app.include_router(chat_router.router, prefix="/chat", tags=["chat"])
-    app.include_router(openai_router.router, prefix="/v1", tags=["openai"])
-    app.include_router(models_router.router, prefix="/api/models", tags=["models"])
+    app.include_router(chat_controller.router, prefix="/chat", tags=["chat"])
+    app.include_router(openai_controller.router, prefix="/v1", tags=["openai"])
     app.include_router(
-        sessions_router.router, prefix="/api/sessions", tags=["sessions"]
+        models_controller.router, prefix="/api/models", tags=["models"]
     )
     app.include_router(
-        neocortex_router.router, prefix="/api/neocortex", tags=["neocortex"]
+        embedding_models_controller.router,
+        prefix="/api/embedding-models",
+        tags=["embedding-models"],
+    )
+    app.include_router(
+        sessions_controller.router, prefix="/api/sessions", tags=["sessions"]
+    )
+    app.include_router(
+        neocortex_controller.router, prefix="/api/neocortex", tags=["neocortex"]
     )
 
     # Static frontends. The new Vue SPA lives in ``ui/dist`` (built by
@@ -70,6 +108,7 @@ def create_app() -> FastAPI:
                 "rps": s.oracle_rps,
                 "daily_calls": s.oracle_daily_calls,
             },
+            "dedup": _dedup_policy(s),
         }
 
     @app.get("/favicon.ico", include_in_schema=False)

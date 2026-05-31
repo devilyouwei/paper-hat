@@ -8,7 +8,7 @@ so the file can be fed directly into a fine-tuning pipeline:
      "trace_id": "...",
      "interaction_id": "...",
      "score": 0.83,
-     "signals": {"uncertainty": 0.6, "feedback": 1.0, "novelty": 0.4},
+     "signals": {"uncertainty": 0.6},
      "metadata": {"timestamp": "...", "source": "user", "extras": {...}}}
 
 A second sidecar file (``traces.jsonl``) keeps the full :class:`MemoryTrace`

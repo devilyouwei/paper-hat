@@ -13,6 +13,24 @@ export interface ActiveModel {
   backend: string;
 }
 
+export interface EmbeddingCatalogItem {
+  id: string;
+  display: string;
+  repo_id: string;
+  backend: "mlx_embed" | "hf_embed" | string;
+  installed: boolean;
+  size_gb: number | null;
+  notes?: string;
+  local_dir?: string;
+}
+
+export interface ActiveEmbedder {
+  id: string;
+  backend: string;
+  name?: string | null;
+  index_path?: string | null;
+}
+
 export interface SessionSummary {
   id: string;
   title: string;
@@ -41,8 +59,6 @@ export interface SessionDetail {
 
 export interface NeocortexSignals {
   uncertainty?: number;
-  novelty?: number;
-  feedback?: number;
 }
 
 export interface NeocortexEntry {
@@ -66,6 +82,12 @@ export interface NeocortexEntry {
 export interface PolicyConfig {
   write_policy?: { kind?: string; threshold?: number };
   oracle?: { enabled: boolean; model?: string; threshold?: number; rps?: number; daily_calls?: number };
+  dedup?: {
+    enabled: boolean;
+    threshold?: number;
+    active_embedder?: { backend: string; id: string } | null;
+    index_path?: string | null;
+  };
 }
 
 export interface HealthStatus {
@@ -79,6 +101,10 @@ export type TraceStage =
   | "skipped"
   | "triage_start"
   | "triage_done"
+  | "extract_start"
+  | "extract_done"
+  | "extracted"
+  | "dedup"
   | "route_start"
   | "route_done"
   | "routed"
@@ -93,9 +119,14 @@ export type TraceStage =
 export interface TraceEvent {
   stage: TraceStage;
   trace_id?: string;
+  matched_trace_id?: string;
   interaction_id?: string;
   uncertainty?: number;
   threshold?: number;
+  similarity?: number;
+  kp_index?: number;
+  n_kps?: number;
+  kps?: Array<{ trace_id?: string; query?: string; target?: string }>;
   keep?: boolean;
   verdict?: string;
   reason?: string;

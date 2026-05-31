@@ -1,4 +1,4 @@
-"""Controller for OpenAI-compatible chat completions.
+"""OpenAI-compatible chat completions service.
 
 Strategy:
 
@@ -162,7 +162,7 @@ def _summarize_events(events: list[dict], trace) -> dict | None:
         record["decision"] = decision
     if trace is not None and getattr(trace, "id", None):
         record["trace_id"] = trace.id
-    for key in ("novelty", "user_signal", "reason"):
+    for key in ("reason",):
         val = routed.get(key)
         if val is not None:
             record[key] = val
@@ -232,9 +232,9 @@ def _release_gen_slot(session_id: str | None, slot: _GenSlot) -> None:
 
 
 @dataclass
-class OpenAIChatController:
+class OpenAIChatService:
     loop: WakeSleepLoop
-    raw_log: RawInteractionLog  # legacy fallback (single-file log)
+    raw_log: RawInteractionLog  # used when no session_id is supplied
     sessions: JsonlSessionStore | None = None
 
     # ----- session helpers ---------------------------------------------
@@ -312,7 +312,7 @@ class OpenAIChatController:
         Without a session store we fall back to the client-supplied list.
         """
         if session is None or self.sessions is None:
-            # Stateless mode (legacy /chat). Trust the client.
+            # Stateless mode: no session store wired. Trust the client.
             return [], []  # caller will use req.messages directly
         try:
             stored = self.sessions.messages(session.id)
@@ -383,7 +383,7 @@ class OpenAIChatController:
         # abstractor LLM call (slower) finishes in parallel.
         prior_traces: list = []
         if session is not None:
-            from ..deps import prior_traces_for_session
+            from .container import prior_traces_for_session
             prior_traces = prior_traces_for_session(session.id)
 
         events: list[dict] = []
@@ -394,14 +394,16 @@ class OpenAIChatController:
         trace = self.loop.wake_step(
             interaction, prior_traces=prior_traces or None, event_sink=_sink,
         )
-        interaction.hat = _summarize_events(events, trace)
+        traces_list = trace if isinstance(trace, list) else ([trace] if trace else [])
+        primary_trace = traces_list[0] if traces_list else None
+        interaction.hat = _summarize_events(events, primary_trace)
         self._update_hat(session, interaction.hat)
 
         log.info(
-            "openai.handle.done sid={} iid={} response_chars={} consolidated={} trace_id={} n_events={}",
+            "openai.handle.done sid={} iid={} response_chars={} consolidated={} trace_id={} n_traces={} n_events={}",
             session.id if session else None, interaction.id,
-            len(response_text or ""), trace is not None,
-            trace.id if trace else None, len(events),
+            len(response_text or ""), bool(traces_list),
+            primary_trace.id if primary_trace else None, len(traces_list), len(events),
         )
 
         return ChatCompletionResponse(
@@ -413,8 +415,8 @@ class OpenAIChatController:
                     finish_reason="stop",
                 )
             ],
-            hat_consolidated=trace is not None,
-            hat_trace_id=trace.id if trace else None,
+            hat_consolidated=bool(traces_list),
+            hat_trace_id=primary_trace.id if primary_trace else None,
             hat_session_id=session.id if session else None,
             hat_trace_events=events or None,
         )
@@ -556,7 +558,7 @@ class OpenAIChatController:
         # two more LLM calls before any feedback shows up".
         prior_traces: list = []
         if session is not None:
-            from ..deps import prior_traces_for_session
+            from .container import prior_traces_for_session
             prior_traces = prior_traces_for_session(session.id)
 
         events: list[dict] = []
@@ -600,22 +602,24 @@ class OpenAIChatController:
 
         wake_thread.join()
         trace = wake_result["trace"]
-        interaction.hat = _summarize_events(events, trace)
+        traces_list = trace if isinstance(trace, list) else ([trace] if trace else [])
+        primary_trace = traces_list[0] if traces_list else None
+        interaction.hat = _summarize_events(events, primary_trace)
         self._update_hat(session, interaction.hat)
 
         log.info(
-            "openai.stream.done sid={} iid={} response_chars={} consolidated={} trace_id={} n_events={}",
+            "openai.stream.done sid={} iid={} response_chars={} consolidated={} trace_id={} n_traces={} n_events={}",
             session.id if session else None, interaction.id,
-            len(full), trace is not None,
-            trace.id if trace else None, len(events),
+            len(full), bool(traces_list),
+            primary_trace.id if primary_trace else None, len(traces_list), len(events),
         )
 
         # Closing chunk + DONE marker.
         yield chunk(
             ChatCompletionDelta(),
             finish="stop",
-            hat_consolidated=trace is not None,
-            hat_trace_id=trace.id if trace else None,
+            hat_consolidated=bool(traces_list),
+            hat_trace_id=primary_trace.id if primary_trace else None,
             hat_session_id=session.id if session else None,
         )
         yield "data: [DONE]\n\n"
@@ -636,7 +640,7 @@ class OpenAIChatController:
             try:
                 prior_traces: list = []
                 if session is not None:
-                    from ..deps import prior_traces_for_session
+                    from .container import prior_traces_for_session
                     prior_traces = prior_traces_for_session(session.id)
                 events: list[dict] = []
 
@@ -648,7 +652,9 @@ class OpenAIChatController:
                     prior_traces=prior_traces or None,
                     event_sink=_sink,
                 )
-                interaction.hat = _summarize_events(events, trace)
+                traces_list = trace if isinstance(trace, list) else ([trace] if trace else [])
+                primary_trace = traces_list[0] if traces_list else None
+                interaction.hat = _summarize_events(events, primary_trace)
                 self._update_hat(session, interaction.hat)
             except Exception:  # pragma: no cover - background safety net
                 pass

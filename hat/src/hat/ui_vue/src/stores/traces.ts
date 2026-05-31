@@ -38,7 +38,7 @@ export const useTracesStore = defineStore("traces", () => {
   async function loadForSession(sessionId: string) {
     clear();
     try {
-      const rows = await listNeocortex(sessionId);
+      const rows = await listNeocortex({ sessionId });
       for (const row of rows) {
         append({
           stage: "created",

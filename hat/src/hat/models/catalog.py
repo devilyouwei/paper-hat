@@ -19,6 +19,8 @@ from pydantic import BaseModel
 from ..config.settings import get_settings
 
 SUPPORTED_BACKENDS: tuple[str, ...] = ("mlx", "hf")
+SUPPORTED_EMBED_BACKENDS: tuple[str, ...] = ("mlx_embed", "hf_embed")
+ALL_SUPPORTED_BACKENDS: tuple[str, ...] = SUPPORTED_BACKENDS + SUPPORTED_EMBED_BACKENDS
 
 
 class CatalogEntry(BaseModel):
@@ -54,4 +56,10 @@ def load_catalog(backend: str) -> list[CatalogEntry]:
     return _read_yaml(text)
 
 
-__all__ = ["CatalogEntry", "SUPPORTED_BACKENDS", "load_catalog"]
+__all__ = [
+    "CatalogEntry",
+    "SUPPORTED_BACKENDS",
+    "SUPPORTED_EMBED_BACKENDS",
+    "ALL_SUPPORTED_BACKENDS",
+    "load_catalog",
+]

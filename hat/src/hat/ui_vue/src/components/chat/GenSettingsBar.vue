@@ -19,19 +19,16 @@ defineExpose({
 
 <template>
   <div class="gen-bar">
-    <span class="title">Generation</span>
-    <div class="cell wide">
-      <label>Temperature</label>
-      <div class="slider-row">
-        <NSlider
-          v-model:value="temperature"
-          :min="0"
-          :max="1.5"
-          :step="0.05"
-          :format-tooltip="(v: number) => v.toFixed(2)"
-        />
-        <span class="val">{{ temperature.toFixed(2) }}</span>
-      </div>
+    <div class="cell temp">
+      <label>Temp</label>
+      <NSlider
+        v-model:value="temperature"
+        :min="0"
+        :max="1.5"
+        :step="0.05"
+        :format-tooltip="(v: number) => v.toFixed(2)"
+      />
+      <span class="val">{{ temperature.toFixed(2) }}</span>
     </div>
     <div class="cell">
       <label>Max tokens</label>
@@ -45,7 +42,6 @@ defineExpose({
     </div>
     <NCheckbox v-model:checked="enableThinking">
       Enable thinking
-      <span class="muted small">(Qwen3 &lt;think&gt;…)</span>
     </NCheckbox>
   </div>
 </template>
@@ -57,53 +53,37 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: $space-4;
-  padding: $space-3 $space-4;
+  padding: $space-2 $space-3;
   background: var(--hat-panel);
   border: 1px solid var(--hat-border);
   border-radius: $radius;
-  flex-wrap: wrap;
-}
-
-.title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--hat-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .cell {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: $space-2;
   label {
     font-size: 11px;
     color: var(--hat-muted);
   }
 }
-.cell.wide {
-  min-width: 260px;
-  flex: 1 1 260px;
-  max-width: 380px;
-}
 
-.slider-row {
-  display: flex;
-  align-items: center;
-  gap: $space-2;
+.cell.temp {
+  min-width: 180px;
+  flex: 0 1 180px;
+  :deep(.n-slider) {
+    flex: 1;
+    min-width: 90px;
+  }
   .val {
     font-family: $font-mono;
     font-size: 12px;
     color: var(--hat-text);
-    width: 36px;
+    width: 32px;
     text-align: right;
   }
-}
-
-.muted {
-  color: var(--hat-muted);
-}
-.small {
-  font-size: 11px;
 }
 </style>

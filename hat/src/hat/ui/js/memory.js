@@ -19,8 +19,6 @@ function memRowHtml(e, i) {
   const u = fmt(sig.uncertainty);
   const md = e.metadata || {};
   const extras = (md && md.extras) || {};
-  const n = fmt(extras.route_novelty ?? sig.novelty);
-  const s = fmt(extras.route_user_signal ?? sig.feedback);
   const reason = escapeHtml(extras.route_reason || "");
   const q = escapeHtml((e.query || "").slice(0, 100));
   const r = escapeHtml((e.response || "").slice(0, 200));
@@ -37,8 +35,6 @@ function memRowHtml(e, i) {
     <td><code>${escapeHtml((e.trace_id || "").slice(0, 8))}</code>${oracleBadge}</td>
     <td><strong>${score}</strong></td>
     <td>${u}</td>
-    <td>${n}</td>
-    <td>${s}</td>
     <td class="truncate" title="${reason}">${reason}</td>
     <td class="truncate" title="${escapeHtml(e.query || "")}">${q}</td>
     <td class="truncate" title="${escapeHtml(e.response || "")}">${r}</td>
@@ -62,7 +58,7 @@ function renderMemRows() {
   if (filtered.length) {
     tbody.innerHTML = filtered.map(memRowHtml).join("");
   } else {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty">No entries match.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">No entries match.</td></tr>`;
   }
   $("#mem-count").textContent = `${filtered.length} / ${memEntries.length}`;
 }
@@ -198,8 +194,6 @@ function renderBreakdown(e) {
   const u = sig.uncertainty ?? 0;
   const md = e.metadata || {};
   const extras = (md && md.extras) || {};
-  const n = extras.route_novelty ?? sig.novelty;
-  const s = extras.route_user_signal ?? sig.feedback;
   const reason = extras.route_reason || "";
   const accepted = u >= t;
 
@@ -225,8 +219,6 @@ function renderBreakdown(e) {
 
   $("#mem-breakdown-body").innerHTML = `
     ${bar("U", u, "uncertainty: 1 - exp(mean log p) over response tokens")}
-    ${bar("N", n, "novelty: how new is this knowledge point")}
-    ${bar("S", s, "user_signal: how strongly the user is teaching/correcting")}
     <div class="bd-total">
       <span>gate</span>
       <strong>${fmt(u, 3)}</strong>

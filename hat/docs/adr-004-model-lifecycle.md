@@ -40,7 +40,7 @@ project tree.
 releases its allocator memory**, then builds the new one. This guarantees
 peak memory is bounded by a single resident model. The loop's `cortex`
 attribute is parked on `NoopCortex` during the swap (see
-`api.deps.swap_active_cortex`) so a stale strong reference cannot keep the
+`api.services.container.swap_active_cortex`) so a stale strong reference cannot keep the
 old weights alive.
 
 ### Explicit unload

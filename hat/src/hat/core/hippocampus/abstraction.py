@@ -1,16 +1,23 @@
 """Trace abstraction: ``m = H_abs(c, x, y, f)`` (paper Eq. ``abstraction``).
 
-The default :class:`IdentityAbstractor` copies fields verbatim — useful for
-tests and for backends without a callable Cortex. The production path is
-:class:`LLMAbstractor`, a **two-step workflow**:
+The default :class:`IdentityAbstractor` copies fields verbatim — useful
+for tests and for backends without a callable Cortex. The production
+path is :class:`LLMAbstractor`, a **two-step workflow** whose only job
+now is to *extract knowledge points* from the current turn:
 
-1. **Triage** — given only the current ``(query, response)`` and a short
-   context, decide whether the turn carries a knowledge point worth
-   remembering at all. No prior_traces are loaded; trivial small-talk
-   gets dropped here without ever touching the routing step.
-2. **Route** — only invoked when triage says *keep*. Receives the
-   session's existing traces plus the new turn, decides CREATE vs
-   REVISE, and emits the canonical ``(query, target)`` pair to store.
+1. **Triage** — given only the current ``(query, response)`` and a
+   short context, decide whether the turn carries a knowledge point
+   worth remembering at all. Trivial small-talk gets dropped here.
+2. **Extract** — only invoked when triage says *keep*. Emits one or
+   more canonical ``(query, target)`` pairs from the current turn. A
+   single user/assistant exchange may surface multiple independent
+   knowledge points (multi-fact statements, etc.).
+
+Routing the resulting traces to CREATE or REVISE (i.e. deciding whether
+to overwrite an existing memory or append a new one) is **no longer the
+abstractor's responsibility** — that is decided downstream by an
+embedding similarity check against the curated index. See
+:mod:`hat.core.hippocampus.dedup`.
 """
 
 from __future__ import annotations
@@ -28,38 +35,24 @@ log = get_logger(__name__)
 
 
 class Abstractor(ABC):
-    """Maps a raw :class:`Interaction` to a compact :class:`MemoryTrace`.
+    """Maps a raw :class:`Interaction` to zero or more :class:`MemoryTrace`s.
 
-    Mirrors paper Eq. ``abstraction``: ``m = H_abs(c, x, y, f)``. Real
-    implementations call a small summarization model or prompt the Cortex
-    itself under an instruction template.
+    Mirrors paper Eq. ``abstraction``: ``m = H_abs(c, x, y, f)``. A turn
+    can yield multiple traces when the user packs several independent
+    knowledge points into a single utterance ("我三十岁，住在北京…").
 
-    Implementations may additionally accept ``prior_traces`` (a list of dicts
-    summarising existing traces for the current session) so they can route
-    the interaction to either a CREATE, REVISE, or DROP path. REVISE intent
-    is signalled via ``trace.metadata.extras["revise_of"] = <trace_id>``;
-    DROP is signalled by returning ``None``.
+    An empty list signals DROP (no knowledge point worth storing).
     """
 
     @abstractmethod
-    def __call__(
-        self,
-        interaction: Interaction,
-        *,
-        prior_traces: list[dict] | None = None,
-    ) -> MemoryTrace | None: ...
+    def __call__(self, interaction: Interaction) -> list[MemoryTrace]: ...
 
 
 class IdentityAbstractor(Abstractor):
     """Default: copy fields verbatim. Useful for tests; replace in production."""
 
-    def __call__(
-        self,
-        interaction: Interaction,
-        *,
-        prior_traces: list[dict] | None = None,
-    ) -> MemoryTrace:
-        return MemoryTrace(
+    def __call__(self, interaction: Interaction) -> list[MemoryTrace]:
+        trace = MemoryTrace(
             interaction_id=interaction.id,
             session_id=interaction.session_id,
             interaction_ids=[interaction.id],
@@ -69,6 +62,7 @@ class IdentityAbstractor(Abstractor):
             rationale=None,
             metadata=TraceMetadata(source=interaction.source),
         )
+        return [trace]
 
 
 _JSON_OBJ_RE = re.compile(r"\{.*\}", re.DOTALL)
@@ -95,31 +89,6 @@ def _extract_json(text: str) -> dict | None:
         return None
 
 
-def _stash_signals(trace: MemoryTrace, data: dict) -> None:
-    """Persist the model's own novelty / user_signal / rationale judgement.
-
-    Numeric scores are mirrored into ``metadata.signals`` (bridging the
-    legacy 3-channel ``ScoreSignals`` shape so on-disk rows are intuitive)
-    and the full record is also kept in ``extras`` for the UI.
-    """
-    extras = trace.metadata.extras
-    for k_src, k_dst in (
-        ("novelty", "route_novelty"),
-        ("user_signal", "route_user_signal"),
-        ("rationale", "route_reason"),
-    ):
-        v = data.get(k_src)
-        if v is not None:
-            extras[k_dst] = v
-    sig = trace.metadata.signals
-    nov = data.get("novelty")
-    if isinstance(nov, (int, float)):
-        sig.novelty = float(nov)
-    usig = data.get("user_signal")
-    if isinstance(usig, (int, float)):
-        sig.feedback = float(usig)
-
-
 def _is_nonempty_str(v) -> bool:
     return isinstance(v, str) and v.strip() != ""
 
@@ -127,28 +96,16 @@ def _is_nonempty_str(v) -> bool:
 class LLMAbstractor(Abstractor):
     """Two-step abstractor (paper Eq. ``abstraction``).
 
-    The wake step is split into two LLM calls so that each call has a
-    single, narrow responsibility and a small prompt:
-
-    1. **Triage** — given ONLY the current ``(query, response)`` (and a
-       short context), decide whether the turn carries a knowledge point
-       worth remembering. No prior traces are consulted here; the model
-       is just answering "keep or drop?". Cheap; small output budget.
-    2. **Route** — only invoked when triage says *keep*. Receives the
-       session's existing traces plus the new turn, and emits the routing
-       decision (CREATE vs REVISE) together with the canonical
-       ``(query, target)`` pair to store.
-
-    Splitting these concerns keeps the route prompt focused (it no longer
-    has to also argue about novelty) and prevents wasting tokens on
-    pleasantries — those are dropped at step 1 without ever loading the
-    prior_traces context.
+    Step 1 (*triage*) decides keep-or-drop using only the current turn —
+    cheap, small token budget, no prior context required. Step 2
+    (*extract*) emits one or more canonical ``(query, target)`` pairs.
 
     On any parse failure we fall back to :class:`IdentityAbstractor` —
-    but only when ``priors`` is empty. If priors exist we must DROP
-    instead, because copying the raw user utterance (often a meta
-    correction like "错误，X 其实是 Y") into ``query`` would poison the
-    training set.
+    safe because the dataset poison risk that used to live here (copying
+    a meta-correction utterance verbatim into ``query`` while routing it
+    onto a prior trace) no longer exists: routing has moved out of the
+    abstractor and the downstream dedup step decides CREATE vs REVISE
+    purely from the canonical query embedding.
     """
 
     def __init__(
@@ -156,19 +113,19 @@ class LLMAbstractor(Abstractor):
         cortex,
         *,
         max_tokens_triage: int = 192,
-        max_tokens_route: int = 512,
+        max_tokens_extract: int = 768,
         context_char_budget: int = 1200,
     ) -> None:
         self.cortex = cortex
         self.max_tokens_triage = max_tokens_triage
-        self.max_tokens_route = max_tokens_route
-        # Cap the rendered ``{context}`` so a long prior turn doesn't blow
-        # the prompt budget and cause the JSON output to get truncated
-        # (which silently routes the turn through the IdentityAbstractor
-        # fallback and forces an unwanted CREATE).
+        self.max_tokens_extract = max_tokens_extract
+        # Cap the rendered ``{context}`` so a long prior turn doesn't
+        # blow the prompt budget and cause the JSON output to get
+        # truncated (which silently routes the turn through the
+        # IdentityAbstractor fallback).
         self.context_char_budget = context_char_budget
         self._triage_template = load_prompt("abstraction_triage")
-        self._route_template = load_prompt("abstraction_route")
+        self._extract_template = load_prompt("abstraction_extract")
         self._fallback = IdentityAbstractor()
 
     @staticmethod
@@ -182,8 +139,6 @@ class LLMAbstractor(Abstractor):
     def _truncate_context(self, interaction: Interaction) -> str:
         ctx = (interaction.context or "").strip() or "(none)"
         if self.context_char_budget and len(ctx) > self.context_char_budget:
-            # Keep the tail — the most recent turn is the most relevant
-            # for both triage and routing on the current exchange.
             ctx = "…\n" + ctx[-self.context_char_budget :]
         return ctx
 
@@ -226,222 +181,181 @@ class LLMAbstractor(Abstractor):
         )
         if emit is not None:
             keep = result.get("keep") if isinstance(result, dict) else None
+            reason = (
+                (result.get("reason") or result.get("rationale"))
+                if isinstance(result, dict) else None
+            )
             emit(
                 "triage_done",
                 {
                     "interaction_id": interaction.id,
                     "session_id": interaction.session_id,
                     "keep": keep,
-                    "reason": (
-                        (result.get("reason") or result.get("rationale"))
-                        if isinstance(result, dict) else None
-                    ),
+                    "reason": reason,
                 },
             )
         return result
 
-    def _route(
+    def _extract(
         self,
         interaction: Interaction,
-        prior_traces: list[dict],
         emit: Callable[[str, dict], None] | None = None,
     ) -> dict | None:
-        system, user = self._split_system_user(self._route_template)
+        system, user = self._split_system_user(self._extract_template)
         rendered = render(
             user,
             context=self._truncate_context(interaction),
-            prior_traces_json=json.dumps(prior_traces, ensure_ascii=False, default=str),
             query=interaction.query or "",
             response=interaction.response or "",
         )
         log.info(
-            "abstractor.route.start iid={} sid={} n_priors={}",
-            interaction.id, interaction.session_id, len(prior_traces),
+            "abstractor.extract.start iid={} sid={}",
+            interaction.id, interaction.session_id,
         )
         if emit is not None:
             emit(
-                "route_start",
+                "extract_start",
                 {
                     "interaction_id": interaction.id,
                     "session_id": interaction.session_id,
-                    "n_priors": len(prior_traces),
                 },
             )
         raw = call_judge(
             self.cortex, system=system, user=rendered,
-            max_tokens=self.max_tokens_route,
+            max_tokens=self.max_tokens_extract,
         )
         result = _extract_json(raw)
         if isinstance(result, dict):
+            kps = result.get("knowledge_points") or []
             log.info(
-                "abstractor.route.done iid={} decision={} trace_id={} "
-                "query_chars={} target_chars={} novelty={} user_signal={}",
-                interaction.id,
-                result.get("decision"),
-                result.get("trace_id"),
-                len(str(result.get("query") or "")),
-                len(str(result.get("target") or "")),
-                result.get("novelty"),
-                result.get("user_signal"),
+                "abstractor.extract.done iid={} n_kps={}",
+                interaction.id, len(kps) if isinstance(kps, list) else 0,
             )
         else:
             log.warning(
-                "abstractor.route.unparseable iid={} raw='{}'",
+                "abstractor.extract.unparseable iid={} raw='{}'",
                 interaction.id, truncate(raw or "", limit=400),
             )
         if emit is not None:
             parsed = isinstance(result, dict)
+            kps = (
+                result.get("knowledge_points")
+                if parsed and isinstance(result.get("knowledge_points"), list)
+                else []
+            )
             emit(
-                "route_done",
+                "extract_done",
                 {
                     "interaction_id": interaction.id,
                     "session_id": interaction.session_id,
                     "parsed": parsed,
-                    "decision": (result.get("decision") if parsed else None),
-                    "trace_id": (result.get("trace_id") if parsed else None),
-                    "novelty": (result.get("novelty") if parsed else None),
-                    "user_signal": (
-                        result.get("user_signal") if parsed else None
-                    ),
-                    "rationale": (
-                        result.get("rationale") if parsed else None
-                    ),
+                    "n_kps": len(kps),
                 },
             )
         return result
 
-    def _fallback_or_drop(
-        self, interaction: Interaction, priors: list[dict]
-    ) -> MemoryTrace | None:
-        """Handle an unparseable / malformed LLM response.
+    def _fallback_or_drop(self, interaction: Interaction) -> list[MemoryTrace]:
+        """Handle an unparseable / malformed extract response.
 
-        A trace's ``query`` is supposed to be the *canonical applied form*
-        of the lesson, produced by the abstractor LLM. When the LLM call
-        fails we have two bad options:
-
-        * Identity-copy the raw interaction. Safe only when there are no
-          priors — there is nothing to confuse with and the raw Q/A
-          *is* the knowledge point.
-        * Drop the turn. Required whenever ``priors`` is non-empty: this
-          turn is almost certainly a correction / clarification of an
-          existing trace, and copying the user's meta-instruction
-          (e.g. "错误，黄有为是...") verbatim into ``query`` would poison
-          the dataset. Better to lose this row than to forge one.
+        With routing removed from the abstractor there is no longer a
+        dataset-poison risk in identity-copying the raw turn — the
+        downstream dedup step decides whether this becomes a CREATE or
+        a REVISE based on the canonical query embedding, not on the
+        question text we forge here. So fall back to the identity
+        abstractor and tag the trace for diagnostic purposes.
         """
-        if priors:
-            log.info(
-                "abstractor.fallback drop iid={} reason=unparseable_with_priors n_priors={}",
-                interaction.id, len(priors),
-            )
-            return None
-        trace = self._fallback(interaction)
-        if trace is not None:
-            trace.metadata.extras["abstractor_fallback"] = True
-            log.warning(
-                "abstractor.fallback identity iid={} reason=unparseable_no_priors",
-                interaction.id,
-            )
-        return trace
+        traces = self._fallback(interaction)
+        for tr in traces:
+            tr.metadata.extras["abstractor_fallback"] = True
+        log.warning(
+            "abstractor.fallback identity iid={} reason=unparseable",
+            interaction.id,
+        )
+        return traces
 
     def __call__(
         self,
         interaction: Interaction,
         *,
-        prior_traces: list[dict] | None = None,
         event_sink: Callable[[str, dict], None] | None = None,
-    ) -> MemoryTrace | None:
-        priors = prior_traces or []
+    ) -> list[MemoryTrace]:
         log.info(
-            "abstractor.call iid={} sid={} n_priors={}",
-            interaction.id, interaction.session_id, len(priors),
+            "abstractor.call iid={} sid={}",
+            interaction.id, interaction.session_id,
         )
 
         # ---- Step 1: triage --------------------------------------------
         triage = self._triage(interaction, emit=event_sink)
-        # An explicit `keep: false` is the only path to DROP. A parse
-        # failure here errs toward keeping the turn (routing will then
-        # apply its own malformed-output policy via _fallback_or_drop).
         if isinstance(triage, dict) and triage.get("keep") is False:
             log.info(
                 "abstractor.dropped iid={} stage=triage reason={}",
                 interaction.id, triage.get("reason") or triage.get("rationale"),
             )
-            return None
+            return []
 
-        # ---- Step 2: route ---------------------------------------------
-        data = self._route(interaction, priors, emit=event_sink)
+        # ---- Step 2: extract knowledge points --------------------------
+        data = self._extract(interaction, emit=event_sink)
         if not isinstance(data, dict):
-            return self._fallback_or_drop(interaction, priors)
-
-        decision = str(data.get("decision") or "").strip().upper()
-
-        # Validate REVISE target id; fall back to CREATE if the model
-        # pointed at a non-existent trace.
-        prior: dict | None = None
-        if decision == "REVISE":
-            tid = data.get("trace_id")
-            if _is_nonempty_str(tid):
-                prior = next(
-                    (t for t in priors if t.get("trace_id") == tid), None
-                )
-            if prior is None:
-                log.warning(
-                    "abstractor.route.bad_revise_target iid={} requested_tid={} -> CREATE",
-                    interaction.id, tid,
-                )
-                decision = "CREATE"
-
-        # Pull and sanity-check the Q/A pair. Reject one-word / fragment
-        # targets — they pollute the training set.
-        q_raw = data.get("query")
-        t_raw = data.get("target")
-        query = q_raw if _is_nonempty_str(q_raw) else interaction.query
-        target = t_raw if _is_nonempty_str(t_raw) else interaction.response
-
-        # On REVISE the canonical user-side question is supposed to be
-        # *unchanged* — only the target answer / rationale gets refined.
-        # Small models routinely violate this and parrot the current
-        # user message (often a meta-correction like "不对，X 应该是 Y")
-        # into ``query``, which then poisons future replays. Override
-        # deterministically with the prior trace's stored query so the
-        # decision is the abstractor's, the canonical form is ours.
-        if decision == "REVISE" and prior is not None:
-            prior_q = prior.get("query")
-            if _is_nonempty_str(prior_q):
-                query = prior_q
-
-        if not _is_nonempty_str(target) or len(target.strip()) < 4:
+            return self._fallback_or_drop(interaction)
+        kps = data.get("knowledge_points")
+        if not isinstance(kps, list):
+            return self._fallback_or_drop(interaction)
+        if not kps:
             log.info(
-                "abstractor.target_rejected iid={} target='{}' (too short)",
-                interaction.id, truncate(target or "", limit=80),
+                "abstractor.dropped iid={} stage=extract reason=empty_kps",
+                interaction.id,
             )
-            return self._fallback_or_drop(interaction, priors)
+            return []
 
-        log.info(
-            "abstractor.decision iid={} decision={} revise_of={} query='{}' target='{}'",
-            interaction.id, decision,
-            prior.get("trace_id") if prior else None,
-            truncate(query or "", limit=120),
-            truncate(target or "", limit=120),
+        triage_reason = (
+            triage.get("reason") or triage.get("rationale")
+            if isinstance(triage, dict) else None
         )
 
-        extras: dict = {}
-        if decision == "REVISE" and prior is not None:
-            extras["revise_of"] = prior.get("trace_id")
+        traces: list[MemoryTrace] = []
+        for idx, kp in enumerate(kps):
+            if not isinstance(kp, dict):
+                continue
+            q_raw = kp.get("query")
+            t_raw = kp.get("target")
+            query = q_raw if _is_nonempty_str(q_raw) else interaction.query
+            target = t_raw if _is_nonempty_str(t_raw) else interaction.response
 
-        trace = MemoryTrace(
-            interaction_id=interaction.id,
-            session_id=interaction.session_id,
-            interaction_ids=[interaction.id],
-            query=query,
-            cortex_response=interaction.response,
-            target_response=target,
-            rationale=data.get("rationale") or None,
-            metadata=TraceMetadata(source=interaction.source, extras=extras),
-        )
-        # Triage owns novelty / user_signal; route owns rationale. Merge
-        # so _stash_signals sees a single dict with both halves populated.
-        merged = dict(triage or {})
-        merged.update(data)
-        _stash_signals(trace, merged)
-        return trace
+            if not _is_nonempty_str(target) or len(target.strip()) < 4:
+                log.info(
+                    "abstractor.kp_rejected iid={} idx={} target='{}'",
+                    interaction.id, idx, truncate(target or "", limit=80),
+                )
+                continue
+
+            extras: dict = {
+                "kp_index": idx,
+                "kp_count": len(kps),
+            }
+            if triage_reason:
+                extras["triage_reason"] = triage_reason
+            kp_rationale = kp.get("rationale")
+            if _is_nonempty_str(kp_rationale):
+                extras["extract_rationale"] = kp_rationale
+
+            traces.append(
+                MemoryTrace(
+                    interaction_id=interaction.id,
+                    session_id=interaction.session_id,
+                    interaction_ids=[interaction.id],
+                    query=query,
+                    cortex_response=interaction.response,
+                    target_response=target,
+                    rationale=kp_rationale or None,
+                    metadata=TraceMetadata(
+                        source=interaction.source, extras=extras
+                    ),
+                )
+            )
+
+        if not traces:
+            log.info(
+                "abstractor.dropped iid={} stage=extract reason=all_kps_rejected",
+                interaction.id,
+            )
+        return traces

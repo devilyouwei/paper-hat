@@ -91,8 +91,9 @@ def test_oracle_triggers_when_uncertainty_high():
     oracle = _RecordingOracle("better answer")
     loop = _loop(oracle, u=0.9, threshold=0.5)
     inter = Interaction(query="q", response="r")
-    trace = loop.wake_step(inter)
-    assert trace is not None
+    traces = loop.wake_step(inter)
+    assert traces, "oracle wake step should produce a trace"
+    trace = traces[0]
     assert oracle.consulted, "oracle must be consulted when U > threshold"
     # Oracle output overrides the response that gets persisted.
     assert inter.response == "better answer"
@@ -118,8 +119,10 @@ def test_oracle_empty_reply_does_not_overwrite_response():
 
     loop = _loop(_Empty(), u=0.9, threshold=0.5)
     inter = Interaction(query="q", response="r")
-    trace = loop.wake_step(inter)
+    traces = loop.wake_step(inter)
+    trace = traces[0] if traces else None
     assert inter.response == "r"
+    assert trace is not None
     assert trace.metadata.extras.get("oracle") is not True
 
 

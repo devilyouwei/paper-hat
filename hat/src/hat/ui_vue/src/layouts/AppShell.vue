@@ -50,6 +50,7 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
       >
         <NTab name="chat">Chat</NTab>
         <NTab name="models">Models</NTab>
+        <NTab name="embedding-models">Embeddings</NTab>
         <NTab name="memory">Memory</NTab>
       </NTabs>
 
@@ -65,12 +66,19 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 
         <NTooltip>
           <template #trigger>
-            <span class="dot" :class="{ ok: healthOk, err: !healthOk && app.booted }" />
+            <span
+              class="dot"
+              :class="{ ok: healthOk, err: !healthOk && app.booted }"
+            />
           </template>
           {{ healthTitle }}
         </NTooltip>
 
-        <button class="icon-btn" :title="themeStore.isDark ? 'Switch to light' : 'Switch to dark'" @click="themeStore.toggle">
+        <button
+          class="icon-btn"
+          :title="themeStore.isDark ? 'Switch to light' : 'Switch to dark'"
+          @click="themeStore.toggle"
+        >
           <NIcon :size="18">
             <Sun v-if="themeStore.isDark" />
             <Moon v-else />
@@ -96,6 +104,12 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 .topbar {

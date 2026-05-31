@@ -7,6 +7,7 @@ const app = useAppStore();
 
 const policy = computed(() => app.policy?.write_policy);
 const oracle = computed(() => app.policy?.oracle);
+const dedup = computed(() => app.policy?.dedup);
 const threshold = computed(() => policy.value?.threshold ?? 0.3);
 </script>
 
@@ -19,9 +20,31 @@ const threshold = computed(() => policy.value?.threshold ?? 0.3);
       </p>
       <ul class="signal-list">
         <li><b>U</b> — uncertainty: <code>1 − exp(mean log p)</code> over response tokens.</li>
-        <li><b>N</b> — novelty score from the router (vs. nearest prior trace).</li>
-        <li><b>S</b> — user signal: explicit teaching/correction detected.</li>
+        <li>
+          <b>Triage</b> — small LLM call decides whether the turn is worth
+          remembering at all (drops pleasantries, filler).
+        </li>
+        <li>
+          <b>Extract</b> — small LLM call emits one or more canonical
+          <code>(query, target)</code> pairs.
+        </li>
+        <li>
+          <b>Dedup</b> — embedding similarity routes each KP to
+          <i>create</i> or <i>revise</i> against the curated index.
+        </li>
       </ul>
+
+      <div v-if="dedup" class="dedup">
+        <NTag :type="dedup.enabled ? 'info' : 'default'" size="small" round>
+          Dedup {{ dedup.enabled ? "on" : "off" }}
+        </NTag>
+        <span v-if="dedup.enabled" class="hat-muted small">
+          revise when cosine sim ≥ {{ (dedup.threshold ?? 0.82).toFixed(2) }}
+          <span v-if="dedup.active_embedder">
+            · {{ dedup.active_embedder.id.split("/").pop() }}
+          </span>
+        </span>
+      </div>
 
       <div v-if="oracle" class="oracle">
         <NTag :type="oracle.enabled ? 'success' : 'default'" size="small" round>
@@ -57,6 +80,13 @@ const threshold = computed(() => policy.value?.threshold ?? 0.3);
 }
 
 .oracle {
+  margin-top: $space-3;
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+}
+
+.dedup {
   margin-top: $space-3;
   display: flex;
   align-items: center;

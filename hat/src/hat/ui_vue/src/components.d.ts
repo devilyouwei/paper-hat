@@ -10,6 +10,8 @@ declare module 'vue' {
     ChatBoard: typeof import('./components/chat/ChatBoard.vue')['default']
     ChatBubble: typeof import('./components/chat/ChatBubble.vue')['default']
     ChatComposer: typeof import('./components/chat/ChatComposer.vue')['default']
+    EmbeddingModelCard: typeof import('./components/embedding-models/EmbeddingModelCard.vue')['default']
+    EmbeddingModelsToolbar: typeof import('./components/embedding-models/EmbeddingModelsToolbar.vue')['default']
     GenSettingsBar: typeof import('./components/chat/GenSettingsBar.vue')['default']
     MemoryEditorDrawer: typeof import('./components/memory/MemoryEditorDrawer.vue')['default']
     ModelBar: typeof import('./components/chat/ModelBar.vue')['default']

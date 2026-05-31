@@ -42,17 +42,14 @@ class Interaction(BaseModel):
     # Persisted with the raw session log so the UI can re-render the
     # uncertainty / route badges when a session is reopened. Keys in use:
     # ``uncertainty`` (float), ``decision`` (created|revised|skipped|dropped|
-    # rejected), ``trace_id`` (str|None), ``novelty`` (float|None),
-    # ``user_signal`` (float|None), ``reason`` (str|None).
+    # rejected), ``trace_id`` (str|None), ``reason`` (str|None).
     hat: dict | None = None
 
 
 class ScoreSignals(BaseModel):
-    """Triplet ``(U, F, N)`` used by the linear write policy."""
+    """Single-signal score input ``(U,)`` consumed by the write policy."""
 
     uncertainty: float = 0.0
-    feedback: float = 0.0
-    novelty: float = 0.0
 
 
 class TraceMetadata(BaseModel):

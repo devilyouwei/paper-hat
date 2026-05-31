@@ -1,20 +1,58 @@
-"""Embedding helpers used by the novelty estimator."""
+"""Embedding helpers used for curated-memory deduplication.
+
+Embedders are produced exclusively by :class:`hat.models.embedding_manager.EmbeddingManager`
+from the catalog; this module only defines the :class:`Embedder` protocol
+and the :class:`ManagedEmbedder` adapter that tags vectors with their
+``<backend>/<id>`` source.
+"""
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Sequence
+from typing import Protocol
 
 
-def hash_embed(texts: Sequence[str], dim: int = 64) -> list[list[float]]:
-    """Deterministic byte-hash embedding. Replace with a real model in production
-    (sentence-transformers, OpenAI embeddings, BGE, …).
+class Embedder(Protocol):
+    """Maps texts to fixed-dim float vectors. Vectors must be L2-normalised."""
+
+    def embed(self, texts: Sequence[str]) -> list[list[float]]: ...
+
+    @property
+    def dim(self) -> int: ...
+
+    @property
+    def name(self) -> str: ...
+
+
+class ManagedEmbedder:
+    """Adapter wrapping a managed (catalog-driven) embedding backend.
+
+    The underlying ``inner`` object is a backend-specific model (e.g.
+    :class:`MLXEmbeddingModel`) that already implements
+    ``embed(texts) -> list[list[float]]`` and exposes ``dim``. We add the
+    ``backend`` / ``model_id`` tag so the loop can stamp memory rows with
+    the embedder that wrote them.
     """
-    out: list[list[float]] = []
-    for t in texts:
-        h = hashlib.sha256(t.encode("utf-8")).digest()
-        out.append([b / 255.0 for b in h[:dim]])
-    return out
+
+    def __init__(self, inner: Embedder, *, backend: str, model_id: str) -> None:
+        self.inner = inner
+        self.backend = backend
+        self.model_id = model_id
+
+    def embed(self, texts: Sequence[str]) -> list[list[float]]:
+        return self.inner.embed(texts)
+
+    @property
+    def dim(self) -> int:
+        return int(self.inner.dim)
+
+    @property
+    def name(self) -> str:
+        return f"{self.backend}/{self.model_id}"
+
+    @property
+    def tag(self) -> str:
+        return f"{self.backend}/{self.model_id}"
 
 
-__all__ = ["hash_embed"]
+__all__ = ["Embedder", "ManagedEmbedder"]

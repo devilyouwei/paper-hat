@@ -19,12 +19,6 @@ const extras = computed(
   () => (props.entry.metadata?.extras || {}) as Record<string, unknown>,
 );
 const u = computed(() => clamp01(sig.value.uncertainty));
-const n = computed(() =>
-  clamp01((extras.value["route_novelty"] as number) ?? sig.value.novelty),
-);
-const s = computed(() =>
-  clamp01((extras.value["route_user_signal"] as number) ?? sig.value.feedback),
-);
 const accepted = computed(() => u.value >= threshold.value);
 const oracleName = computed(
   () => (extras.value["oracle_name"] as string | undefined) || "oracle",
@@ -33,8 +27,6 @@ const isOracle = computed(() => !!extras.value["oracle"]);
 
 const bars = computed(() => [
   { key: "U", value: u.value, hint: "uncertainty: 1 − exp(mean log p)" },
-  { key: "N", value: n.value, hint: "novelty: distance to closest prior trace" },
-  { key: "S", value: s.value, hint: "user_signal: explicit teaching/correction" },
 ]);
 </script>
 

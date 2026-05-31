@@ -17,6 +17,12 @@ const router = createRouter({
       meta: { title: "Models" },
     },
     {
+      path: "/embedding-models",
+      name: "embedding-models",
+      component: () => import("@/views/EmbeddingModelsView.vue"),
+      meta: { title: "Embeddings" },
+    },
+    {
       path: "/memory",
       name: "memory",
       component: () => import("@/views/MemoryView.vue"),

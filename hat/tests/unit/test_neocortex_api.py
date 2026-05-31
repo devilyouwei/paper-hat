@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from hat.api.deps import get_loop
+from hat.api.services.container import get_loop
 from hat.api.main import app
 from hat.core.schemas import (
     MemoryTrace,
@@ -24,7 +24,7 @@ def _seed_trace(query: str = "what is hat", response: str = "a hat is a hat") ->
         trace_id=trace.id,
         score=0.7,
         threshold=0.5,
-        signals=ScoreSignals(uncertainty=0.6, feedback=1.0, novelty=0.4),
+        signals=ScoreSignals(uncertainty=0.6),
         accepted=True,
     )
     get_loop().neocortex.write(trace, decision)

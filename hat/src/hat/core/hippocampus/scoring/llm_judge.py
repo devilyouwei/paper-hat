@@ -1,6 +1,6 @@
 """Shared utilities for LLM-as-judge scoring.
 
-The novelty / feedback estimators and the abstractor all share the same
+The abstractor and any future LLM-as-judge estimators share the same
 plumbing: load a prompt template from ``hippocampus/prompts/<name>.md``,
 substitute fields, call ``cortex.chat`` with conservative generation
 settings, strip ``<think>`` blocks, and parse the result.

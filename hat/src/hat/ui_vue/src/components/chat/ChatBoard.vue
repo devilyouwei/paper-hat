@@ -69,9 +69,7 @@ defineExpose({ scrollToBottom });
 @use "@/styles/tokens" as *;
 
 .chatbox {
-  height: 50vh;
-  max-height: 50vh;
-  min-height: 240px;
+  height: 60vh;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: $space-4 $space-5;

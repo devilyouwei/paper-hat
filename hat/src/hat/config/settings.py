@@ -90,6 +90,21 @@ class Settings(BaseSettings):
     ui_base_url: str = "http://127.0.0.1:8000/v1"
     ui_model: str = "hat-cortex"
 
+    # Embedding-based deduplication for curated memory. Each accepted
+    # trace's canonical query is embedded with the active managed
+    # embedder and compared against a per-model NPZ side-index; cosine
+    # similarity above ``dedup_threshold`` routes the new knowledge
+    # point to a REVISE (overwrite the matched trace's target) instead
+    # of a CREATE. Vector storage layout is
+    # ``<embed_index_root>/<backend>__<id>.npz``; pick the active model
+    # via ``/api/embedding-models/active``.
+    dedup_enabled: bool = True
+    dedup_threshold: float = 0.82
+    embed_device: str = "auto"  # auto | cpu | cuda | mps
+    embed_backend: str = "mlx_embed"  # mlx_embed | hf_embed
+    embed_id: str | None = None
+    embed_index_root: Path = Path("runs/neocortex/embeddings")
+
 
 _settings: Settings | None = None
 
@@ -100,3 +115,15 @@ def get_settings() -> Settings:
     if _settings is None:
         _settings = Settings()
     return _settings
+
+
+def embed_index_path_for(backend: str, model_id: str) -> Path:
+    """Per-(backend, id) NPZ path under ``embed_index_root``.
+
+    Layout: ``<embed_index_root>/<backend>__<id>.npz``. The double
+    underscore separator avoids collisions when a model id contains
+    slashes; we still ``replace('/', '_')`` defensively.
+    """
+    s = get_settings()
+    safe_id = model_id.replace("/", "_")
+    return s.embed_index_root / f"{backend}__{safe_id}.npz"

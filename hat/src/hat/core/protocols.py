@@ -43,7 +43,9 @@ class Embedder(Protocol):
 
 @runtime_checkable
 class Abstractor(Protocol):
-    def __call__(self, interaction: Interaction) -> MemoryTrace: ...
+    def __call__(
+        self, interaction: Interaction
+    ) -> list[MemoryTrace]: ...
 
 
 @runtime_checkable

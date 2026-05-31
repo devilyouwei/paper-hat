@@ -1,41 +1,48 @@
-"""Dependency container.
+"""Service container.
 
-Wires concrete defaults into the loop. Controllers depend only on Protocols/ABCs,
-so swapping backends never touches HTTP code.
+Owns the long-lived singletons used by every controller: the wake/sleep
+loop, session store, raw interaction log. Wires concrete defaults into
+the loop so HTTP code never instantiates protocols directly.
 
 Active-model selection is delegated to :class:`hat.models.manager.ModelManager`
-so the UI / management API can hot-swap the Cortex without restarting the
-server. ``get_cortex()`` returns the manager's active model when one has been
-selected, otherwise the env-driven bootstrap Cortex (noop / hf / mlx)."""
+so the management API can hot-swap the Cortex without restarting the
+server. ``get_cortex()`` returns the manager's active model when one has
+been selected, otherwise the env-driven bootstrap Cortex (noop / hf /
+mlx).
+"""
 
 from __future__ import annotations
 
 from functools import lru_cache
 
-from ..config.settings import get_settings
-from ..core.cortex.base import Cortex
-from ..core.cortex.noop import NoopCortex
-from ..core.hippocampus import (
+from ...config.settings import get_settings
+from ...core.cortex.base import Cortex
+from ...core.cortex.noop import NoopCortex
+from ...core.hippocampus import (
+    EmbeddingDeduper,
     IdentityAbstractor,
     LLMAbstractor,
     SupervisedReplayBuilder,
     UncertaintyGatePolicy,
 )
-from ..core.hippocampus.scoring import (
+from ...core.hippocampus.scoring import (
     ConstantUncertainty,
     LogprobUncertainty,
 )
-from ..core.loop import WakeSleepLoop
-from ..core.oracle import (
+from ...core.loop import WakeSleepLoop
+from ...core.oracle import (
     CostGuard,
     OpenAICompatibleOracle,
     Oracle,
 )
-from ..core.sws.trainer import DryRunTrainer
-from ..memory.curated.jsonl_store import JsonlNeocortex
-from ..memory.raw.log import SessionRawLog
-from ..memory.raw.sessions import JsonlSessionStore
-from ..models.manager import get_manager
+from ...core.sws.trainer import DryRunTrainer
+from ...memory.curated.jsonl_store import JsonlNeocortex
+from ...memory.curated.vector_index import NpzVectorIndex
+from ...memory.embeddings import Embedder, ManagedEmbedder
+from ...memory.raw.log import SessionRawLog
+from ...memory.raw.sessions import JsonlSessionStore
+from ...models.embedding_manager import get_embedding_manager
+from ...models.manager import get_manager
 
 
 def _bootstrap_cortex() -> Cortex:
@@ -52,7 +59,6 @@ def _bootstrap_cortex() -> Cortex:
         for entry in mgr.list_models(s.cortex_backend):
             if entry["installed"]:
                 return mgr.set_active(s.cortex_backend, entry["id"])
-        # nothing installed yet — degrade gracefully
         return NoopCortex()
     if s.cortex_backend == "noop":
         return NoopCortex()
@@ -88,17 +94,12 @@ def get_loop() -> WakeSleepLoop:
         trainer=DryRunTrainer(),
         oracle=_make_oracle(),
         oracle_threshold=s.oracle_threshold,
+        deduper=_make_deduper(),
+        embed_tag=_active_embed_tag(),
     )
 
 
 # ---- hippocampus component factories ----------------------------------
-#
-# The wake/sleep loop is constructed once and reused across requests, but the
-# active Cortex can be hot-swapped via the management API. ``swap_active_cortex``
-# below rebuilds the LLM-backed abstractor / uncertainty estimator in place so
-# the loop always points at the current model. Stub implementations are used
-# when the cortex is the noop fallback so we don't burn forward passes on
-# placeholder text.
 
 
 def _is_noop(cortex: Cortex) -> bool:
@@ -115,12 +116,61 @@ def _make_uncertainty(cortex: Cortex):
     return LogprobUncertainty(cortex)
 
 
+@lru_cache
+def _get_vector_index_for(backend: str, model_id: str) -> NpzVectorIndex:
+    """Per-(backend, id) NPZ index for managed embedders.
+
+    Cached so repeat ``_make_deduper()`` calls under the same active
+    embedder reuse the same in-memory ``NpzVectorIndex`` (and therefore
+    its lock).
+    """
+    from ...config.settings import embed_index_path_for
+
+    return NpzVectorIndex(embed_index_path_for(backend, model_id))
+
+
+def _active_embedder() -> tuple[Embedder, NpzVectorIndex, str] | None:
+    """Resolve (embedder, index, tag) for the wake-step deduper.
+
+    Returns ``None`` when no managed embedder has been activated via
+    ``/api/embedding-models/active``; the loop's deduper is then ``None``
+    and dedup-driven REVISE routing is skipped for the turn.
+    """
+    mgr = get_embedding_manager()
+    active = mgr.active()
+    if active is None:
+        return None
+    backend, model_id = active["backend"], active["id"]
+    emb = mgr.load(backend, model_id)
+    idx = _get_vector_index_for(backend, model_id)
+    tag = emb.tag if isinstance(emb, ManagedEmbedder) else f"{backend}/{model_id}"
+    return emb, idx, tag
+
+
+def _make_deduper() -> EmbeddingDeduper | None:
+    s = get_settings()
+    if not s.dedup_enabled:
+        return None
+    pair = _active_embedder()
+    if pair is None:
+        return None
+    embedder, index, _tag = pair
+    return EmbeddingDeduper(
+        embedder=embedder,
+        index=index,
+        threshold=s.dedup_threshold,
+    )
+
+
+def _active_embed_tag() -> str | None:
+    """Tag for ``metadata.extras.embed_model`` on accepted traces, or
+    ``None`` when no managed embedder is active (in which case rows are
+    not stamped)."""
+    pair = _active_embedder()
+    return pair[2] if pair is not None else None
+
+
 # ---- oracle factory ---------------------------------------------------
-#
-# Oracle is opt-in via ``HAT_ORACLE_ENABLED``. When disabled (the default)
-# the loop runs purely local. When enabled and an API key is present, we
-# build an OpenAI-compatible client wrapped in a process-wide CostGuard so
-# rate and daily-budget limits are uniform across requests.
 
 _oracle_cost_guard: CostGuard | None = None
 
@@ -129,8 +179,6 @@ def _make_oracle() -> Oracle | None:
     s = get_settings()
     if not s.oracle_enabled:
         return None
-    # No key, no oracle (local servers can ignore keys, but defaulting to
-    # OpenAI without one would just fail every request).
     if s.oracle_base_url.startswith("https://api.openai.com") and not s.oracle_api_key:
         return None
 
@@ -150,11 +198,9 @@ def _make_oracle() -> Oracle | None:
 
 
 def _refresh_hippocampus(loop: WakeSleepLoop, cortex: Cortex) -> None:
-    """Re-bind the hippocampus abstractor / uncertainty to ``cortex`` in place.
-
-    Called after a model swap so the LLM-backed components talk to the new
-    Cortex instead of the previous one.
-    """
+    """Re-bind the hippocampus abstractor / uncertainty to ``cortex`` in
+    place. Called after a model swap so the LLM-backed components talk to
+    the new Cortex instead of the previous one."""
     loop.abstractor = _make_abstractor(cortex)
     loop.uncertainty = _make_uncertainty(cortex)
 
@@ -162,14 +208,13 @@ def _refresh_hippocampus(loop: WakeSleepLoop, cortex: Cortex) -> None:
 def swap_active_cortex(backend: str, model_id: str) -> Cortex:
     """Set the manager's active model and update the loop in place.
 
-    The loop holds a strong reference to the current cortex; we must drop it
-    *before* the manager builds the new model, otherwise on CUDA the old
-    weights stay resident during the new load and we OOM.
+    The loop holds a strong reference to the current cortex; we must drop
+    it *before* the manager builds the new model, otherwise on CUDA the
+    old weights stay resident during the new load and we OOM.
     """
     mgr = get_manager()
     active = mgr.active()
     if active and (active["backend"], active["id"]) != (backend, model_id):
-        # Park the loop on a placeholder so it stops referencing the old cortex.
         get_loop().cortex = NoopCortex()
     cortex = mgr.set_active(backend, model_id)
     get_loop().cortex = cortex
@@ -178,27 +223,38 @@ def swap_active_cortex(backend: str, model_id: str) -> Cortex:
 
 
 def deactivate_cortex() -> int:
-    """Unload every cached cortex and point the loop at the Noop fallback.
-
-    Order matters for memory release: the wake/sleep loop and the
-    hippocampus scorers each hold a strong reference to the active cortex.
-    If we ask the manager to release first, it nulls the heavy attrs
-    (``lm.model``, ``lm.tokenizer``) but the cortex *wrapper* is kept alive
-    by the loop, which is fine for memory but means a subsequent re-activation
-    would silently use a corpse. So we park the loop on the Noop fallback
-    *first*, refresh the hippocampus, drop the bootstrap cache, and only then
-    ask the manager to unload — at which point nothing else in the process
-    references the old weights and the GPU/Metal allocator can actually
-    return the blocks to the OS.
-    """
+    """Unload every cached cortex and point the loop at the Noop fallback."""
     fallback = NoopCortex()
     loop = get_loop()
     loop.cortex = fallback
     _refresh_hippocampus(loop, fallback)
-    # Drop the cached bootstrap so the next chat doesn't silently reload it.
     _initial_cortex.cache_clear()
-    # Now no live reference remains except the manager's own cache; release.
     return get_manager().unload_all()
+
+
+# ---- embedder swap ----------------------------------------------------
+
+
+def swap_active_embedder(backend: str, model_id: str) -> Embedder:
+    """Activate a managed embedder and rebuild the loop's deduper."""
+    mgr = get_embedding_manager()
+    emb = mgr.set_active(backend, model_id)
+    _rebuild_deduper()
+    return emb
+
+
+def deactivate_embedder() -> int:
+    """Unload all managed embedders; loop's deduper drops to ``None``."""
+    n = get_embedding_manager().unload_all()
+    _rebuild_deduper()
+    return n
+
+
+def _rebuild_deduper() -> None:
+    """Replace ``loop.deduper`` with one bound to the current active pair."""
+    loop = get_loop()
+    loop.deduper = _make_deduper()
+    loop.embed_tag = _active_embed_tag()
 
 
 @lru_cache
@@ -231,8 +287,7 @@ def prior_traces_for_session(session_id: str, *, limit: int = 8) -> list:
     rows = fetch(session_id)
     if limit and len(rows) > limit:
         rows = rows[-limit:]
-    # Map SFT rows back to MemoryTrace instances for the loop's API.
-    from ..memory.curated.jsonl_store import _sft_to_trace
+    from ...memory.curated.jsonl_store import _sft_to_trace
     out: list = []
     for r in rows:
         try:

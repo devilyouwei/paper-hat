@@ -76,8 +76,8 @@ def _build_loop(*, uncertainty: float = 1.0) -> WakeSleepLoop:
 
 def test_wake_sleep_smoke() -> None:
     loop = _build_loop()
-    trace = loop.wake_step(Interaction(query="hello"))
-    assert trace is not None
+    traces = loop.wake_step(Interaction(query="hello"))
+    assert traces  # non-empty list
     assert len(loop.neocortex) == 1
 
     stats = loop.sleep_step(cycle=1, k=8)
@@ -87,18 +87,18 @@ def test_wake_sleep_smoke() -> None:
 
 def test_wake_step_skips_below_threshold() -> None:
     loop = _build_loop(uncertainty=0.05)
-    trace = loop.wake_step(Interaction(query="hello"))
-    assert trace is None
+    traces = loop.wake_step(Interaction(query="hello"))
+    assert traces == []
     assert len(loop.neocortex) == 0
 
 
 def test_chat_controller_appends_raw_log(tmp_path) -> None:
-    from hat.api.controllers.chat import ChatController
+    from hat.api.services.chat import ChatService
     from hat.api.schemas.chat import ChatRequest
     from hat.memory.raw.log import JsonlRawLog
 
     log = JsonlRawLog(tmp_path / "raw.jsonl")
-    ctrl = ChatController(loop=_build_loop(), raw_log=log)
+    ctrl = ChatService(loop=_build_loop(), raw_log=log)
     res = ctrl.handle(ChatRequest(query="hi"))
     assert res.response.startswith("[noop]")
     assert sum(1 for _ in log) == 1

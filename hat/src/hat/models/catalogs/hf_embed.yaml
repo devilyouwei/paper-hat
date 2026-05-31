@@ -1,0 +1,21 @@
+# Default catalog of HuggingFace-format embedding models (SentenceTransformers).
+# Override by placing a YAML with the same shape at
+# ``<HAT_MODEL_ROOT>/hf_embed/catalog.yaml``.
+#
+#   id        — slug used for the local directory under model/hf_embed/<id>/
+#   repo_id   — HuggingFace repository to snapshot_download from
+#   display   — human-readable name shown in the UI
+#   size_gb   — approximate on-disk footprint after download
+#   notes     — free-form note, displayed as tooltip / subtitle
+
+- id: qwen3-embedding-0.6b
+  repo_id: Qwen/Qwen3-Embedding-0.6B
+  display: Qwen3 Embedding 0.6B
+  size_gb: 1.2
+  notes: Multilingual embedder (1024d), strong on retrieval/MTEB.
+
+- id: embeddinggemma-300m
+  repo_id: google/embeddinggemma-300m
+  display: EmbeddingGemma 300M
+  size_gb: 0.6
+  notes: Small multilingual embedder (768d). Gated repo — accept the license on HuggingFace and set HF_TOKEN before downloading.
