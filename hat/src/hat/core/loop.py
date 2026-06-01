@@ -7,15 +7,16 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..utils.logging import format_text_block, get_logger, truncate
-from .cortex.base import Cortex
-from .hippocampus.abstraction import Abstractor
-from .hippocampus.dedup import EmbeddingDeduper
-from .hippocampus.replay import ReplayBuilder
-from .hippocampus.scoring.uncertainty import UncertaintyEstimator
-from .hippocampus.selection import WritePolicy
-from .neocortex.store import NeocortexStore
-from .oracle.base import Oracle
-from .schemas import (
+from hat.abstract.cortex import Cortex
+from hat.abstract.hippocampus import (
+    Abstractor,
+    ReplayBuilder,
+    UncertaintyEstimator,
+    WritePolicy,
+)
+from hat.abstract.neocortex import NeocortexStore
+from hat.abstract.oracle import Oracle
+from hat.abstract.schemas import (
     Interaction,
     MemoryTrace,
     ReplayBatch,
@@ -23,7 +24,9 @@ from .schemas import (
     SWSObjective,
     SWSStats,
 )
-from .sws.trainer import SWSTrainer
+from hat.abstract.sws import SWSTrainer
+
+from .hippocampus.dedup import EmbeddingDeduper
 
 log = get_logger(__name__)
 
@@ -395,7 +398,7 @@ class WakeSleepLoop:
         if not row:
             return None
         try:
-            from ..memory.curated.jsonl_store import _sft_to_trace
+            from hat.core.neocortex.jsonl_store import _sft_to_trace
 
             trace, _ = _sft_to_trace(row)
             return trace

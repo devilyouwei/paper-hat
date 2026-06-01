@@ -25,9 +25,10 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 from ...core.loop import WakeSleepLoop
-from ...core.schemas import Interaction
-from ...memory.raw.log import RawInteractionLog
-from ...memory.raw.sessions import (
+from hat.abstract.schemas import Interaction
+from hat.config.settings import get_settings
+from hat.core.sessions.raw_log import RawInteractionLog
+from hat.core.sessions.store import (
     JsonlSessionStore,
     Session,
     SessionStoreError,
@@ -55,6 +56,9 @@ def _split_messages(messages: list[ChatMessage]) -> tuple[list[ChatMessage], Cha
 def _flatten_history(history: list[ChatMessage]) -> str | None:
     if not history:
         return None
+    cap = get_settings().judge_history_max_messages
+    if cap and cap > 0 and len(history) > cap:
+        history = history[-cap:]
     parts = [f"{m.role}: {m.content}" for m in history]
     return "\n".join(parts)
 
@@ -383,7 +387,7 @@ class OpenAIChatService:
         # abstractor LLM call (slower) finishes in parallel.
         prior_traces: list = []
         if session is not None:
-            from .container import prior_traces_for_session
+            from hat.core.runtime.container import prior_traces_for_session
             prior_traces = prior_traces_for_session(session.id)
 
         events: list[dict] = []
@@ -558,7 +562,7 @@ class OpenAIChatService:
         # two more LLM calls before any feedback shows up".
         prior_traces: list = []
         if session is not None:
-            from .container import prior_traces_for_session
+            from hat.core.runtime.container import prior_traces_for_session
             prior_traces = prior_traces_for_session(session.id)
 
         events: list[dict] = []
@@ -640,7 +644,7 @@ class OpenAIChatService:
             try:
                 prior_traces: list = []
                 if session is not None:
-                    from .container import prior_traces_for_session
+                    from hat.core.runtime.container import prior_traces_for_session
                     prior_traces = prior_traces_for_session(session.id)
                 events: list[dict] = []
 

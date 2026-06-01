@@ -19,10 +19,10 @@ import shutil
 import threading
 from threading import Lock
 
-from ..config.settings import get_settings
-from ..core.cortex.base import Cortex
-from ..utils.logging import get_logger
-from .catalog import SUPPORTED_BACKENDS, CatalogEntry, load_catalog
+from hat.config.settings import get_settings
+from hat.abstract.cortex import Cortex
+from hat.utils.logging import get_logger
+from hat.core.lifecycle.catalog import SUPPORTED_BACKENDS, CatalogEntry, load_catalog
 
 log = get_logger(__name__)
 
@@ -325,13 +325,13 @@ class ModelManager:
         s = get_settings()
         log.info("building cortex backend={} path={}", backend, path)
         if backend == "mlx":
-            from ..core.cortex.mlx_cortex import MLXCortex
-            from .backends.mlx import build_mlx_model
+            from hat.core.cortex.mlx import MLXCortex
+            from hat.core.cortex.mlx import build_mlx_model
 
             return MLXCortex(build_mlx_model(path))
         if backend == "hf":
-            from ..core.cortex.hf_cortex import HFCortex
-            from .backends.hf import build_hf_model
+            from hat.core.cortex.hf import HFCortex
+            from hat.core.cortex.hf import build_hf_model
 
             return HFCortex(
                 build_hf_model(

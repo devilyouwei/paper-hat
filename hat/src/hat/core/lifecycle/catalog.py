@@ -16,7 +16,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel
 
-from ..config.settings import get_settings
+from hat.config.settings import get_settings
 
 SUPPORTED_BACKENDS: tuple[str, ...] = ("mlx", "hf")
 SUPPORTED_EMBED_BACKENDS: tuple[str, ...] = ("mlx_embed", "hf_embed")
@@ -47,7 +47,7 @@ def load_catalog(backend: str) -> list[CatalogEntry]:
         return _read_yaml(override.read_text(encoding="utf-8"))
     try:
         text = (
-            resources.files("hat.models.catalogs")
+            resources.files("hat.core.lifecycle.catalogs")
             .joinpath(f"{backend}.yaml")
             .read_text(encoding="utf-8")
         )

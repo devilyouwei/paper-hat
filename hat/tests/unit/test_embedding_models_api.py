@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 
 from hat.api.main import app
 from hat.config.settings import embed_index_path_for, get_settings
-from hat.models.catalog import load_catalog
-from hat.models.embedding_manager import EmbeddingManagerError, get_embedding_manager
+from hat.core.lifecycle.catalog import load_catalog
+from hat.core.lifecycle.embedding_manager import EmbeddingManagerError, get_embedding_manager
 
 
 @pytest.fixture(autouse=True)

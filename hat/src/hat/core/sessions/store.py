@@ -16,39 +16,16 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
-from uuid import uuid4
 
-from pydantic import BaseModel, Field
-
-from ...core.schemas import Interaction
+from hat.abstract.schemas import Interaction, Session
+from hat.abstract.sessions import SessionStore, SessionStoreError
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _new_id() -> str:
-    # short prefixed id, easier to spot in URLs and the filesystem.
-    return f"s-{uuid4().hex[:12]}"
-
-
-class Session(BaseModel):
-    """Chat-session metadata. Stored in ``index.json`` as one entry per session."""
-
-    id: str = Field(default_factory=_new_id)
-    title: str = "New chat"
-    created_at: datetime = Field(default_factory=_now)
-    updated_at: datetime = Field(default_factory=_now)
-    message_count: int = 0
-    # Optional model info captured on the first turn for UI display.
-    model: str | None = None
-
-
-class SessionStoreError(RuntimeError):
-    pass
-
-
-class JsonlSessionStore:
+class JsonlSessionStore(SessionStore):
     """Filesystem-backed session store.
 
     Layout::

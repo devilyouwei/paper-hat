@@ -34,7 +34,7 @@ from typing import Any
 
 import numpy as np
 
-from ...utils.logging import get_logger
+from hat.utils.logging import get_logger
 
 log = get_logger(__name__)
 

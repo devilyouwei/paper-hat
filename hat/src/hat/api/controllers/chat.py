@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 
 from ..schemas.chat import ChatRequest, ChatResponse
 from ..services.chat import ChatService
-from ..services.container import get_loop, get_raw_log
+from hat.core.runtime.container import get_loop, get_raw_log
 
 router = APIRouter()
 

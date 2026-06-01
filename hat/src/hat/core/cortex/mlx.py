@@ -19,8 +19,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from ...utils.logging import get_logger
-from ..registry import register
+from hat.utils.logging import get_logger
+from hat.core.cortex.registry import register
 
 log = get_logger(__name__)
 
@@ -205,3 +205,35 @@ def build_mlx_model(
 
 
 __all__ = ["MLXLanguageModel", "build_mlx_model"]
+
+
+# ---------------------------------------------------------------------------
+# Cortex adapter
+# ---------------------------------------------------------------------------
+
+from hat.abstract.cortex import Cortex
+from hat.abstract.schemas import Interaction
+
+
+class MLXCortex(Cortex):
+    """Wraps an :class:`MLXLanguageModel`. Same shape as :class:`HFCortex`."""
+
+    def __init__(self, lm: MLXLanguageModel, name: str | None = None) -> None:
+        self.lm = lm
+        self.name = name or getattr(lm, "name", "mlx-cortex")
+
+    def generate(self, query: str, *, context: str | None = None, **kwargs: Any) -> str:
+        return self.lm.generate(query, context=context, **kwargs)
+
+    def chat(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> str:
+        return self.lm.chat(messages, **kwargs)
+
+    def stream_chat(self, messages: Sequence[dict[str, str]], **kwargs: Any):
+        yield from self.lm.stream_chat(messages, **kwargs)
+
+    def uncertainty(self, interaction: Interaction) -> float:
+        # TODO: predictive entropy from mlx-lm `generate_step` logprobs.
+        return 0.5
+
+
+__all__ = ["MLXLanguageModel", "build_mlx_model", "MLXCortex"]

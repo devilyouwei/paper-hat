@@ -1,16 +1,9 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
-from ..schemas import MemoryTrace, ReplayExample
-
-
-class ReplayBuilder(ABC):
-    """Convert a retained trace into one or more training examples (paper §3.4.3)."""
-
-    @abstractmethod
-    def __call__(self, trace: MemoryTrace) -> Iterable[ReplayExample]: ...
+from hat.abstract.hippocampus import ReplayBuilder
+from hat.abstract.schemas import MemoryTrace, ReplayExample
 
 
 class SupervisedReplayBuilder(ReplayBuilder):

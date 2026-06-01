@@ -5,7 +5,9 @@ through the natural multi-turn conversation and are detected by the
 abstractor's router prompt.
 """
 
-from .uncertainty import ConstantUncertainty, LogprobUncertainty, UncertaintyEstimator
+from hat.abstract.hippocampus import UncertaintyEstimator
+
+from .uncertainty import ConstantUncertainty, LogprobUncertainty
 
 __all__ = [
     "UncertaintyEstimator",

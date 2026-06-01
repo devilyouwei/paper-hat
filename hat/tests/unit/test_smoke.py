@@ -14,7 +14,7 @@ from hat.core.neocortex.store import (
     InMemoryNeocortex,
     NeocortexWriteError,
 )
-from hat.core.schemas import (
+from hat.abstract.schemas import (
     Interaction,
     MemoryTrace,
     ScoreSignals,
@@ -24,9 +24,9 @@ from hat.core.sws.trainer import DryRunTrainer
 
 
 def test_imports() -> None:
+    import hat.abstract  # noqa: F401
     import hat.core  # noqa: F401
     import hat.core.loop  # noqa: F401
-    import hat.core.protocols  # noqa: F401
 
 
 def test_neocortex_rejects_unauthorized_write() -> None:
@@ -95,7 +95,7 @@ def test_wake_step_skips_below_threshold() -> None:
 def test_chat_controller_appends_raw_log(tmp_path) -> None:
     from hat.api.services.chat import ChatService
     from hat.api.schemas.chat import ChatRequest
-    from hat.memory.raw.log import JsonlRawLog
+    from hat.core.sessions.raw_log import JsonlRawLog
 
     log = JsonlRawLog(tmp_path / "raw.jsonl")
     ctrl = ChatService(loop=_build_loop(), raw_log=log)

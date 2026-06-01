@@ -1,8 +1,8 @@
-"""Pydantic schemas for data flowing through the wake–sleep loop.
+"""Pydantic schemas for data flowing through HAT.
 
-These types are the *single source of truth* for what an interaction, a memory
-trace, a write decision, and a replay batch look like. Every protocol in
-``hat.core.protocols`` references them. Storage backends serialize them.
+Single source of truth for what an interaction, a memory trace, a write
+decision, a replay batch, and a chat session look like. Storage backends
+serialize them, abstractors emit them, the loop consumes them.
 """
 
 from __future__ import annotations
@@ -19,6 +19,11 @@ def _now() -> datetime:
 
 def _new_id() -> str:
     return uuid4().hex
+
+
+def _new_session_id() -> str:
+    # short prefixed id, easier to spot in URLs and the filesystem.
+    return f"s-{uuid4().hex[:12]}"
 
 
 class Interaction(BaseModel):
@@ -126,6 +131,18 @@ class SWSStats(BaseModel):
     duration_seconds: float = 0.0
 
 
+class Session(BaseModel):
+    """Chat-session metadata. Stored in ``index.json`` as one entry per session."""
+
+    id: str = Field(default_factory=_new_session_id)
+    title: str = "New chat"
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+    message_count: int = 0
+    # Optional model info captured on the first turn for UI display.
+    model: str | None = None
+
+
 __all__ = [
     "Interaction",
     "ScoreSignals",
@@ -136,4 +153,5 @@ __all__ = [
     "ReplayBatch",
     "SWSObjective",
     "SWSStats",
+    "Session",
 ]

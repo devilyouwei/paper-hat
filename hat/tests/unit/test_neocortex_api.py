@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from hat.api.services.container import get_loop
+from hat.core.runtime.container import get_loop
 from hat.api.main import app
-from hat.core.schemas import (
+from hat.abstract.schemas import (
     MemoryTrace,
     ScoreSignals,
     TraceMetadata,

@@ -16,6 +16,6 @@ Structure:
 * ``loop`` — wake–sleep orchestrator that ties everything together (paper §3.8).
 """
 
-from . import loop, protocols, schemas
+from . import loop
 
-__all__ = ["schemas", "protocols", "loop"]
+__all__ = ["loop"]

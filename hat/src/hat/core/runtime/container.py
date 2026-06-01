@@ -15,34 +15,34 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from ...config.settings import get_settings
-from ...core.cortex.base import Cortex
-from ...core.cortex.noop import NoopCortex
-from ...core.hippocampus import (
+from hat.config.settings import get_settings
+from hat.abstract.cortex import Cortex
+from hat.core.cortex.noop import NoopCortex
+from hat.core.hippocampus import (
     EmbeddingDeduper,
     IdentityAbstractor,
     LLMAbstractor,
     SupervisedReplayBuilder,
     UncertaintyGatePolicy,
 )
-from ...core.hippocampus.scoring import (
+from hat.core.hippocampus.scoring import (
     ConstantUncertainty,
     LogprobUncertainty,
 )
-from ...core.loop import WakeSleepLoop
-from ...core.oracle import (
+from hat.core.loop import WakeSleepLoop
+from hat.core.oracle import (
     CostGuard,
     OpenAICompatibleOracle,
     Oracle,
 )
-from ...core.sws.trainer import DryRunTrainer
-from ...memory.curated.jsonl_store import JsonlNeocortex
-from ...memory.curated.vector_index import NpzVectorIndex
-from ...memory.embeddings import Embedder, ManagedEmbedder
-from ...memory.raw.log import SessionRawLog
-from ...memory.raw.sessions import JsonlSessionStore
-from ...models.embedding_manager import get_embedding_manager
-from ...models.manager import get_manager
+from hat.core.sws.trainer import DryRunTrainer
+from hat.core.neocortex.jsonl_store import JsonlNeocortex
+from hat.core.neocortex.vector_index import NpzVectorIndex
+from hat.core.neocortex.embeddings.managed import Embedder, ManagedEmbedder
+from hat.core.sessions.raw_log import SessionRawLog
+from hat.core.sessions.store import JsonlSessionStore
+from hat.core.lifecycle.embedding_manager import get_embedding_manager
+from hat.core.lifecycle.manager import get_manager
 
 
 def _bootstrap_cortex() -> Cortex:
@@ -82,15 +82,16 @@ def get_cortex() -> Cortex:
 def get_loop() -> WakeSleepLoop:
     s = get_settings()
     cortex = get_cortex()
+    neocortex = JsonlNeocortex(
+        s.neocortex_path, traces_path=s.neocortex_traces_path
+    )
     return WakeSleepLoop(
         cortex=cortex,
-        abstractor=_make_abstractor(cortex),
+        abstractor=_make_abstractor(cortex, neocortex=neocortex),
         uncertainty=_make_uncertainty(cortex),
         write_policy=UncertaintyGatePolicy(s.write_threshold),
         replay_builder=SupervisedReplayBuilder(),
-        neocortex=JsonlNeocortex(
-            s.neocortex_path, traces_path=s.neocortex_traces_path
-        ),
+        neocortex=neocortex,
         trainer=DryRunTrainer(),
         oracle=_make_oracle(),
         oracle_threshold=s.oracle_threshold,
@@ -106,8 +107,10 @@ def _is_noop(cortex: Cortex) -> bool:
     return isinstance(cortex, NoopCortex)
 
 
-def _make_abstractor(cortex: Cortex):
-    return IdentityAbstractor() if _is_noop(cortex) else LLMAbstractor(cortex)
+def _make_abstractor(cortex: Cortex, *, neocortex=None):
+    if _is_noop(cortex):
+        return IdentityAbstractor()
+    return LLMAbstractor(cortex, neocortex=neocortex)
 
 
 def _make_uncertainty(cortex: Cortex):
@@ -124,7 +127,7 @@ def _get_vector_index_for(backend: str, model_id: str) -> NpzVectorIndex:
     embedder reuse the same in-memory ``NpzVectorIndex`` (and therefore
     its lock).
     """
-    from ...config.settings import embed_index_path_for
+    from hat.config.settings import embed_index_path_for
 
     return NpzVectorIndex(embed_index_path_for(backend, model_id))
 
@@ -201,7 +204,7 @@ def _refresh_hippocampus(loop: WakeSleepLoop, cortex: Cortex) -> None:
     """Re-bind the hippocampus abstractor / uncertainty to ``cortex`` in
     place. Called after a model swap so the LLM-backed components talk to
     the new Cortex instead of the previous one."""
-    loop.abstractor = _make_abstractor(cortex)
+    loop.abstractor = _make_abstractor(cortex, neocortex=loop.neocortex)
     loop.uncertainty = _make_uncertainty(cortex)
 
 
@@ -287,7 +290,7 @@ def prior_traces_for_session(session_id: str, *, limit: int = 8) -> list:
     rows = fetch(session_id)
     if limit and len(rows) > limit:
         rows = rows[-limit:]
-    from ...memory.curated.jsonl_store import _sft_to_trace
+    from hat.core.neocortex.jsonl_store import _sft_to_trace
     out: list = []
     for r in rows:
         try:

@@ -12,13 +12,13 @@ import threading
 from collections.abc import Iterator
 
 from ...config.settings import embed_index_path_for
-from ...memory.embeddings import Embedder
-from ...models.embedding_manager import (
+from hat.core.neocortex.embeddings.managed import Embedder
+from hat.core.lifecycle.embedding_manager import (
     EmbeddingManagerError,
     get_embedding_manager,
 )
 from ...utils.logging import get_logger
-from .container import deactivate_embedder, swap_active_embedder
+from hat.core.runtime.container import deactivate_embedder, swap_active_embedder
 
 log = get_logger(__name__)
 

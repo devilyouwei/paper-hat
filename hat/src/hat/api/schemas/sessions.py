@@ -6,8 +6,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from ...core.schemas import Interaction
-from ...memory.raw.sessions import Session
+from hat.abstract.schemas import Interaction
+from hat.core.sessions.store import Session
 
 
 class SessionList(BaseModel):

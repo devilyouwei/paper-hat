@@ -16,7 +16,7 @@ from ..schemas.openai import (
     ModelCard,
     ModelList,
 )
-from ..services.container import get_loop, get_raw_log, get_session_store
+from hat.core.runtime.container import get_loop, get_raw_log, get_session_store
 from ..services.openai import OpenAIChatService
 
 router = APIRouter()

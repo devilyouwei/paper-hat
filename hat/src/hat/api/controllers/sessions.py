@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ...memory.raw.sessions import SessionStoreError
+from hat.core.sessions.store import SessionStoreError
 from ..schemas.sessions import (
     Session,
     SessionCreateRequest,
@@ -16,7 +16,7 @@ from ..schemas.sessions import (
     SessionMessages,
     SessionRenameRequest,
 )
-from ..services.container import get_session_store
+from hat.core.runtime.container import get_session_store
 
 router = APIRouter()
 

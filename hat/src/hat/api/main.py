@@ -26,7 +26,7 @@ def _dedup_policy(s) -> dict[str, object]:  # type: ignore[no-untyped-def]
     ``dedup_enabled`` is true.
     """
     from ..config.settings import embed_index_path_for  # noqa: PLC0415
-    from ..models.embedding_manager import get_embedding_manager  # noqa: PLC0415
+    from hat.core.lifecycle.embedding_manager import get_embedding_manager  # noqa: PLC0415
 
     active = get_embedding_manager().active()
     if active is not None:

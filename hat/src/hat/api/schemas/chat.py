@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from ...core.schemas import ScoreSignals
+from hat.abstract.schemas import ScoreSignals
 
 
 class ChatRequest(BaseModel):

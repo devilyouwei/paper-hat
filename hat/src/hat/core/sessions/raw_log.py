@@ -1,24 +1,10 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from pathlib import Path
 
-from ...core.schemas import Interaction
-
-
-class RawInteractionLog(ABC):
-    """Append-only log of raw user interactions.
-
-    Strictly separated from the Neocortex: only the Hippocampus Agent reads here
-    to produce traces. No training pipeline touches raw logs directly.
-    """
-
-    @abstractmethod
-    def append(self, interaction: Interaction) -> None: ...
-
-    @abstractmethod
-    def __iter__(self) -> Iterator[Interaction]: ...
+from hat.abstract.schemas import Interaction
+from hat.abstract.sessions import RawInteractionLog
 
 
 class JsonlRawLog(RawInteractionLog):
@@ -55,7 +41,7 @@ class SessionRawLog(RawInteractionLog):
 
     def __init__(self, store, session_id: str | None = None) -> None:
         # Imported lazily to avoid a circular import at package load time.
-        from .sessions import JsonlSessionStore  # noqa: F401
+        from hat.core.sessions.store import JsonlSessionStore  # noqa: F401
 
         self.store = store
         self.session_id = session_id

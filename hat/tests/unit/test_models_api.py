@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 
 from hat.api.main import app
 from hat.config.settings import get_settings
-from hat.models.catalog import load_catalog
-from hat.models.manager import get_manager
+from hat.core.lifecycle.catalog import load_catalog
+from hat.core.lifecycle.manager import get_manager
 
 
 @pytest.fixture(autouse=True)

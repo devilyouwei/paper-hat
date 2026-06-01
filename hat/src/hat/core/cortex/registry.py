@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from ..core.protocols import LanguageModel
+from hat.abstract import LanguageModel
 
 _REGISTRY: dict[str, Callable[..., LanguageModel]] = {}
 

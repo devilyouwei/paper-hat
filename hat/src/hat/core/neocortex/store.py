@@ -1,71 +1,10 @@
 from __future__ import annotations
 
 import heapq
-from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
 
-from ..schemas import MemoryTrace, WriteDecision
-
-
-class NeocortexWriteError(RuntimeError):
-    """Raised when a caller tries to write without a valid ``WriteDecision``."""
-
-
-class NeocortexStore(ABC):
-    """Long-term curated memory (paper §3.6).
-
-    Only the Hippocampus Agent may write here. The interface enforces this by
-    requiring an *accepted* :class:`WriteDecision` whose ``trace_id`` matches
-    the trace being written. This is the type-level boundary between raw chat
-    history and training data — see ADR-002.
-    """
-
-    def write(self, trace: MemoryTrace, decision: WriteDecision) -> None:
-        if decision is None or decision.trace_id != trace.id:
-            raise NeocortexWriteError("WriteDecision missing or trace_id mismatch")
-        if not decision.accepted:
-            raise NeocortexWriteError("WriteDecision was not accepted")
-        self._persist(trace, decision)
-
-    @abstractmethod
-    def _persist(self, trace: MemoryTrace, decision: WriteDecision) -> None: ...
-
-    @abstractmethod
-    def __iter__(self) -> Iterator[MemoryTrace]: ...
-
-    @abstractmethod
-    def __len__(self) -> int: ...
-
-    @abstractmethod
-    def sample(self, k: int) -> Iterable[MemoryTrace]:
-        """Priority sample by score (paper Algorithm)."""
-
-    # -- session-aware extensions (optional for backends to override) --
-
-    def entries_by_session(self, session_id: str) -> list[MemoryTrace]:
-        """Return traces previously written for a given session.
-
-        Default implementation walks ``__iter__`` and filters by
-        ``trace.session_id``. Backends with indexes should override.
-        """
-        return [t for t in self if getattr(t, "session_id", None) == session_id]
-
-    def revise(
-        self,
-        trace_id: str,
-        *,
-        query: str | None = None,
-        target_response: str | None = None,
-        rationale: str | None = None,
-        append_interaction_id: str | None = None,
-        push_history_entry: dict | None = None,
-    ) -> MemoryTrace | None:
-        """Mutate an existing trace in place (REVISE path).
-
-        Backends that do not support in-place edits should override and raise.
-        Default implementation works on the in-memory store below.
-        """
-        raise NotImplementedError("revise() not supported by this backend")
+from hat.abstract.neocortex import NeocortexStore, NeocortexWriteError
+from hat.abstract.schemas import MemoryTrace, WriteDecision
 
 
 class InMemoryNeocortex(NeocortexStore):

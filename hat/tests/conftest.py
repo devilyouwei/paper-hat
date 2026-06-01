@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from hat.api.services import container as deps
+from hat.core.runtime import container as deps
 from hat.config.settings import get_settings
 
 

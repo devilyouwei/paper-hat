@@ -1,33 +1,7 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-
-from ..schemas import MemoryTrace, ScoreSignals, WriteDecision
-
-
-class WritePolicy(ABC):
-    """Base class for selection policies.
-
-    A write policy projects ``ScoreSignals`` to a scalar and emits a
-    :class:`WriteDecision` that the Neocortex requires to accept a write.
-    """
-
-    @property
-    @abstractmethod
-    def threshold(self) -> float: ...
-
-    @abstractmethod
-    def score(self, trace: MemoryTrace, signals: ScoreSignals) -> float: ...
-
-    def decide(self, trace: MemoryTrace, signals: ScoreSignals) -> WriteDecision:
-        s = self.score(trace, signals)
-        return WriteDecision(
-            trace_id=trace.id,
-            score=s,
-            threshold=self.threshold,
-            signals=signals,
-            accepted=s >= self.threshold,
-        )
+from hat.abstract.hippocampus import WritePolicy
+from hat.abstract.schemas import MemoryTrace, ScoreSignals
 
 
 class UncertaintyGatePolicy(WritePolicy):

@@ -21,8 +21,8 @@ from hat.core.hippocampus.scoring import ConstantUncertainty
 from hat.core.loop import WakeSleepLoop
 from hat.core.neocortex.store import InMemoryNeocortex
 from hat.core.oracle import CostGuard, NoopOracle, OracleQuotaExceeded
-from hat.core.oracle.base import Oracle
-from hat.core.schemas import Interaction
+from hat.abstract.oracle import Oracle
+from hat.abstract.schemas import Interaction
 from hat.core.sws.trainer import DryRunTrainer
 
 

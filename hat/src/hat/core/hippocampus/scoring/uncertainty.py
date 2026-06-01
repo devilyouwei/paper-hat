@@ -16,23 +16,12 @@ sample with low per-token confidence → ``U`` near 1.
 from __future__ import annotations
 
 import math
-from abc import ABC, abstractmethod
 
 from ....utils.logging import get_logger
-from ...schemas import Interaction
+from hat.abstract.hippocampus import UncertaintyEstimator
+from hat.abstract.schemas import Interaction
 
 log = get_logger(__name__)
-
-
-class UncertaintyEstimator(ABC):
-    """Returns ``U(x) ∈ [0, 1]`` for an interaction.
-
-    Real implementations: predictive entropy (paper Eq. ``uncertainty``),
-    token-level confidence, self-consistency variance, sampled disagreement.
-    """
-
-    @abstractmethod
-    def __call__(self, interaction: Interaction) -> float: ...
 
 
 class ConstantUncertainty(UncertaintyEstimator):

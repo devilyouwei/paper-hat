@@ -11,8 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ...core.loop import WakeSleepLoop
-from ...core.schemas import Interaction
-from ...memory.raw.log import RawInteractionLog
+from hat.abstract.schemas import Interaction
+from hat.core.sessions.raw_log import RawInteractionLog
 from ...utils.logging import get_logger, truncate
 from ..schemas.chat import ChatRequest, ChatResponse
 

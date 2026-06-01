@@ -19,8 +19,8 @@ import urllib.error
 import urllib.request
 
 from ...utils.logging import format_messages, format_text_block, get_logger, truncate
-from ..schemas import Interaction
-from .base import Oracle
+from hat.abstract.schemas import Interaction
+from hat.abstract.oracle import Oracle
 from .cost_guard import CostGuard, OracleQuotaExceeded
 from .prompts import ORACLE_SYSTEM
 

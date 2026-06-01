@@ -24,28 +24,14 @@ from __future__ import annotations
 
 import json
 import re
-from abc import ABC, abstractmethod
 from collections.abc import Callable
 
 from ...utils.logging import get_logger, truncate
-from ..schemas import Interaction, MemoryTrace, TraceMetadata
+from hat.abstract.hippocampus import Abstractor
+from hat.abstract.schemas import Interaction, MemoryTrace, TraceMetadata
 from .scoring.llm_judge import call_judge, load_prompt, render
 
 log = get_logger(__name__)
-
-
-class Abstractor(ABC):
-    """Maps a raw :class:`Interaction` to zero or more :class:`MemoryTrace`s.
-
-    Mirrors paper Eq. ``abstraction``: ``m = H_abs(c, x, y, f)``. A turn
-    can yield multiple traces when the user packs several independent
-    knowledge points into a single utterance ("我三十岁，住在北京…").
-
-    An empty list signals DROP (no knowledge point worth storing).
-    """
-
-    @abstractmethod
-    def __call__(self, interaction: Interaction) -> list[MemoryTrace]: ...
 
 
 class IdentityAbstractor(Abstractor):
@@ -115,6 +101,8 @@ class LLMAbstractor(Abstractor):
         max_tokens_triage: int = 192,
         max_tokens_extract: int = 768,
         context_char_budget: int = 1200,
+        neocortex=None,
+        include_recent_neocortex: bool | None = None,
     ) -> None:
         self.cortex = cortex
         self.max_tokens_triage = max_tokens_triage
@@ -124,6 +112,14 @@ class LLMAbstractor(Abstractor):
         # truncated (which silently routes the turn through the
         # IdentityAbstractor fallback).
         self.context_char_budget = context_char_budget
+        # Optional neocortex store: when supplied, the most recent saved
+        # query for the current session is prepended to the judge context
+        # so the LLM can see what's already been remembered.
+        self.neocortex = neocortex
+        if include_recent_neocortex is None:
+            from hat.config.settings import get_settings
+            include_recent_neocortex = get_settings().judge_include_recent_neocortex
+        self.include_recent_neocortex = bool(include_recent_neocortex)
         self._triage_template = load_prompt("abstraction_triage")
         self._extract_template = load_prompt("abstraction_extract")
         self._fallback = IdentityAbstractor()
@@ -140,7 +136,26 @@ class LLMAbstractor(Abstractor):
         ctx = (interaction.context or "").strip() or "(none)"
         if self.context_char_budget and len(ctx) > self.context_char_budget:
             ctx = "…\n" + ctx[-self.context_char_budget :]
+        recent = self._recent_neocortex_query(interaction)
+        if recent:
+            ctx = f"Most recent memory saved this session:\n- query: {recent}\n\n{ctx}"
         return ctx
+
+    def _recent_neocortex_query(self, interaction: Interaction) -> str | None:
+        if not self.include_recent_neocortex or self.neocortex is None:
+            return None
+        sid = getattr(interaction, "session_id", None)
+        if not sid:
+            return None
+        try:
+            entries = self.neocortex.entries_by_session(sid)
+        except Exception:
+            return None
+        if not entries:
+            return None
+        latest = entries[-1]
+        q = (getattr(latest, "query", None) or "").strip()
+        return q or None
 
     def _triage(
         self,

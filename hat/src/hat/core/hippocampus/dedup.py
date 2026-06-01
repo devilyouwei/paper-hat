@@ -22,29 +22,16 @@ avoiding a second embed pass.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
-
 from ...utils.logging import get_logger
-from ..protocols import Embedder
-from ..schemas import MemoryTrace
-from ...memory.curated.vector_index import NpzVectorIndex
+from hat.abstract import Embedder
+from hat.abstract.hippocampus import DedupResult, Deduper
+from hat.abstract.schemas import MemoryTrace
+from hat.core.neocortex.vector_index import NpzVectorIndex
 
 log = get_logger(__name__)
 
-Decision = Literal["create", "revise"]
 
-
-@dataclass(frozen=True)
-class DedupResult:
-    """Outcome of a single dedup routing call."""
-
-    decision: Decision
-    matched_trace_id: str | None
-    similarity: float
-
-
-class EmbeddingDeduper:
+class EmbeddingDeduper(Deduper):
     """Geometric router: nearest-neighbour cosine similarity in [0, 1].
 
     The routed similarity, the matched trace_id (if any), and the raw

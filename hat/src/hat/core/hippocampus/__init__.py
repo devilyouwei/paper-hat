@@ -1,27 +1,29 @@
-r"""Hippocampus Agent — selective memory consolidation (paper §3.4).
+r"""Hippocampus Agent — selective memory consolidation (paper §3.4)."""
 
-Three composable stages:
+from hat.abstract.hippocampus import (
+    Abstractor,
+    DedupResult,
+    Deduper,
+    ReplayBuilder,
+    UncertaintyEstimator,
+    WritePolicy,
+)
 
-* :mod:`abstraction` — compress raw interactions into ``MemoryTrace``\ s.
-* :mod:`selection`  — score traces and emit a ``WriteDecision``.
-* :mod:`replay`     — convert retained traces into training-ready ``ReplayExample``\ s.
-
-Per-signal scorers (currently uncertainty only) live under :mod:`scoring`.
-"""
-
-from .abstraction import Abstractor, IdentityAbstractor, LLMAbstractor
-from .dedup import DedupResult, EmbeddingDeduper
-from .replay import ReplayBuilder, SupervisedReplayBuilder
-from .selection import UncertaintyGatePolicy, WritePolicy
+from .abstraction import IdentityAbstractor, LLMAbstractor
+from .dedup import EmbeddingDeduper
+from .replay import SupervisedReplayBuilder
+from .selection import UncertaintyGatePolicy
 
 __all__ = [
     "Abstractor",
+    "DedupResult",
+    "Deduper",
+    "EmbeddingDeduper",
     "IdentityAbstractor",
     "LLMAbstractor",
-    "DedupResult",
-    "EmbeddingDeduper",
-    "WritePolicy",
-    "UncertaintyGatePolicy",
     "ReplayBuilder",
     "SupervisedReplayBuilder",
+    "UncertaintyEstimator",
+    "UncertaintyGatePolicy",
+    "WritePolicy",
 ]

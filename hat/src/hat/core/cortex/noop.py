@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from ..schemas import Interaction
-from .base import Cortex
+from hat.abstract.schemas import Interaction
+from hat.abstract.cortex import Cortex
 
 
 class NoopCortex(Cortex):

@@ -23,10 +23,10 @@ from collections.abc import Iterator
 from pathlib import Path
 from threading import Lock
 
-from ..config.settings import get_settings
-from ..memory.embeddings import Embedder
-from ..utils.logging import get_logger
-from .catalog import SUPPORTED_EMBED_BACKENDS, CatalogEntry, load_catalog
+from hat.config.settings import get_settings
+from hat.core.neocortex.embeddings.managed import Embedder
+from hat.utils.logging import get_logger
+from hat.core.lifecycle.catalog import SUPPORTED_EMBED_BACKENDS, CatalogEntry, load_catalog
 
 log = get_logger(__name__)
 
@@ -261,15 +261,15 @@ class EmbeddingManager:
     def _build_embedder(self, backend: str, path: str) -> Embedder:
         s = get_settings()
         log.info("[embed] building embedder backend={} path={}", backend, path)
-        from ..memory.embeddings import ManagedEmbedder
+        from hat.core.neocortex.embeddings.managed import ManagedEmbedder
 
         if backend == "mlx_embed":
-            from .backends.mlx_embed import build_mlx_embed_model
+            from hat.core.neocortex.embeddings.mlx import build_mlx_embed_model
 
             inner = build_mlx_embed_model(path, device=s.embed_device)
             return ManagedEmbedder(inner, backend=backend, model_id=Path(path).name)
         if backend == "hf_embed":
-            from .backends.hf_embed import build_hf_embed_model
+            from hat.core.neocortex.embeddings.hf import build_hf_embed_model
 
             inner = build_hf_embed_model(path, device=s.embed_device)
             return ManagedEmbedder(inner, backend=backend, model_id=Path(path).name)

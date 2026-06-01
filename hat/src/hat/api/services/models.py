@@ -11,10 +11,10 @@ import json
 import threading
 from collections.abc import Iterator
 
-from ...core.cortex.base import Cortex
-from ...models.manager import ModelManagerError, get_manager
+from hat.abstract.cortex import Cortex
+from hat.core.lifecycle.manager import ModelManagerError, get_manager
 from ...utils.logging import get_logger
-from .container import deactivate_cortex, swap_active_cortex
+from hat.core.runtime.container import deactivate_cortex, swap_active_cortex
 
 log = get_logger(__name__)
 

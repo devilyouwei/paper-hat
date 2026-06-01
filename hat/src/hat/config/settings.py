@@ -69,6 +69,17 @@ class Settings(BaseSettings):
     default_temperature: float = 0.7
     default_max_tokens: int = 512
 
+    # LLM-as-judge (abstractor / uncertainty) prompt context.
+    # Cap how many of the current session's prior messages are flattened
+    # into ``Interaction.context`` so the judge prompt stays bounded; the
+    # tail (most-recent ``N``) is kept. Set to 0 to disable the cap.
+    judge_history_max_messages: int = 20
+    # When true, the abstractor prepends the most recent neocortex-saved
+    # ``query`` for the current session to the judge context, so the LLM
+    # can see what's already been remembered and avoid duplicate triage
+    # decisions.
+    judge_include_recent_neocortex: bool = True
+
     # Oracle (OpenAI-compatible HTTP)
     oracle_base_url: str = "https://api.openai.com/v1"
     oracle_model: str = "gpt-4o-mini"

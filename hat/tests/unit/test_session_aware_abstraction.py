@@ -22,13 +22,13 @@ from hat.core.hippocampus import (
 from hat.core.hippocampus.dedup import DedupResult
 from hat.core.hippocampus.scoring import ConstantUncertainty
 from hat.core.loop import WakeSleepLoop
-from hat.core.schemas import (
+from hat.abstract.schemas import (
     Interaction,
     MemoryTrace,
     TraceMetadata,
 )
 from hat.core.sws.trainer import DryRunTrainer
-from hat.memory.curated.jsonl_store import JsonlNeocortex
+from hat.core.neocortex.jsonl_store import JsonlNeocortex
 
 
 class _ScriptedAbstractor(Abstractor):

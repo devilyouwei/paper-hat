@@ -1,5 +1,7 @@
 """SWS Trainer — slow-wave-sleep parameter updates (paper §3.7)."""
 
-from .trainer import DryRunTrainer, SWSTrainer
+from hat.abstract.sws import SWSTrainer
 
-__all__ = ["SWSTrainer", "DryRunTrainer"]
+from .trainer import DryRunTrainer
+
+__all__ = ["DryRunTrainer", "SWSTrainer"]

@@ -24,8 +24,8 @@ import threading
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
-from ...core.neocortex.store import NeocortexStore
-from ...core.schemas import MemoryTrace, TraceMetadata, WriteDecision
+from hat.abstract.neocortex import NeocortexStore
+from hat.abstract.schemas import MemoryTrace, TraceMetadata, WriteDecision
 
 
 def _trace_to_sft(trace: MemoryTrace, decision: WriteDecision) -> dict:

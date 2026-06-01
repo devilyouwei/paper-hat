@@ -24,7 +24,7 @@ def serve(host: str = "0.0.0.0", port: int = 8000, reload: bool = False) -> None
 @app.command()
 def sleep(dry_run: bool = True, k: int = 32) -> None:
     """Trigger a slow-wave-sleep cycle."""
-    from .api.services.container import get_loop
+    from hat.core.runtime.container import get_loop
 
     loop = get_loop()
     if dry_run:
@@ -75,9 +75,9 @@ def reindex_memory(
     used; pass ``--backend`` and ``--id`` to target an installed
     embedder that is not currently active.
     """
-    from .api.services.container import _get_vector_index_for, get_loop  # noqa: PLC0415
+    from hat.core.runtime.container import _get_vector_index_for, get_loop  # noqa: PLC0415
     from .config.settings import get_settings  # noqa: PLC0415
-    from .models.embedding_manager import get_embedding_manager  # noqa: PLC0415
+    from hat.core.lifecycle.embedding_manager import get_embedding_manager  # noqa: PLC0415
 
     settings = get_settings()
     if not settings.dedup_enabled:

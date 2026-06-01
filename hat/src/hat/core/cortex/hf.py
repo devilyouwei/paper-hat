@@ -15,8 +15,8 @@ from collections.abc import Sequence
 from typing import Any
 import warnings
 
-from ...utils.logging import get_logger
-from ..registry import register
+from hat.utils.logging import get_logger
+from hat.core.cortex.registry import register
 
 log = get_logger(__name__)
 
@@ -415,3 +415,40 @@ def build_hf_model(
 
 __all__ = ["HFLanguageModel", "build_hf_model"]
 
+
+
+# ---------------------------------------------------------------------------
+# Cortex adapter
+# ---------------------------------------------------------------------------
+
+from hat.abstract.cortex import Cortex
+from hat.abstract.schemas import Interaction
+
+
+class HFCortex(Cortex):
+    """Wraps an :class:`HFLanguageModel` and exposes the Cortex API.
+
+    Adds a :meth:`chat` method so the OpenAI-compatible router can pass full
+    multi-turn message lists into the model's chat template, while the
+    wake/sleep loop still calls :meth:`generate` for single-shot use.
+    """
+
+    def __init__(self, lm: HFLanguageModel, name: str | None = None) -> None:
+        self.lm = lm
+        self.name = name or getattr(lm, "name", "hf-cortex")
+
+    def generate(self, query: str, *, context: str | None = None, **kwargs: Any) -> str:
+        return self.lm.generate(query, context=context, **kwargs)
+
+    def chat(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> str:
+        return self.lm.chat(messages, **kwargs)
+
+    def stream_chat(self, messages: Sequence[dict[str, str]], **kwargs: Any):
+        yield from self.lm.stream_chat(messages, **kwargs)
+
+    def uncertainty(self, interaction: Interaction) -> float:
+        # TODO: predictive entropy via token_logprobs once implemented.
+        return 0.5
+
+
+__all__ = ["HFLanguageModel", "build_hf_model", "HFCortex"]

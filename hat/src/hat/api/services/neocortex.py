@@ -7,8 +7,8 @@ already accepted, which is a manual-curation surface for the operator.
 
 from __future__ import annotations
 
-from ...memory.curated.jsonl_store import JsonlNeocortex
-from .container import get_loop
+from hat.core.neocortex.jsonl_store import JsonlNeocortex
+from hat.core.runtime.container import get_loop
 
 
 class NeocortexUnsupportedError(Exception):
