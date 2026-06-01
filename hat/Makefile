@@ -1,6 +1,6 @@
 .PHONY: install serve sleep test lint typecheck format clean ui-build ui-dev
 
-UI_DIR := src/hat/ui_vue
+UI_DIR := ./vue
 
 install:
 	uv sync

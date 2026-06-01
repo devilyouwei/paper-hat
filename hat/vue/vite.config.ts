@@ -36,7 +36,7 @@ export default defineConfig(({ command }) => ({
     },
   },
   build: {
-    outDir: "../ui/dist",
+    outDir: "../src/hat/ui/dist",
     emptyOutDir: true,
     sourcemap: false,
     chunkSizeWarningLimit: 1024,

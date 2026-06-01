@@ -23,13 +23,15 @@ const uncertaintyLabel = computed(() => {
   return `U=${u.toFixed(2)}${suffix}`;
 });
 
-const uncertaintyType = computed<"default" | "warning" | "error" | "success">(() => {
-  const u = props.hat?.uncertainty;
-  if (typeof u !== "number") return "default";
-  if (u >= 0.7) return "error";
-  if (u >= 0.3) return "warning";
-  return "success";
-});
+const uncertaintyType = computed<"default" | "warning" | "error" | "success">(
+  () => {
+    const u = props.hat?.uncertainty;
+    if (typeof u !== "number") return "default";
+    if (u >= 0.7) return "error";
+    if (u >= 0.3) return "warning";
+    return "success";
+  },
+);
 </script>
 
 <template>
@@ -46,7 +48,11 @@ const uncertaintyType = computed<"default" | "warning" | "error" | "success">(()
     </NTag>
 
     <template v-for="(p, i) in parts" :key="i">
-      <NCollapse v-if="p.kind === 'think'" arrow-placement="right" class="think">
+      <NCollapse
+        v-if="p.kind === 'think'"
+        arrow-placement="right"
+        class="think"
+      >
         <NCollapseItem name="t" title="thinking…">
           <pre class="think-body">{{ p.value.trim() }}</pre>
         </NCollapseItem>
@@ -90,7 +96,7 @@ const uncertaintyType = computed<"default" | "warning" | "error" | "success">(()
 .u-badge {
   position: absolute;
   top: -10px;
-  right: 10px;
+  right: -20px;
   font-variant-numeric: tabular-nums;
 }
 
