@@ -22,25 +22,25 @@
   repo_id: Qwen/Qwen2.5-7B-Instruct
   display: Qwen2.5 7B Instruct
   size_gb: 15.2
-- id: qwen3-0.6b-base
-  repo_id: Qwen/Qwen3-0.6B-Base
-  display: Qwen3 0.6B Base
+- id: qwen3-0.6b
+  repo_id: Qwen/Qwen3-0.6B
+  display: Qwen3 0.6B
   size_gb: 1.2
-- id: qwen3-1.7b-base
-  repo_id: Qwen/Qwen3-1.7B-Base
-  display: Qwen3 1.7B Base
+- id: qwen3-1.7b
+  repo_id: Qwen/Qwen3-1.7B
+  display: Qwen3 1.7B
   size_gb: 3.4
-- id: qwen3-4b-base
-  repo_id: Qwen/Qwen3-4B-Base
-  display: Qwen3 4B Base
+- id: qwen3-4b
+  repo_id: Qwen/Qwen3-4B
+  display: Qwen3 4B
   size_gb: 8.0
-- id: qwen3-8b-base
-  repo_id: Qwen/Qwen3-8B-Base
-  display: Qwen3 8B Base
+- id: qwen3-8b
+  repo_id: Qwen/Qwen3-8B
+  display: Qwen3 8B
   size_gb: 16.0
-- id: qwen3-14b-base
-  repo_id: Qwen/Qwen3-14B-Base
-  display: Qwen3 14B Base
+- id: qwen3-14b
+  repo_id: Qwen/Qwen3-14B
+  display: Qwen3 14B
   size_gb: 30.0
   notes: |
     bf16 ~30GB — needs HAT_HF_OFFLOAD=true on a single consumer GPU, or
