@@ -1,4 +1,4 @@
-"""Model lifecycle: registry, catalogs, manager, embedding manager.
+"""Model lifecycle: catalogs, manager, embedding manager.
 
 These types own checkpoint download / load / unload and back the
 ``models`` and ``embedding_models`` API endpoints.

@@ -14,19 +14,15 @@ from __future__ import annotations
 
 import os
 import threading
-from dataclasses import dataclass
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
 
-
-@dataclass(slots=True)
-class Match:
-    trace_id: str
-    similarity: float
+from hat.abstract.neocortex import Match, VectorIndex
 
 
-class NpzVectorIndex:
+class NpzVectorIndex(VectorIndex):
     """In-memory ``(ids, vecs)`` table persisted as a single ``.npz`` file."""
 
     def __init__(self, path: Path | str) -> None:
@@ -79,7 +75,7 @@ class NpzVectorIndex:
         return trace_id in self._ids
 
     # --------------------------------------------------------------- writes
-    def append(self, trace_id: str, vec: list[float] | np.ndarray) -> None:
+    def append(self, trace_id: str, vec: Sequence[float]) -> None:
         v = np.asarray(vec, dtype=np.float32).reshape(1, -1)
         with self._lock:
             if not self._ids:
@@ -93,7 +89,7 @@ class NpzVectorIndex:
             self._ids.append(trace_id)
         self.save()
 
-    def update(self, trace_id: str, vec: list[float] | np.ndarray) -> bool:
+    def update(self, trace_id: str, vec: Sequence[float]) -> bool:
         v = np.asarray(vec, dtype=np.float32).reshape(-1)
         with self._lock:
             try:
@@ -121,13 +117,9 @@ class NpzVectorIndex:
         self.save()
         return True
 
-    def upsert(self, trace_id: str, vec: list[float] | np.ndarray) -> None:
-        if not self.update(trace_id, vec):
-            self.append(trace_id, vec)
-
     # ---------------------------------------------------------------- query
     def top1(
-        self, vec: list[float] | np.ndarray, *, exclude: str | None = None
+        self, vec: Sequence[float], *, exclude: str | None = None
     ) -> Match | None:
         if not self._ids:
             return None

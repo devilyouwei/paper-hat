@@ -106,10 +106,6 @@ class VectorIndex(ABC):
     @abstractmethod
     def remove(self, trace_id: str) -> bool: ...
 
-    def upsert(self, trace_id: str, vec: Sequence[float]) -> None:
-        if not self.update(trace_id, vec):
-            self.append(trace_id, vec)
-
     @abstractmethod
     def top1(
         self, vec: Sequence[float], *, exclude: str | None = None

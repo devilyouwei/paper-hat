@@ -1,27 +1,18 @@
 """Embedding helpers used for curated-memory deduplication.
 
-Embedders are produced exclusively by :class:`hat.models.embedding_manager.EmbeddingManager`
-from the catalog; this module only defines the :class:`Embedder` protocol
-and the :class:`ManagedEmbedder` adapter that tags vectors with their
-``<backend>/<id>`` source.
+Embedders are produced exclusively by
+:class:`hat.core.lifecycle.embedding_manager.EmbeddingManager` from the
+catalog; this module only defines the :class:`ManagedEmbedder` adapter that
+tags vectors with their ``<backend>/<id>`` source. The embedder seam itself is
+the :class:`hat.abstract.neocortex.Embedder` Protocol, re-exported here for
+convenience.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Protocol
 
-
-class Embedder(Protocol):
-    """Maps texts to fixed-dim float vectors. Vectors must be L2-normalised."""
-
-    def embed(self, texts: Sequence[str]) -> list[list[float]]: ...
-
-    @property
-    def dim(self) -> int: ...
-
-    @property
-    def name(self) -> str: ...
+from hat.abstract.neocortex import Embedder
 
 
 class ManagedEmbedder:
@@ -48,10 +39,6 @@ class ManagedEmbedder:
 
     @property
     def name(self) -> str:
-        return f"{self.backend}/{self.model_id}"
-
-    @property
-    def tag(self) -> str:
         return f"{self.backend}/{self.model_id}"
 
 

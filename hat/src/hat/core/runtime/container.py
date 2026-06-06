@@ -4,10 +4,11 @@ Owns the long-lived singletons used by every controller: the wake/sleep
 loop, session store, raw interaction log. Wires concrete defaults into
 the loop so HTTP code never instantiates protocols directly.
 
-Active-model selection is delegated to :class:`hat.models.manager.ModelManager`
-so the management API can hot-swap the Cortex without restarting the
-server. ``get_cortex()`` returns the manager's active model when one has
-been selected, otherwise the env-driven bootstrap Cortex (noop / hf /
+Active-model selection is delegated to
+:class:`hat.core.lifecycle.manager.ModelManager` so the management API can
+hot-swap the Cortex without restarting the server. ``get_cortex()`` returns the
+manager's active model when one has been selected, otherwise the env-driven
+bootstrap Cortex (noop / hf /
 mlx).
 """
 
@@ -74,9 +75,9 @@ def _initial_cortex() -> Cortex:
 
 def get_cortex() -> Cortex:
     """Active Cortex: manager override if set, else the env-driven bootstrap."""
-    if get_manager().active() is not None:
-        backend, model_id = get_manager()._active  # type: ignore[union-attr]
-        return get_manager().load(backend, model_id)
+    active = get_manager().active()
+    if active is not None:
+        return get_manager().load(active["backend"], active["id"])
     return _initial_cortex()
 
 
@@ -148,7 +149,7 @@ def _active_embedder() -> tuple[Embedder, NpzVectorIndex, str] | None:
     backend, model_id = active["backend"], active["id"]
     emb = mgr.load(backend, model_id)
     idx = _get_vector_index_for(backend, model_id)
-    tag = emb.tag if isinstance(emb, ManagedEmbedder) else f"{backend}/{model_id}"
+    tag = emb.name if isinstance(emb, ManagedEmbedder) else f"{backend}/{model_id}"
     return emb, idx, tag
 
 

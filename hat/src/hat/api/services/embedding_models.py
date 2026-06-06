@@ -1,7 +1,7 @@
 """Embedding-model lifecycle service.
 
 Mirror of :mod:`.models` for the embedder pipeline. Wraps
-:class:`~hat.models.embedding_manager.EmbeddingManager` plus the deduper
+:class:`~hat.core.lifecycle.embedding_manager.EmbeddingManager` plus the deduper
 swap helpers in :mod:`.container`.
 """
 

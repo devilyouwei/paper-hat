@@ -38,7 +38,6 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
     <header class="topbar">
       <a class="brand" href="#/chat" title="Hippocampus-Augmented Transformer">
         <img :src="logoUrl" alt="HAT" class="logo" />
-        <span class="name">HAT</span>
       </a>
 
       <NTabs

@@ -26,7 +26,6 @@ from collections.abc import Iterator, Sequence
 from typing import Any
 
 from hat.utils.logging import get_logger
-from hat.core.cortex.registry import register
 
 log = get_logger(__name__)
 
@@ -199,7 +198,6 @@ def _extract_logprobs(data: dict) -> list[float]:
     return out
 
 
-@register("cloud")
 def build_cloud_model(
     model: str,
     *,

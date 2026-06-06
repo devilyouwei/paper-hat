@@ -9,7 +9,7 @@ Install with::
 
     uv sync --extra mlx
 
-Implements :class:`hat.core.protocols.LanguageModel` and exposes a
+Implements :class:`hat.abstract.cortex.LanguageModel` and exposes a
 ``chat(messages)`` method on top of the tokenizer's chat template so multi-turn
 conversations route through the model's native role formatting.
 """
@@ -20,7 +20,6 @@ from collections.abc import Sequence
 from typing import Any
 
 from hat.utils.logging import get_logger
-from hat.core.cortex.registry import register
 
 log = get_logger(__name__)
 
@@ -190,7 +189,6 @@ class MLXLanguageModel:
                 yield text
 
 
-@register("mlx")
 def build_mlx_model(
     model_path: str,
     max_tokens: int = 512,

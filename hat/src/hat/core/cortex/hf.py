@@ -2,7 +2,7 @@
 
 Loads a chat-tuned causal LM (e.g. Qwen2.5-Instruct) from a local path and
 exposes a small ``chat(messages)`` API on top of the model's chat template.
-Implements :class:`hat.core.protocols.LanguageModel`.
+Implements :class:`hat.abstract.cortex.LanguageModel`.
 
 Install with::
 
@@ -16,7 +16,6 @@ from typing import Any
 import warnings
 
 from hat.utils.logging import get_logger
-from hat.core.cortex.registry import register
 
 log = get_logger(__name__)
 
@@ -384,7 +383,6 @@ class HFLanguageModel:
             thread.join()
 
 
-@register("hf")
 def build_hf_model(
     model_path: str,
     device: str = "auto",

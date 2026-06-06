@@ -77,7 +77,11 @@ const columns = computed<DataTableColumns<NeocortexEntry>>(() => [
       h("div", { class: "hat-row" }, [
         h("code", { class: "hat-mono" }, row.trace_id.slice(0, 8)),
         isOracle(row)
-          ? h(NTag, { type: "warning", size: "tiny", round: true }, () => "oracle")
+          ? h(
+              NTag,
+              { type: "warning", size: "tiny", round: true },
+              () => "oracle",
+            )
           : null,
       ]),
   },
@@ -92,7 +96,8 @@ const columns = computed<DataTableColumns<NeocortexEntry>>(() => [
     title: "U",
     key: "u",
     width: 64,
-    render: (row) => h("span", { class: "hat-mono hat-muted" }, fmt(row.signals?.uncertainty)),
+    render: (row) =>
+      h("span", { class: "hat-mono hat-muted" }, fmt(row.signals?.uncertainty)),
   },
   {
     title: "Query",
@@ -126,7 +131,6 @@ const columns = computed<DataTableColumns<NeocortexEntry>>(() => [
   <div class="memory-page">
     <header class="page-head">
       <div>
-        <h2>Memory</h2>
         <p class="hat-muted small">
           <NBadge :value="mem.filtered.length" :max="9999" type="success" />
           shown of
@@ -134,8 +138,15 @@ const columns = computed<DataTableColumns<NeocortexEntry>>(() => [
           curated traces
         </p>
       </div>
-      <NButton tertiary size="small" :loading="mem.loading" @click="mem.refresh">
-        <template #icon><NIcon><Refresh /></NIcon></template>
+      <NButton
+        tertiary
+        size="small"
+        :loading="mem.loading"
+        @click="mem.refresh"
+      >
+        <template #icon
+          ><NIcon><Refresh /></NIcon
+        ></template>
         Refresh
       </NButton>
     </header>
@@ -147,7 +158,7 @@ const columns = computed<DataTableColumns<NeocortexEntry>>(() => [
         v-model:value="embedFilterValue"
         :options="embedFilterOptions"
         size="small"
-        style="min-width: 220px;"
+        style="min-width: 220px"
       />
       <NInput
         :value="mem.query"
@@ -157,7 +168,9 @@ const columns = computed<DataTableColumns<NeocortexEntry>>(() => [
         class="grow"
         @update:value="(v: string) => (mem.query = v)"
       >
-        <template #prefix><NIcon><Search /></NIcon></template>
+        <template #prefix
+          ><NIcon><Search /></NIcon
+        ></template>
       </NInput>
     </div>
 

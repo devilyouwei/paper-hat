@@ -77,16 +77,17 @@ Each model-backed cortex wraps a `LanguageModel` (the structural Protocol in
 
 | File | Defines | Notes |
 | --- | --- | --- |
-| `registry.py` | `register(name)`, `create(name, **kw)`, `available()` | String→factory registry for `LanguageModel`. |
 | `noop.py` | `NoopCortex` | Env-free fallback used when no model is active and by tests; echoes input, `uncertainty()` returns `0.5`. |
-| `mlx.py` | `MLXLanguageModel`, `MLXCortex`, `build_mlx_model` | Apple Silicon via `mlx-lm`. Registered as `mlx`. |
-| `hf.py` | `HFLanguageModel`, `HFCortex`, `build_hf_model` | HuggingFace Transformers (device / dtype / offload / 4-bit). Registered as `hf`. |
-| `cloud.py` | `CloudLanguageModel`, `CloudCortex`, `build_cloud_model` | OpenAI-compatible `/v1/chat/completions`. Platform-independent, no local weights. Registered as `cloud`. |
+| `mlx.py` | `MLXLanguageModel`, `MLXCortex`, `build_mlx_model` | Apple Silicon via `mlx-lm`. |
+| `hf.py` | `HFLanguageModel`, `HFCortex`, `build_hf_model` | HuggingFace Transformers (device / dtype / offload / 4-bit). |
+| `cloud.py` | `CloudLanguageModel`, `CloudCortex`, `build_cloud_model` | OpenAI-compatible `/v1/chat/completions`. Platform-independent, no local weights. |
 
 `chat` / `stream_chat` pop `enable_thinking` (or a nested
 `chat_template_kwargs`) and forward it to the tokenizer template, so think-mode
 toggling lives at the backend layer. `CloudCortex.uncertainty()` derives from
-API logprobs when available, else falls back to `0.5`.
+API logprobs when available, else falls back to `0.5`. The `lifecycle/`
+manager dispatches each backend's `build_*` factory directly from
+`ModelManager._build`.
 
 ---
 
@@ -157,8 +158,9 @@ torch / mlx); heavy deps are imported lazily inside the build paths.
 | File | Defines | Role |
 | --- | --- | --- |
 | `catalog.py` | `CatalogEntry`, `load_catalog`, `SUPPORTED_BACKENDS`, `SUPPORTED_EMBED_BACKENDS`, `CLOUD_BACKENDS`, `is_cloud_backend` | Catalog schema + backend constants. Defaults ship as package data; override per project at `<HAT_MODEL_ROOT>/<backend>/catalog.yaml`. |
-| `manager.py` | `ModelManager`, `get_manager` | Owns the `Cortex` cache, the active `(backend, id)` pointer, and HuggingFace downloads. Dispatches `mlx` / `hf` / `cloud`. |
-| `embedding_manager.py` | `EmbeddingManager`, `get_embedding_manager` | Mirror of `ModelManager` for embedders (`mlx_embed` / `hf_embed` / `cloud_embed`). |
+| `base.py` | `BaseModelManager[T]` | Generic install / download / load / activate state machine shared by both managers below: instance cache, active `(backend, id)` pointer, cancellable SSE download, memory-releasing teardown, and the cloud special-casing — all in one place. Subclasses declare the supported backends / weight suffixes / error type and implement only `_build`. |
+| `manager.py` | `ModelManager`, `get_manager` | `BaseModelManager[Cortex]`. Builds `mlx` / `hf` / `cloud` cortices. |
+| `embedding_manager.py` | `EmbeddingManager`, `get_embedding_manager` | `BaseModelManager[Embedder]`. Builds `mlx_embed` / `hf_embed` / `cloud_embed`. |
 | `catalogs/*.yaml` | — | Shipped catalogs: `mlx`, `hf`, `cloud` (LLM) and `mlx_embed`, `hf_embed`, `cloud_embed` (embedding). |
 
 **Cloud backends** (`cloud`, `cloud_embed`) are platform-independent: they call

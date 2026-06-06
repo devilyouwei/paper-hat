@@ -1,6 +1,6 @@
 """LLM (Cortex) lifecycle service.
 
-Wraps the :class:`~hat.models.manager.ModelManager` and the loop swap
+Wraps the :class:`~hat.core.lifecycle.manager.ModelManager` and the loop swap
 helpers in :mod:`.container` so HTTP controllers stay thin. Owns the
 in-flight streaming-download registry shared across requests.
 """

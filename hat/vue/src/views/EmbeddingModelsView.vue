@@ -16,8 +16,9 @@ const filtered = computed(() => {
     if (filter.value === "installed" && !it.installed) return false;
     if (filter.value === "missing" && it.installed) return false;
     if (!q) return true;
-    return [it.id, it.repo_id, it.display, it.notes || ""]
-      .some((v) => v.toLowerCase().includes(q));
+    return [it.id, it.repo_id, it.display, it.notes || ""].some((v) =>
+      v.toLowerCase().includes(q),
+    );
   });
 });
 
@@ -43,7 +44,6 @@ function onBackend(v: string) {
   <div class="models-page">
     <header class="page-head">
       <div>
-        <h2>Embedding Models</h2>
         <p class="hat-muted">
           <NBadge :value="installedCount" :max="999" type="success" />
           installed out of

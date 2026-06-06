@@ -7,5 +7,28 @@ active model-manager-driven Cortex / Embedder, and the model swap hooks)
 is exposed from here.
 """
 
-from .container import *  # noqa: F401,F403
 from . import container as container  # re-export module for legacy access
+from .container import (
+    deactivate_cortex,
+    deactivate_embedder,
+    get_cortex,
+    get_loop,
+    get_raw_log,
+    get_session_store,
+    prior_traces_for_session,
+    swap_active_cortex,
+    swap_active_embedder,
+)
+
+__all__ = [
+    "container",
+    "deactivate_cortex",
+    "deactivate_embedder",
+    "get_cortex",
+    "get_loop",
+    "get_raw_log",
+    "get_session_store",
+    "prior_traces_for_session",
+    "swap_active_cortex",
+    "swap_active_embedder",
+]

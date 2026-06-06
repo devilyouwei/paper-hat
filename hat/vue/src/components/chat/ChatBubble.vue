@@ -95,8 +95,8 @@ const uncertaintyType = computed<"default" | "warning" | "error" | "success">(
 
 .u-badge {
   position: absolute;
-  top: -10px;
-  right: -20px;
+  bottom: -24px;
+  left: 0;
   font-variant-numeric: tabular-nums;
 }
 

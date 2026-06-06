@@ -170,7 +170,7 @@ core/cortex/
 ├── noop.py                   # NoopCortex
 ├── hf.py                     # HFLanguageModel + HFCortex (was models/backends/hf.py + core/cortex/hf_cortex.py)
 ├── mlx.py                    # MLXLanguageModel + MLXCortex (was models/backends/mlx.py + core/cortex/mlx_cortex.py)
-└── registry.py               # string-name backend factory (was models/registry.py)
+└── cloud.py                  # CloudLanguageModel + CloudCortex (OpenAI-compatible, platform-independent)
 ```
 
 All three cortex classes inherit from `abstract.cortex.Cortex`. The
