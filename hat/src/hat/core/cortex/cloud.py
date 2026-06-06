@@ -117,7 +117,7 @@ class CloudLanguageModel:
                 {
                     "model": self.model,
                     "messages": messages,
-                    "max_tokens": self.max_tokens,
+                    "max_completion_tokens": self.max_tokens,
                     "temperature": self.temperature,
                     "logprobs": True,
                 },
@@ -132,7 +132,7 @@ class CloudLanguageModel:
         payload = {
             "model": self.model,
             "messages": list(messages),
-            "max_tokens": int(kwargs.get("max_tokens", self.max_tokens)),
+            "max_completion_tokens": int(kwargs.get("max_tokens", self.max_tokens)),
             "temperature": float(kwargs.get("temperature", self.temperature)),
         }
         log.debug("[cloud] chat msgs={} model={}", len(messages), self.model)
@@ -153,7 +153,7 @@ class CloudLanguageModel:
         payload = {
             "model": self.model,
             "messages": list(messages),
-            "max_tokens": int(kwargs.get("max_tokens", self.max_tokens)),
+            "max_completion_tokens": int(kwargs.get("max_tokens", self.max_tokens)),
             "temperature": float(kwargs.get("temperature", self.temperature)),
             "stream": True,
         }
