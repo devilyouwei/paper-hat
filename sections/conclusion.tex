@@ -5,14 +5,14 @@
 \label{sec:conclusion}
 
 We introduced \textbf{HAT (Hippocampus-Augmented Transformer)}, a memory-centric framework that enables lightweight language models to self-improve by learning \emph{what to learn} from interactive experience.
-Drawing on complementary learning systems theory, HAT decouples experience acquisition (online) from parameter optimisation (offline) through three key mechanisms: abstraction of raw interactions into structured memory traces, selective curation based on uncertainty, feedback, and novelty, and offline replay-driven fine-tuning during slow-wave sleep phases.
+Drawing on complementary learning systems theory, HAT decouples experience acquisition (online) from parameter optimisation (offline) through three key mechanisms: abstraction of uncertain interactions into structured memory traces, embedding-based CREATE/REVISE routing against a curated Neocortex, and offline replay-driven fine-tuning during slow-wave sleep phases.
 An on-demand oracle consultation mechanism provides efficient, targeted knowledge distillation only where the model is most uncertain.
 
 Experiments across knowledge-intensive QA, instruction following, and personalisation benchmarks demonstrate that HAT consistently outperforms strong fine-tuning and retrieval-augmented baselines in accuracy, sample efficiency, and resistance to catastrophic forgetting, while using a fraction of the oracle budget required by full distillation.
 
 \paragraph{Limitations and future work.}
 Several directions remain open.
-First, the current selection heuristic (Eq.~\ref{eq:selection_score}) uses a linear combination of fixed signals; learning the write policy end-to-end via meta-learning is a promising extension.
+First, the current write policy uses a fixed uncertainty threshold (Eq.~\ref{eq:write_decision}) and a fixed semantic routing threshold (Eq.~\ref{eq:create_revise}); learning these policies end-to-end via meta-learning is a promising extension.
 Second, our evaluation simulates user interactions from existing benchmarks; deploying HAT with real users in a longitudinal study would provide stronger evidence of its practical impact.
 Third, while HAT targets lightweight models (0.5--10\,B), scaling the framework to larger models and investigating the interplay between model capacity and memory curation is of both theoretical and practical interest.
 Finally, privacy considerations arise when storing user interactions in the Neocortex; integrating differential privacy or federated learning into the SWS training phase is an important direction for responsible deployment.

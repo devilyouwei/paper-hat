@@ -42,10 +42,10 @@ We instantiate the Cortex with three model families at different scales: Qwen-2.
 We use GPT-4o as the default oracle $\oracle$.  We also report results with a smaller oracle (LLaMA-3-70B) to study oracle quality sensitivity.
 
 \paragraph{Hippocampus Agent.}
-The abstraction and replay-builder modules reuse the Cortex itself (with dedicated prompts), making HAT lightweight and self-contained.  The selection scoring uses the Cortex's own predictive entropy for $\uncertainty$, cosine similarity in the model's embedding space for $\novelty$, and binary user-correction flags for $\feedback$.
+The abstraction module uses the Cortex itself with dedicated triage and extraction prompts, making HAT lightweight and self-contained.  Write eligibility is determined by the log-probability uncertainty gate in Eq.~\eqref{eq:uncertainty_gate}.  Semantic redundancy is handled separately by the embedding-based CREATE/REVISE router in Eq.~\eqref{eq:create_revise}, rather than being mixed into the write score.
 
 \paragraph{Hyperparameters.}
-We set $\alpha = 0.4$, $\beta = 0.4$, $\gamma = 0.2$ in Eq.~\eqref{eq:selection_score} based on validation-set tuning.  The write threshold is $\tau = 0.3$.  Oracle consultation is triggered when $\uncertainty > \tau_\oracle = 0.7$ or when $\feedback = 1$.  SWS training uses LoRA (rank 16) with AdamW ($\eta = 2 \times 10^{-5}$), batch size 32, and 3 epochs per cycle.  The EWC coefficient is $\mu = 0.1$.  A SWS cycle is triggered every 500 interactions.
+We set the write threshold to $\tau_w = 0.3$ in Eq.~\eqref{eq:write_decision} and the memory-routing threshold to $\tau_r = 0.85$ in Eq.~\eqref{eq:create_revise}, based on validation-set tuning.  Oracle consultation is triggered when $\uncertainty > \tau_\oracle = 0.7$.  SWS training uses LoRA (rank 16) with AdamW ($\eta = 2 \times 10^{-5}$), batch size 32, and 3 epochs per cycle.  The EWC coefficient is $\mu = 0.1$.  A SWS cycle is triggered every 500 interactions.
 
 \paragraph{Evaluation protocol.}
 We report metrics averaged over 3 random seeds.  Each experiment simulates 5{,}000 sequential interactions (10 SWS cycles).  We measure: (1) \textbf{accuracy} (exact match or ROUGE-L depending on task), (2) \textbf{error rate} (fraction of incorrect responses), (3) \textbf{sample efficiency} (accuracy gain per training example), and (4) \textbf{forgetting rate} (performance drop on earlier tasks after adaptation).
