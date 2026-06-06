@@ -22,7 +22,12 @@ from threading import Lock
 from hat.config.settings import get_settings
 from hat.abstract.cortex import Cortex
 from hat.utils.logging import get_logger
-from hat.core.lifecycle.catalog import SUPPORTED_BACKENDS, CatalogEntry, load_catalog
+from hat.core.lifecycle.catalog import (
+    SUPPORTED_BACKENDS,
+    CatalogEntry,
+    is_cloud_backend,
+    load_catalog,
+)
 
 log = get_logger(__name__)
 
@@ -43,6 +48,11 @@ class ModelManager:
         return get_settings().model_root / backend / model_id
 
     def is_installed(self, backend: str, model_id: str) -> bool:
+        # Cloud models have no local weights — they call a remote API, so
+        # there is nothing to download. Treat them as always installed so the
+        # load / activate paths don't reject them.
+        if is_cloud_backend(backend):
+            return True
         d = self.model_dir(backend, model_id)
         if not d.is_dir():
             return False
@@ -82,6 +92,10 @@ class ModelManager:
 
     def download(self, backend: str, model_id: str) -> Path:
         entry = self._entry(backend, model_id)
+        # Cloud models have nothing to fetch; resolving the entry validates it.
+        if is_cloud_backend(backend):
+            log.info("cloud model is remote; download is a no-op id={}", model_id)
+            return self.model_dir(backend, model_id)
         dst = self.model_dir(backend, model_id)
         dst.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -144,6 +158,28 @@ class ModelManager:
             entry = self._entry(backend, model_id)
         except ModelManagerError as e:
             yield {"stage": "error", "message": str(e)}
+            return
+
+        # Cloud models are remote: nothing to fetch. Emit a synthetic
+        # start/done pair so the UI's progress renderer completes cleanly.
+        if is_cloud_backend(backend):
+            yield {
+                "stage": "start",
+                "backend": backend,
+                "id": model_id,
+                "repo_id": entry.repo_id,
+                "files_total": 0,
+                "bytes_total": 0,
+                "local_dir": str(self.model_dir(backend, model_id)),
+            }
+            yield {
+                "stage": "done",
+                "backend": backend,
+                "id": model_id,
+                "local_dir": str(self.model_dir(backend, model_id)),
+                "files_total": 0,
+                "bytes_total": 0,
+            }
             return
 
         dst = self.model_dir(backend, model_id)
@@ -324,6 +360,20 @@ class ModelManager:
     def _build_cortex(self, backend: str, path: str) -> Cortex:
         s = get_settings()
         log.info("building cortex backend={} path={}", backend, path)
+        if backend == "cloud":
+            from hat.core.cortex.cloud import CloudCortex, build_cloud_model
+
+            # Cloud has no local files; ``path`` ends in the catalog id.
+            entry = self._entry(backend, Path(path).name)
+            return CloudCortex(
+                build_cloud_model(
+                    entry.repo_id,
+                    base_url=entry.base_url or "https://api.openai.com/v1",
+                    api_key_env=entry.api_key_env,
+                    max_tokens=s.default_max_tokens,
+                    temperature=s.default_temperature,
+                )
+            )
         if backend == "mlx":
             from hat.core.cortex.mlx import MLXCortex
             from hat.core.cortex.mlx import build_mlx_model
@@ -458,6 +508,10 @@ class ModelManager:
             cortex = self._cache.pop((backend, model_id), None)
         if cortex is not None:
             self._release_cortex(cortex)
+        # Cloud models have no on-disk weights to remove.
+        if is_cloud_backend(backend):
+            log.debug("delete no-op (cloud) backend={} id={}", backend, model_id)
+            return False
         d = self.model_dir(backend, model_id)
         if not d.exists():
             log.debug("delete no-op (not on disk) backend={} id={}", backend, model_id)

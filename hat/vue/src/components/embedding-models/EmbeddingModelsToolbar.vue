@@ -18,6 +18,7 @@ const emit = defineEmits<{
 const backendOptions: SelectOption[] = [
   { label: "MLX (embed)", value: "mlx_embed" },
   { label: "HF (embed)", value: "hf_embed" },
+  { label: "Cloud (embed)", value: "cloud_embed" },
 ];
 
 const filterOptions: SelectOption[] = [

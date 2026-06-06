@@ -6,9 +6,11 @@ These types own checkpoint download / load / unload and back the
 
 from .catalog import (
     ALL_SUPPORTED_BACKENDS,
+    CLOUD_BACKENDS,
     SUPPORTED_BACKENDS,
     SUPPORTED_EMBED_BACKENDS,
     CatalogEntry,
+    is_cloud_backend,
     load_catalog,
 )
 from .embedding_manager import (
@@ -19,6 +21,7 @@ from .manager import ModelManagerError, get_manager
 
 __all__ = [
     "ALL_SUPPORTED_BACKENDS",
+    "CLOUD_BACKENDS",
     "CatalogEntry",
     "EmbeddingManagerError",
     "ModelManagerError",
@@ -26,5 +29,6 @@ __all__ = [
     "SUPPORTED_EMBED_BACKENDS",
     "get_embedding_manager",
     "get_manager",
+    "is_cloud_backend",
     "load_catalog",
 ]

@@ -13,12 +13,19 @@ const message = useMessage();
 const platformOptions: SelectOption[] = [
   { label: "MLX", value: "mlx" },
   { label: "HF", value: "hf" },
+  { label: "Cloud", value: "cloud" },
 ];
 
 const platform = ref<string>("mlx");
 const busy = ref(false);
 
-const embedBackend = computed(() => (platform.value === "hf" ? "hf_embed" : "mlx_embed"));
+const EMBED_BACKEND: Record<string, string> = {
+  mlx: "mlx_embed",
+  hf: "hf_embed",
+  cloud: "cloud_embed",
+};
+
+const embedBackend = computed(() => EMBED_BACKEND[platform.value] ?? "mlx_embed");
 
 const llmOptions = computed<SelectOption[]>(() =>
   models.items
@@ -53,11 +60,12 @@ const selectedEmbed = computed({
 });
 
 function pickInitialPlatform(): string {
-  if (app.active?.backend === "mlx" || app.active?.backend === "hf") {
+  const known = ["mlx", "hf", "cloud"];
+  if (app.active?.backend && known.includes(app.active.backend)) {
     return app.active.backend;
   }
   const cb = app.health?.cortex_backend;
-  if (cb === "mlx" || cb === "hf") return cb;
+  if (cb && known.includes(cb)) return cb;
   return "mlx";
 }
 

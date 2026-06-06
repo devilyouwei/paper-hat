@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-EmbedBackend = Literal["mlx_embed", "hf_embed"]
+EmbedBackend = Literal["mlx_embed", "hf_embed", "cloud_embed"]
 
 
 class EmbeddingCatalogItem(BaseModel):

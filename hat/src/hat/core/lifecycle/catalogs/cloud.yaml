@@ -1,0 +1,28 @@
+# Cloud LLM catalog (OpenAI-compatible HTTP endpoints).
+#
+# Cloud models call a remote API instead of running local weights, so they
+# are platform-independent (no MLX/CUDA requirement) and have nothing to
+# download — the manager treats every entry here as always "installed".
+#
+# Field notes:
+#   id          local identifier used in the API / UI (model/<backend>/<id>).
+#   repo_id     repurposed as the *remote model name* sent to the provider
+#               (e.g. "gpt-4o-mini").
+#   base_url    OpenAI-compatible API root, WITHOUT the trailing
+#               "/chat/completions" (e.g. "https://api.openai.com/v1").
+#   api_key_env name of the environment variable holding the API key. The raw
+#               key is never stored here so secrets stay out of the repo.
+#
+- id: gpt-4o-mini
+  repo_id: gpt-4o-mini
+  display: OpenAI GPT-4o mini
+  base_url: https://api.openai.com/v1
+  api_key_env: OPENAI_API_KEY
+  notes: Fast, low-cost OpenAI chat model. Requires OPENAI_API_KEY.
+
+- id: gpt-4o
+  repo_id: gpt-4o
+  display: OpenAI GPT-4o
+  base_url: https://api.openai.com/v1
+  api_key_env: OPENAI_API_KEY
+  notes: Higher-quality OpenAI chat model. Requires OPENAI_API_KEY.

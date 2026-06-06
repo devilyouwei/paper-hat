@@ -19,6 +19,9 @@ const dl = computed(() => models.downloadFor(props.item.backend, props.item.id))
 const isActive = computed(
   () => app.active?.backend === props.item.backend && app.active?.id === props.item.id,
 );
+const isCloud = computed(
+  () => props.item.backend === "cloud" || props.item.backend === "cloud_embed",
+);
 const downloading = computed(
   () => dl.value?.state === "pending" || dl.value?.state === "downloading",
 );
@@ -95,6 +98,14 @@ function remove() {
         ● Active
       </NTag>
       <NTag
+        v-else-if="isCloud"
+        type="warning"
+        size="small"
+        round
+      >
+        ☁ Cloud
+      </NTag>
+      <NTag
         v-else-if="item.installed"
         type="info"
         size="small"
@@ -148,7 +159,7 @@ function remove() {
           Download
         </NButton>
         <NButton
-          v-if="item.installed"
+          v-if="item.installed && !isCloud"
           size="small"
           tertiary
           type="error"

@@ -18,9 +18,18 @@ from pydantic import BaseModel
 
 from hat.config.settings import get_settings
 
-SUPPORTED_BACKENDS: tuple[str, ...] = ("mlx", "hf")
-SUPPORTED_EMBED_BACKENDS: tuple[str, ...] = ("mlx_embed", "hf_embed")
+SUPPORTED_BACKENDS: tuple[str, ...] = ("mlx", "hf", "cloud")
+SUPPORTED_EMBED_BACKENDS: tuple[str, ...] = ("mlx_embed", "hf_embed", "cloud_embed")
 ALL_SUPPORTED_BACKENDS: tuple[str, ...] = SUPPORTED_BACKENDS + SUPPORTED_EMBED_BACKENDS
+
+# Backends that call a remote API instead of running local weights. They are
+# platform-independent (no MLX/CUDA requirement) and have nothing to download,
+# so the managers treat them as always "installed".
+CLOUD_BACKENDS: frozenset[str] = frozenset({"cloud", "cloud_embed"})
+
+
+def is_cloud_backend(backend: str) -> bool:
+    return backend in CLOUD_BACKENDS
 
 
 class CatalogEntry(BaseModel):
@@ -29,6 +38,13 @@ class CatalogEntry(BaseModel):
     display: str
     size_gb: float | None = None
     notes: str | None = None
+    # Cloud-only fields. ``repo_id`` is repurposed as the remote model name
+    # (e.g. ``gpt-4o-mini``). ``base_url`` is the OpenAI-compatible API root
+    # (without ``/chat/completions``). ``api_key_env`` names the environment
+    # variable holding the API key — the raw key is never stored in the
+    # catalog so secrets stay out of the repo.
+    base_url: str | None = None
+    api_key_env: str | None = None
 
 
 def _override_path(backend: str) -> Path:
@@ -61,5 +77,7 @@ __all__ = [
     "SUPPORTED_BACKENDS",
     "SUPPORTED_EMBED_BACKENDS",
     "ALL_SUPPORTED_BACKENDS",
+    "CLOUD_BACKENDS",
+    "is_cloud_backend",
     "load_catalog",
 ]

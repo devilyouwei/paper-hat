@@ -48,13 +48,15 @@ from hat.core.lifecycle.manager import get_manager
 def _bootstrap_cortex() -> Cortex:
     """Build the initial Cortex.
 
-    For ``hf``/``mlx`` we auto-activate the first installed catalog entry
-    under ``model/<backend>/``. If nothing is installed, fall back to the
-    noop Cortex — the user must download a model from the UI / ``/api/models``
-    before chat works. There is no env-driven model path any more; weights
-    live under ``model/<backend>/<id>/`` by convention."""
+    For ``hf``/``mlx``/``cloud`` we auto-activate the first installed catalog
+    entry under ``model/<backend>/``. Cloud entries are always "installed"
+    (they call a remote API), so building the cortex makes no network call.
+    If nothing is installed, fall back to the noop Cortex — the user must
+    download a model from the UI / ``/api/models`` before chat works. There is
+    no env-driven model path any more; weights live under
+    ``model/<backend>/<id>/`` by convention."""
     s = get_settings()
-    if s.cortex_backend in {"mlx", "hf"}:
+    if s.cortex_backend in {"mlx", "hf", "cloud"}:
         mgr = get_manager()
         for entry in mgr.list_models(s.cortex_backend):
             if entry["installed"]:

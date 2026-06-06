@@ -19,6 +19,9 @@ const isActive = computed(
     store.active?.backend === props.item.backend &&
     store.active?.id === props.item.id,
 );
+const isCloud = computed(
+  () => props.item.backend === "cloud" || props.item.backend === "cloud_embed",
+);
 const downloading = computed(
   () => dl.value?.state === "pending" || dl.value?.state === "downloading",
 );
@@ -86,6 +89,7 @@ function remove() {
         <span class="id hat-mono hat-muted">{{ item.id }}</span>
       </div>
       <NTag v-if="isActive" type="success" size="small" round>● Active</NTag>
+      <NTag v-else-if="isCloud" type="warning" size="small" round>☁ Cloud</NTag>
       <NTag v-else-if="item.installed" type="info" size="small" round>
         ✓ Installed
       </NTag>
@@ -137,7 +141,7 @@ function remove() {
           Download
         </NButton>
         <NButton
-          v-if="item.installed"
+          v-if="item.installed && !isCloud"
           size="small"
           tertiary
           type="error"

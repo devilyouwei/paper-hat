@@ -4,12 +4,14 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+LLMBackend = Literal["mlx", "hf", "cloud"]
+
 
 class CatalogItem(BaseModel):
     id: str
     repo_id: str
     display: str
-    backend: Literal["mlx", "hf"]
+    backend: LLMBackend
     size_gb: float | None = None
     notes: str | None = None
     installed: bool
@@ -17,12 +19,12 @@ class CatalogItem(BaseModel):
 
 
 class ModelListResponse(BaseModel):
-    backend: Literal["mlx", "hf"]
+    backend: LLMBackend
     items: list[CatalogItem]
 
 
 class ModelActionRequest(BaseModel):
-    backend: Literal["mlx", "hf"]
+    backend: LLMBackend
     id: str
 
 

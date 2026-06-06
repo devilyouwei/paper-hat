@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # more — they're discovered at runtime under ``model/<backend>/<id>/``
     # via the catalog and ``ModelManager``. Use the UI / ``/api/models``
     # to download and activate.
-    cortex_backend: str = "noop"  # noop | hf | mlx
+    cortex_backend: str = "noop"  # noop | hf | mlx | cloud
 
     # HF hardware preferences (constructor-time, can't change per request).
     hf_device: str = "auto"  # auto | cpu | cuda | mps
@@ -112,7 +112,7 @@ class Settings(BaseSettings):
     dedup_enabled: bool = True
     dedup_threshold: float = 0.82
     embed_device: str = "auto"  # auto | cpu | cuda | mps
-    embed_backend: str = "mlx_embed"  # mlx_embed | hf_embed
+    embed_backend: str = "mlx_embed"  # mlx_embed | hf_embed | cloud_embed
     embed_id: str | None = None
     embed_index_root: Path = Path("runs/neocortex/embeddings")
 

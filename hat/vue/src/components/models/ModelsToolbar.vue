@@ -18,6 +18,7 @@ const emit = defineEmits<{
 const backendOptions: SelectOption[] = [
   { label: "MLX", value: "mlx" },
   { label: "HF", value: "hf" },
+  { label: "Cloud", value: "cloud" },
 ];
 
 const filterOptions: SelectOption[] = [

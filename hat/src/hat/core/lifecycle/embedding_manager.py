@@ -26,7 +26,12 @@ from threading import Lock
 from hat.config.settings import get_settings
 from hat.core.neocortex.embeddings.managed import Embedder
 from hat.utils.logging import get_logger
-from hat.core.lifecycle.catalog import SUPPORTED_EMBED_BACKENDS, CatalogEntry, load_catalog
+from hat.core.lifecycle.catalog import (
+    SUPPORTED_EMBED_BACKENDS,
+    CatalogEntry,
+    is_cloud_backend,
+    load_catalog,
+)
 
 log = get_logger(__name__)
 
@@ -47,6 +52,10 @@ class EmbeddingManager:
         return get_settings().model_root / backend / model_id
 
     def is_installed(self, backend: str, model_id: str) -> bool:
+        # Cloud embedders call a remote API — nothing to download, so treat
+        # them as always installed.
+        if is_cloud_backend(backend):
+            return True
         d = self.model_dir(backend, model_id)
         if not d.is_dir():
             return False
@@ -84,6 +93,9 @@ class EmbeddingManager:
 
     def download(self, backend: str, model_id: str) -> Path:
         entry = self._entry(backend, model_id)
+        if is_cloud_backend(backend):
+            log.info("[embed] cloud model is remote; download no-op id={}", model_id)
+            return self.model_dir(backend, model_id)
         dst = self.model_dir(backend, model_id)
         dst.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -120,6 +132,28 @@ class EmbeddingManager:
             entry = self._entry(backend, model_id)
         except EmbeddingManagerError as e:
             yield {"stage": "error", "message": str(e)}
+            return
+
+        # Cloud embedders are remote: nothing to fetch. Emit a synthetic
+        # start/done pair so the UI's progress renderer completes cleanly.
+        if is_cloud_backend(backend):
+            yield {
+                "stage": "start",
+                "backend": backend,
+                "id": model_id,
+                "repo_id": entry.repo_id,
+                "files_total": 0,
+                "bytes_total": 0,
+                "local_dir": str(self.model_dir(backend, model_id)),
+            }
+            yield {
+                "stage": "done",
+                "backend": backend,
+                "id": model_id,
+                "local_dir": str(self.model_dir(backend, model_id)),
+                "files_total": 0,
+                "bytes_total": 0,
+            }
             return
 
         dst = self.model_dir(backend, model_id)
@@ -263,6 +297,18 @@ class EmbeddingManager:
         log.info("[embed] building embedder backend={} path={}", backend, path)
         from hat.core.neocortex.embeddings.managed import ManagedEmbedder
 
+        if backend == "cloud_embed":
+            from hat.core.neocortex.embeddings.cloud import build_cloud_embed_model
+
+            # Cloud has no local files; ``path`` ends in the catalog id.
+            model_id = Path(path).name
+            entry = self._entry(backend, model_id)
+            inner = build_cloud_embed_model(
+                entry.repo_id,
+                base_url=entry.base_url or "https://api.openai.com/v1",
+                api_key_env=entry.api_key_env,
+            )
+            return ManagedEmbedder(inner, backend=backend, model_id=model_id)
         if backend == "mlx_embed":
             from hat.core.neocortex.embeddings.mlx import build_mlx_embed_model
 
@@ -351,6 +397,10 @@ class EmbeddingManager:
             cached = self._cache.pop((backend, model_id), None)
         if cached is not None:
             self._release(cached)
+        # Cloud embedders have no on-disk weights to remove.
+        if is_cloud_backend(backend):
+            log.debug("[embed] delete no-op (cloud) backend={} id={}", backend, model_id)
+            return False
         d = self.model_dir(backend, model_id)
         if not d.exists():
             return False
