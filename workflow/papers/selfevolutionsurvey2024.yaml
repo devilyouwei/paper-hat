@@ -1,0 +1,25 @@
+citekey: selfevolutionsurvey2024
+title: A Survey on Self-Evolution of Large Language Models
+authors: []
+year: 2024
+date: 2024-04
+venue: null
+institutions: []
+arxiv_id: '2404.14387'
+doi: null
+url: https://arxiv.org/abs/2404.14387
+pdf: selfevolutionsurvey2024.pdf
+category:
+- self-evolution
+- survey
+level: 2
+keywords: []
+summary: Comprehensive survey of self-evolution approaches in LLMs, framing the process as iterative cycles
+  of experience acquisition, refinement, updating, and evaluation.
+bibtex: "@article{selfevolutionsurvey2024,\n  title={A Survey on Self-Evolution of Large Language Models},\n\
+  \  author={TBD},\n  journal={arXiv preprint arXiv:2404.14387},\n  year={2024}\n}"
+cite_command: \cite{selfevolutionsurvey2024}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Compared in Related Work; aligns with HAT's experiential-learning vision.

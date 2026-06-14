@@ -1,0 +1,25 @@
+citekey: awesomeselfevolution
+title: Awesome-Self-Evolution-of-LLM (Alibaba DAMO Reading List)
+authors: []
+year: 2024
+date: 2024-04
+venue: GitHub
+institutions:
+- Alibaba DAMO
+arxiv_id: null
+doi: null
+url: https://github.com/AlibabaResearch/DAMO-ConvAI/tree/main/Awesome-Self-Evolution-of-LLM
+pdf: null
+category:
+- self-evolution
+- resource
+level: 1
+keywords: []
+summary: Maintained paper repository accompanying the self-evolution survey; high-value index for literature
+  expansion.
+bibtex: null
+cite_command: null
+relations:
+  cites: []
+  cited_by: []
+usage_note: Reference resource; not cited as a paper.

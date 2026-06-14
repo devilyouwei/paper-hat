@@ -1,0 +1,26 @@
+citekey: learningwhattoremember2026
+title: 'Learning What to Remember: A Cognitively Grounded Multi-Factor Value Model for Agentic Memory'
+authors: []
+year: 2026
+date: 2026-06
+venue: null
+institutions: []
+arxiv_id: '2606.12945'
+doi: null
+url: https://arxiv.org/abs/2606.12945
+pdf: learningwhattoremember2026.pdf
+category:
+- memory
+- memory-curation
+level: 3
+keywords: []
+summary: Learned multi-factor memory value function grounded in cognitive psychology (emotional intensity,
+  goal relevance, reliability).
+bibtex: "@article{learningwhattoremember2026,\n  title={Learning What to Remember: A Cognitively Grounded\
+  \ Multi-Factor Value Model for Agentic Memory},\n  author={TBD},\n  journal={arXiv preprint arXiv:2606.12945},\n\
+  \  year={2026}\n}"
+cite_command: \cite{learningwhattoremember2026}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Likely baseline; directly addresses forgetting/prioritization central to HAT consolidation.

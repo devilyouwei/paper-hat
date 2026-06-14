@@ -1,0 +1,25 @@
+citekey: agenticmemory2026
+title: 'Agentic Memory: Learning Unified Long-Term and Short-Term Memory Management for LLM Agents'
+authors: []
+year: 2026
+date: 2026-01
+venue: null
+institutions: []
+arxiv_id: '2601.01885'
+doi: null
+url: https://arxiv.org/abs/2601.01885
+pdf: agenticmemory2026.pdf
+category:
+- memory
+level: 3
+keywords: []
+summary: Unified memory policy treating store/retrieve/update/summarize/discard as learnable agent actions
+  optimized with RL.
+bibtex: "@article{agenticmemory2026,\n  title={Agentic Memory: Learning Unified Long-Term and Short-Term\
+  \ Memory Management for LLM Agents},\n  author={TBD},\n  journal={arXiv preprint arXiv:2601.01885},\n\
+  \  year={2026}\n}"
+cite_command: \cite{agenticmemory2026}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Likely baseline; closest to HAT's end-to-end memory management beyond heuristics.

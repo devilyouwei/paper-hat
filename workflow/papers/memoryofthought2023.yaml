@@ -1,0 +1,25 @@
+citekey: memoryofthought2023
+title: 'MoT: Memory-of-Thought Enables ChatGPT to Self-Improve'
+authors: []
+year: 2023
+date: 2023-05
+venue: null
+institutions: []
+arxiv_id: '2305.05181'
+doi: null
+url: https://arxiv.org/abs/2305.05181
+pdf: memoryofthought2023.pdf
+category:
+- memory
+- self-improvement
+level: 2
+keywords: []
+summary: Builds external memory from high-confidence pre-thinking traces and reuses it for test-time reasoning
+  improvement.
+bibtex: "@article{memoryofthought2023,\n  title={MoT: Memory-of-Thought Enables ChatGPT to Self-Improve},\n\
+  \  author={TBD},\n  journal={arXiv preprint arXiv:2305.05181},\n  year={2023}\n}"
+cite_command: \cite{memoryofthought2023}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Compared in Related Work; adjacent to turning traces into reusable learning assets.

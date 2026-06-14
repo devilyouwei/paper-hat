@@ -1,0 +1,24 @@
+citekey: memorybank2023
+title: 'MemoryBank: Enhancing Large Language Models with Long-Term Memory'
+authors: []
+year: 2023
+date: 2023-05
+venue: null
+institutions: []
+arxiv_id: '2305.10250'
+doi: null
+url: https://arxiv.org/abs/2305.10250
+pdf: memorybank2023.pdf
+category:
+- memory
+level: 2
+keywords: []
+summary: Early long-term memory framework for LLM dialogue emphasizing memory updates, selective forgetting,
+  and reinforcement over time.
+bibtex: "@article{memorybank2023,\n  title={MemoryBank: Enhancing Large Language Models with Long-Term\
+  \ Memory},\n  author={TBD},\n  journal={arXiv preprint arXiv:2305.10250},\n  year={2023}\n}"
+cite_command: \cite{memorybank2023}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Compared in Related Work; forgetting-curve precursor to memory-value strategies.

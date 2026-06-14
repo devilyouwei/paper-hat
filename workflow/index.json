@@ -1,0 +1,684 @@
+{
+  "root": "hat2026learning",
+  "count": 24,
+  "levels": {
+    "1": "weak — borrowed in intro/method",
+    "2": "related — compared in Related Work",
+    "3": "high — baseline; comparison experiments / shared eval",
+    "4": "near-duplicate — same task or method (publication risk)"
+  },
+  "stats": {
+    "by_level": {
+      "3": 5,
+      "1": 4,
+      "2": 15
+    },
+    "by_category": {
+      "alignment": 1,
+      "data-selection": 1,
+      "memory": 9,
+      "memory-curation": 2,
+      "personalization": 1,
+      "reasoning": 4,
+      "resource": 1,
+      "reward-model": 1,
+      "self-adaptation": 2,
+      "self-evolution": 6,
+      "self-improvement": 10,
+      "self-supervised": 1,
+      "survey": 2,
+      "tool-use": 2,
+      "verification": 1,
+      "vision-language": 1
+    }
+  },
+  "papers": [
+    {
+      "citekey": "agenticmemory2026",
+      "title": "Agentic Memory: Learning Unified Long-Term and Short-Term Memory Management for LLM Agents",
+      "authors": [],
+      "year": 2026,
+      "date": "2026-01",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2601.01885",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2601.01885",
+      "pdf": "agenticmemory2026.pdf",
+      "category": [
+        "memory"
+      ],
+      "level": 3,
+      "keywords": [],
+      "summary": "Unified memory policy treating store/retrieve/update/summarize/discard as learnable agent actions optimized with RL.",
+      "bibtex": "@article{agenticmemory2026,\n  title={Agentic Memory: Learning Unified Long-Term and Short-Term Memory Management for LLM Agents},\n  author={TBD},\n  journal={arXiv preprint arXiv:2601.01885},\n  year={2026}\n}",
+      "cite_command": "\\cite{agenticmemory2026}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Likely baseline; closest to HAT's end-to-end memory management beyond heuristics."
+    },
+    {
+      "citekey": "learningwhattoremember2026",
+      "title": "Learning What to Remember: A Cognitively Grounded Multi-Factor Value Model for Agentic Memory",
+      "authors": [],
+      "year": 2026,
+      "date": "2026-06",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2606.12945",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2606.12945",
+      "pdf": "learningwhattoremember2026.pdf",
+      "category": [
+        "memory",
+        "memory-curation"
+      ],
+      "level": 3,
+      "keywords": [],
+      "summary": "Learned multi-factor memory value function grounded in cognitive psychology (emotional intensity, goal relevance, reliability).",
+      "bibtex": "@article{learningwhattoremember2026,\n  title={Learning What to Remember: A Cognitively Grounded Multi-Factor Value Model for Agentic Memory},\n  author={TBD},\n  journal={arXiv preprint arXiv:2606.12945},\n  year={2026}\n}",
+      "cite_command": "\\cite{learningwhattoremember2026}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Likely baseline; directly addresses forgetting/prioritization central to HAT consolidation."
+    },
+    {
+      "citekey": "memgpt2023",
+      "title": "MemGPT: Towards LLMs as Operating Systems",
+      "authors": [],
+      "year": 2023,
+      "date": "2023-10",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2310.08560",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2310.08560",
+      "pdf": "memgpt2023.pdf",
+      "category": [
+        "memory"
+      ],
+      "level": 3,
+      "keywords": [],
+      "summary": "Virtual context management with multi-tier memory and automatic migration across tiers.",
+      "bibtex": "@article{memgpt2023,\n  title={MemGPT: Towards LLMs as Operating Systems},\n  author={TBD},\n  journal={arXiv preprint arXiv:2310.08560},\n  year={2023}\n}",
+      "cite_command": "\\cite{memgpt2023}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Likely baseline; relevant to HAT's hippocampus-neocortex separation."
+    },
+    {
+      "citekey": "reflexion2023",
+      "title": "Reflexion: Language Agents with Verbal Reinforcement Learning",
+      "authors": [],
+      "year": 2023,
+      "date": "2023-03",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2303.11366",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2303.11366",
+      "pdf": "reflexion2023.pdf",
+      "category": [
+        "memory",
+        "self-improvement"
+      ],
+      "level": 3,
+      "keywords": [],
+      "summary": "Verbal reinforcement learning: agents reflect on failures in natural language, store reflections in episodic memory, and reuse them.",
+      "bibtex": "@article{reflexion2023,\n  title={Reflexion: Language Agents with Verbal Reinforcement Learning},\n  author={TBD},\n  journal={arXiv preprint arXiv:2303.11366},\n  year={2023}\n}",
+      "cite_command": "\\cite{reflexion2023}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Likely baseline; one of HAT's closest ancestors (fail -> reflect -> write -> reuse)."
+    },
+    {
+      "citekey": "thinkinmemory2023",
+      "title": "Think-in-Memory: Recalling and Post-thinking Enable LLMs with Long-Term Memory",
+      "authors": [],
+      "year": 2023,
+      "date": "2023-11",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2311.08719",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2311.08719",
+      "pdf": "thinkinmemory2023.pdf",
+      "category": [
+        "memory"
+      ],
+      "level": 3,
+      "keywords": [],
+      "summary": "Stores and updates intermediate thoughts as evolving memory with insert/forget/merge operations and efficient retrieval.",
+      "bibtex": "@article{thinkinmemory2023,\n  title={Think-in-Memory: Recalling and Post-thinking Enable LLMs with Long-Term Memory},\n  author={TBD},\n  journal={arXiv preprint arXiv:2311.08719},\n  year={2023}\n}",
+      "cite_command": "\\cite{thinkinmemory2023}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Likely baseline; closely related to HAT's trace abstraction and memory lifecycle."
+    },
+    {
+      "citekey": "llmselfimprove2022",
+      "title": "Large Language Models Can Self-Improve",
+      "authors": [],
+      "year": 2022,
+      "date": "2022-10",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2210.11610",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2210.11610",
+      "pdf": "llmselfimprove2022.pdf",
+      "category": [
+        "self-improvement"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Selects high-confidence rationale-augmented outputs from unlabeled data and fine-tunes on them.",
+      "bibtex": "@article{llmselfimprove2022,\n  title={Large Language Models Can Self-Improve},\n  author={TBD},\n  journal={arXiv preprint arXiv:2210.11610},\n  year={2022}\n}",
+      "cite_command": "\\cite{llmselfimprove2022}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; foundational reference for selective consolidation/replay."
+    },
+    {
+      "citekey": "memorybank2023",
+      "title": "MemoryBank: Enhancing Large Language Models with Long-Term Memory",
+      "authors": [],
+      "year": 2023,
+      "date": "2023-05",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2305.10250",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2305.10250",
+      "pdf": "memorybank2023.pdf",
+      "category": [
+        "memory"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Early long-term memory framework for LLM dialogue emphasizing memory updates, selective forgetting, and reinforcement over time.",
+      "bibtex": "@article{memorybank2023,\n  title={MemoryBank: Enhancing Large Language Models with Long-Term Memory},\n  author={TBD},\n  journal={arXiv preprint arXiv:2305.10250},\n  year={2023}\n}",
+      "cite_command": "\\cite{memorybank2023}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; forgetting-curve precursor to memory-value strategies."
+    },
+    {
+      "citekey": "memorymechanismsurvey2024",
+      "title": "A Survey on the Memory Mechanism of Large Language Model based Agents",
+      "authors": [],
+      "year": 2024,
+      "date": "2024-04",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2404.13501",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2404.13501",
+      "pdf": "memorymechanismsurvey2024.pdf",
+      "category": [
+        "memory",
+        "survey"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Systematic review of memory design and evaluation in LLM agents, covering core module patterns and open challenges.",
+      "bibtex": "@article{memorymechanismsurvey2024,\n  title={A Survey on the Memory Mechanism of Large Language Model based Agents},\n  author={TBD},\n  journal={arXiv preprint arXiv:2404.13501},\n  year={2024}\n}",
+      "cite_command": "\\cite{memorymechanismsurvey2024}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; situates HAT's hippocampus-neocortex decomposition."
+    },
+    {
+      "citekey": "memoryofthought2023",
+      "title": "MoT: Memory-of-Thought Enables ChatGPT to Self-Improve",
+      "authors": [],
+      "year": 2023,
+      "date": "2023-05",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2305.05181",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2305.05181",
+      "pdf": "memoryofthought2023.pdf",
+      "category": [
+        "memory",
+        "self-improvement"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Builds external memory from high-confidence pre-thinking traces and reuses it for test-time reasoning improvement.",
+      "bibtex": "@article{memoryofthought2023,\n  title={MoT: Memory-of-Thought Enables ChatGPT to Self-Improve},\n  author={TBD},\n  journal={arXiv preprint arXiv:2305.05181},\n  year={2023}\n}",
+      "cite_command": "\\cite{memoryofthought2023}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; adjacent to turning traces into reusable learning assets."
+    },
+    {
+      "citekey": "reflectivememory2025",
+      "title": "In Prospect and Retrospect: Reflective Memory Management for Long-term Personalized Dialogue Agents",
+      "authors": [],
+      "year": 2025,
+      "date": "2025-03",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2503.08026",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2503.08026",
+      "pdf": "reflectivememory2025.pdf",
+      "category": [
+        "memory",
+        "personalization"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Reflective memory management with prospective summarization and retrospective retrieval refinement via online RL.",
+      "bibtex": "@article{reflectivememory2025,\n  title={In Prospect and Retrospect: Reflective Memory Management for Long-term Personalized Dialogue Agents},\n  author={TBD},\n  journal={arXiv preprint arXiv:2503.08026},\n  year={2025}\n}",
+      "cite_command": "\\cite{reflectivememory2025}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; personalized-dialogue view of adaptive memory curation."
+    },
+    {
+      "citekey": "rest2023",
+      "title": "Reinforced Self-Training (ReST) for Language Modeling",
+      "authors": [],
+      "year": 2023,
+      "date": "2023-08",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2308.08998",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2308.08998",
+      "pdf": "rest2023.pdf",
+      "category": [
+        "self-improvement"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Offline self-training that generates policy data and improves models via iterative reinforcement-style updates with data reuse.",
+      "bibtex": "@article{rest2023,\n  title={Reinforced Self-Training (ReST) for Language Modeling},\n  author={TBD},\n  journal={arXiv preprint arXiv:2308.08998},\n  year={2023}\n}",
+      "cite_command": "\\cite{rest2023}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; replay-centric, sample-efficient consolidation perspective."
+    },
+    {
+      "citekey": "restreact2023",
+      "title": "ReST meets ReAct: Self-Improvement for Multi-Step Reasoning LLM Agent",
+      "authors": [],
+      "year": 2023,
+      "date": "2023-12",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2312.10003",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2312.10003",
+      "pdf": "restreact2023.pdf",
+      "category": [
+        "self-improvement",
+        "reasoning",
+        "tool-use"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Combines ReAct-style tool-using trajectories with ReST-like iterative improvement and self-distillation.",
+      "bibtex": "@article{restreact2023,\n  title={ReST meets ReAct: Self-Improvement for Multi-Step Reasoning LLM Agent},\n  author={TBD},\n  journal={arXiv preprint arXiv:2312.10003},\n  year={2023}\n}",
+      "cite_command": "\\cite{restreact2023}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; wake-sleep-style loop converting traces into updates."
+    },
+    {
+      "citekey": "seal2025selfadapting",
+      "title": "Self-Adapting Language Models (SEAL)",
+      "authors": [],
+      "year": 2025,
+      "date": "2025-06",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2506.10943",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2506.10943",
+      "pdf": "seal2025selfadapting.pdf",
+      "category": [
+        "self-evolution",
+        "self-adaptation"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Enables LLMs to self-adapt by generating their own finetuning data and update directives, trained with RL using downstream performance as reward.",
+      "bibtex": "@article{seal2025selfadapting,\n  title={Self-Adapting Language Models (SEAL)},\n  author={TBD},\n  journal={arXiv preprint arXiv:2506.10943},\n  year={2025}\n}",
+      "cite_command": "\\cite{seal2025selfadapting}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; conceptually close, different mechanism."
+    },
+    {
+      "citekey": "selectivereflection2024",
+      "title": "Selective Reflection-Tuning: Student-Selected Data Recycling for LLM Instruction-Tuning",
+      "authors": [],
+      "year": 2024,
+      "date": "2024-02",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2402.10110",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2402.10110",
+      "pdf": "selectivereflection2024.pdf",
+      "category": [
+        "data-selection",
+        "memory-curation"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Teacher-student collaboration for data refinement; teacher improves data quality and student selects compatible examples.",
+      "bibtex": "@article{selectivereflection2024,\n  title={Selective Reflection-Tuning: Student-Selected Data Recycling for LLM Instruction-Tuning},\n  author={TBD},\n  journal={arXiv preprint arXiv:2402.10110},\n  year={2024}\n}",
+      "cite_command": "\\cite{selectivereflection2024}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; addresses data selection central to selective consolidation."
+    },
+    {
+      "citekey": "self2023languagefeedback",
+      "title": "SELF: Self-Evolution with Language Feedback",
+      "authors": [],
+      "year": 2023,
+      "date": "2023-10",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2310.00533",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2310.00533",
+      "pdf": "self2023languagefeedback.pdf",
+      "category": [
+        "self-evolution",
+        "self-improvement"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Iterative self-evolution via self-feedback, self-refinement, and repeated fine-tuning on enhanced model-generated data.",
+      "bibtex": "@article{self2023languagefeedback,\n  title={SELF: Self-Evolution with Language Feedback},\n  author={TBD},\n  journal={arXiv preprint arXiv:2310.00533},\n  year={2023}\n}",
+      "cite_command": "\\cite{self2023languagefeedback}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; strongly related to HAT's closed-loop improvement."
+    },
+    {
+      "citekey": "selfevolutionsurvey2024",
+      "title": "A Survey on Self-Evolution of Large Language Models",
+      "authors": [],
+      "year": 2024,
+      "date": "2024-04",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2404.14387",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2404.14387",
+      "pdf": "selfevolutionsurvey2024.pdf",
+      "category": [
+        "self-evolution",
+        "survey"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Comprehensive survey of self-evolution approaches in LLMs, framing the process as iterative cycles of experience acquisition, refinement, updating, and evaluation.",
+      "bibtex": "@article{selfevolutionsurvey2024,\n  title={A Survey on Self-Evolution of Large Language Models},\n  author={TBD},\n  journal={arXiv preprint arXiv:2404.14387},\n  year={2024}\n}",
+      "cite_command": "\\cite{selfevolutionsurvey2024}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; aligns with HAT's experiential-learning vision."
+    },
+    {
+      "citekey": "selfrewarding2024",
+      "title": "Self-Rewarding Language Models",
+      "authors": [],
+      "year": 2024,
+      "date": "2024-01",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2401.10020",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2401.10020",
+      "pdf": "selfrewarding2024.pdf",
+      "category": [
+        "self-improvement",
+        "reward-model"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Uses the model itself as a reward provider (LLM-as-a-Judge) within iterative preference optimization.",
+      "bibtex": "@article{selfrewarding2024,\n  title={Self-Rewarding Language Models},\n  author={TBD},\n  journal={arXiv preprint arXiv:2401.10020},\n  year={2024}\n}",
+      "cite_command": "\\cite{selfrewarding2024}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Relevant to HAT's future memory-importance scoring and autonomous quality evaluation."
+    },
+    {
+      "citekey": "star2022",
+      "title": "STaR: Bootstrapping Reasoning With Reasoning",
+      "authors": [],
+      "year": 2022,
+      "date": "2022-03",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2203.14465",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2203.14465",
+      "pdf": "star2022.pdf",
+      "category": [
+        "self-improvement",
+        "reasoning"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Self-taught reasoning: iteratively fine-tune LLMs on self-generated solutions filtered for correctness.",
+      "bibtex": "@article{star2022,\n  title={STaR: Bootstrapping Reasoning With Reasoning},\n  author={TBD},\n  journal={arXiv preprint arXiv:2203.14465},\n  year={2022}\n}",
+      "cite_command": "\\cite{star2022}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; self-improvement loop aligns with wake-sleep consolidation."
+    },
+    {
+      "citekey": "startreasoner2025",
+      "title": "START: Self-taught Reasoner with Tools",
+      "authors": [],
+      "year": 2025,
+      "date": "2025-03",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2503.04625",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2503.04625",
+      "pdf": "startreasoner2025.pdf",
+      "category": [
+        "self-improvement",
+        "reasoning",
+        "tool-use"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Hint-infer and Hint Rejection Sampling Fine-Tuning for reasoning LLMs with tool invocation.",
+      "bibtex": "@article{startreasoner2025,\n  title={START: Self-taught Reasoner with Tools},\n  author={TBD},\n  journal={arXiv preprint arXiv:2503.04625},\n  year={2025}\n}",
+      "cite_command": "\\cite{startreasoner2025}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; self-learning + fine-tuning akin to replay-based updates."
+    },
+    {
+      "citekey": "vstar2024",
+      "title": "V-STaR: Training Verifiers for Self-Taught Reasoners",
+      "authors": [],
+      "year": 2024,
+      "date": "2024-02",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2402.06457",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2402.06457",
+      "pdf": "vstar2024.pdf",
+      "category": [
+        "self-improvement",
+        "reasoning",
+        "verification"
+      ],
+      "level": 2,
+      "keywords": [],
+      "summary": "Extends STaR by training a verifier to judge solution correctness using both correct and incorrect solutions.",
+      "bibtex": "@article{vstar2024,\n  title={V-STaR: Training Verifiers for Self-Taught Reasoners},\n  author={TBD},\n  journal={arXiv preprint arXiv:2402.06457},\n  year={2024}\n}",
+      "cite_command": "\\cite{vstar2024}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Compared in Related Work; verification complements HAT's uncertainty gating/triage."
+    },
+    {
+      "citekey": "awesomeselfevolution",
+      "title": "Awesome-Self-Evolution-of-LLM (Alibaba DAMO Reading List)",
+      "authors": [],
+      "year": 2024,
+      "date": "2024-04",
+      "venue": "GitHub",
+      "institutions": [
+        "Alibaba DAMO"
+      ],
+      "arxiv_id": null,
+      "doi": null,
+      "url": "https://github.com/AlibabaResearch/DAMO-ConvAI/tree/main/Awesome-Self-Evolution-of-LLM",
+      "pdf": null,
+      "category": [
+        "self-evolution",
+        "resource"
+      ],
+      "level": 1,
+      "keywords": [],
+      "summary": "Maintained paper repository accompanying the self-evolution survey; high-value index for literature expansion.",
+      "bibtex": null,
+      "cite_command": null,
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Reference resource; not cited as a paper."
+    },
+    {
+      "citekey": "evoquality2025",
+      "title": "Self-Evolving Vision-Language Models for Image Quality Assessment via Voting and Ranking (EvoQuality)",
+      "authors": [],
+      "year": 2025,
+      "date": "2025-09",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2509.25787",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2509.25787",
+      "pdf": "evoquality2025.pdf",
+      "category": [
+        "self-supervised",
+        "vision-language"
+      ],
+      "level": 1,
+      "keywords": [],
+      "summary": "Self-supervised fine-tuning of VLMs via pseudo-labels from pairwise voting and group relative policy optimization.",
+      "bibtex": "@article{evoquality2025,\n  title={Self-Evolving Vision-Language Models for Image Quality Assessment via Voting and Ranking (EvoQuality)},\n  author={TBD},\n  journal={arXiv preprint arXiv:2509.25787},\n  year={2025}\n}",
+      "cite_command": "\\cite{evoquality2025}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Weakly related; domain-specific, self-consistency principle only."
+    },
+    {
+      "citekey": "principledriven2023",
+      "title": "Principle-Driven Self-Alignment of Language Models from Scratch with Minimal Human Supervision",
+      "authors": [],
+      "year": 2023,
+      "date": "2023-05",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2305.03047",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2305.03047",
+      "pdf": "principledriven2023.pdf",
+      "category": [
+        "self-evolution",
+        "alignment"
+      ],
+      "level": 1,
+      "keywords": [],
+      "summary": "Low-supervision self-alignment pipeline that synthesizes prompts, generates principle-guided responses, and refines the base model on self-generated data.",
+      "bibtex": "@article{principledriven2023,\n  title={Principle-Driven Self-Alignment of Language Models from Scratch with Minimal Human Supervision},\n  author={TBD},\n  journal={arXiv preprint arXiv:2305.03047},\n  year={2023}\n}",
+      "cite_command": "\\cite{principledriven2023}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Weakly related; alignment focus rather than memory/continual learning."
+    },
+    {
+      "citekey": "transformersquared2025",
+      "title": "Transformer-Squared: Self-adaptive LLMs",
+      "authors": [],
+      "year": 2025,
+      "date": "2025-01",
+      "venue": null,
+      "institutions": [],
+      "arxiv_id": "2501.06252",
+      "doi": null,
+      "url": "https://arxiv.org/abs/2501.06252",
+      "pdf": "transformersquared2025.pdf",
+      "category": [
+        "self-evolution",
+        "self-adaptation"
+      ],
+      "level": 1,
+      "keywords": [],
+      "summary": "Self-adaptation framework that adapts LLMs to unseen tasks in real time by selectively adjusting singular components of weight matrices. No memory or replay mechanism.",
+      "bibtex": "@article{transformersquared2025,\n  title={Transformer-Squared: Self-adaptive LLMs},\n  author={TBD},\n  journal={arXiv preprint arXiv:2501.06252},\n  year={2025}\n}",
+      "cite_command": "\\cite{transformersquared2025}",
+      "relations": {
+        "cites": [],
+        "cited_by": []
+      },
+      "usage_note": "Weakly related; mention as online-weight-update contrast to replay-based consolidation."
+    }
+  ]
+}

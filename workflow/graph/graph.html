@@ -1,0 +1,163 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 800px;
+                 background-color: #ffffff;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#111827", "id": "hat2026learning", "label": "HAT: Hippocampal Memory Consolidation fo", "shape": "star", "size": 40, "title": "HAT: Hippocampal Memory Consolidation for Continual Model Adaptation (L0, ours)"}, {"color": "#fbbf24", "id": "agenticmemory2026", "label": "Agentic Memory: Learning Unified Long-Te", "shape": "dot", "size": 27, "title": "Agentic Memory: Learning Unified Long-Term and Short-Term Memory Management for LLM Agents (L3, memory)"}, {"color": "#cbd5e1", "id": "awesomeselfevolution", "label": "Awesome-Self-Evolution-of-LLM (Alibaba D", "shape": "dot", "size": 17, "title": "Awesome-Self-Evolution-of-LLM (Alibaba DAMO Reading List) (L1, self-evolution, resource)"}, {"color": "#cbd5e1", "id": "evoquality2025", "label": "Self-Evolving Vision-Language Models for", "shape": "dot", "size": 17, "title": "Self-Evolving Vision-Language Models for Image Quality Assessment via Voting and Ranking (EvoQuality) (L1, self-supervised, vision-language)"}, {"color": "#fbbf24", "id": "learningwhattoremember2026", "label": "Learning What to Remember: A Cognitively", "shape": "dot", "size": 27, "title": "Learning What to Remember: A Cognitively Grounded Multi-Factor Value Model for Agentic Memory (L3, memory, memory-curation)"}, {"color": "#93c5fd", "id": "llmselfimprove2022", "label": "Large Language Models Can Self-Improve", "shape": "dot", "size": 22, "title": "Large Language Models Can Self-Improve (L2, self-improvement)"}, {"color": "#fbbf24", "id": "memgpt2023", "label": "MemGPT: Towards LLMs as Operating System", "shape": "dot", "size": 27, "title": "MemGPT: Towards LLMs as Operating Systems (L3, memory)"}, {"color": "#93c5fd", "id": "memorybank2023", "label": "MemoryBank: Enhancing Large Language Mod", "shape": "dot", "size": 22, "title": "MemoryBank: Enhancing Large Language Models with Long-Term Memory (L2, memory)"}, {"color": "#93c5fd", "id": "memorymechanismsurvey2024", "label": "A Survey on the Memory Mechanism of Larg", "shape": "dot", "size": 22, "title": "A Survey on the Memory Mechanism of Large Language Model based Agents (L2, memory, survey)"}, {"color": "#93c5fd", "id": "memoryofthought2023", "label": "MoT: Memory-of-Thought Enables ChatGPT t", "shape": "dot", "size": 22, "title": "MoT: Memory-of-Thought Enables ChatGPT to Self-Improve (L2, memory, self-improvement)"}, {"color": "#cbd5e1", "id": "principledriven2023", "label": "Principle-Driven Self-Alignment of Langu", "shape": "dot", "size": 17, "title": "Principle-Driven Self-Alignment of Language Models from Scratch with Minimal Human Supervision (L1, self-evolution, alignment)"}, {"color": "#93c5fd", "id": "reflectivememory2025", "label": "In Prospect and Retrospect: Reflective M", "shape": "dot", "size": 22, "title": "In Prospect and Retrospect: Reflective Memory Management for Long-term Personalized Dialogue Agents (L2, memory, personalization)"}, {"color": "#fbbf24", "id": "reflexion2023", "label": "Reflexion: Language Agents with Verbal R", "shape": "dot", "size": 27, "title": "Reflexion: Language Agents with Verbal Reinforcement Learning (L3, memory, self-improvement)"}, {"color": "#93c5fd", "id": "rest2023", "label": "Reinforced Self-Training (ReST) for Lang", "shape": "dot", "size": 22, "title": "Reinforced Self-Training (ReST) for Language Modeling (L2, self-improvement)"}, {"color": "#93c5fd", "id": "restreact2023", "label": "ReST meets ReAct: Self-Improvement for M", "shape": "dot", "size": 22, "title": "ReST meets ReAct: Self-Improvement for Multi-Step Reasoning LLM Agent (L2, self-improvement, reasoning, tool-use)"}, {"color": "#93c5fd", "id": "seal2025selfadapting", "label": "Self-Adapting Language Models (SEAL)", "shape": "dot", "size": 22, "title": "Self-Adapting Language Models (SEAL) (L2, self-evolution, self-adaptation)"}, {"color": "#93c5fd", "id": "selectivereflection2024", "label": "Selective Reflection-Tuning: Student-Sel", "shape": "dot", "size": 22, "title": "Selective Reflection-Tuning: Student-Selected Data Recycling for LLM Instruction-Tuning (L2, data-selection, memory-curation)"}, {"color": "#93c5fd", "id": "self2023languagefeedback", "label": "SELF: Self-Evolution with Language Feedb", "shape": "dot", "size": 22, "title": "SELF: Self-Evolution with Language Feedback (L2, self-evolution, self-improvement)"}, {"color": "#93c5fd", "id": "selfevolutionsurvey2024", "label": "A Survey on Self-Evolution of Large Lang", "shape": "dot", "size": 22, "title": "A Survey on Self-Evolution of Large Language Models (L2, self-evolution, survey)"}, {"color": "#93c5fd", "id": "selfrewarding2024", "label": "Self-Rewarding Language Models", "shape": "dot", "size": 22, "title": "Self-Rewarding Language Models (L2, self-improvement, reward-model)"}, {"color": "#93c5fd", "id": "star2022", "label": "STaR: Bootstrapping Reasoning With Reaso", "shape": "dot", "size": 22, "title": "STaR: Bootstrapping Reasoning With Reasoning (L2, self-improvement, reasoning)"}, {"color": "#93c5fd", "id": "startreasoner2025", "label": "START: Self-taught Reasoner with Tools", "shape": "dot", "size": 22, "title": "START: Self-taught Reasoner with Tools (L2, self-improvement, reasoning, tool-use)"}, {"color": "#fbbf24", "id": "thinkinmemory2023", "label": "Think-in-Memory: Recalling and Post-thin", "shape": "dot", "size": 27, "title": "Think-in-Memory: Recalling and Post-thinking Enable LLMs with Long-Term Memory (L3, memory)"}, {"color": "#cbd5e1", "id": "transformersquared2025", "label": "Transformer-Squared: Self-adaptive LLMs", "shape": "dot", "size": 17, "title": "Transformer-Squared: Self-adaptive LLMs (L1, self-evolution, self-adaptation)"}, {"color": "#93c5fd", "id": "vstar2024", "label": "V-STaR: Training Verifiers for Self-Taug", "shape": "dot", "size": 22, "title": "V-STaR: Training Verifiers for Self-Taught Reasoners (L2, self-improvement, reasoning, verification)"}]);
+                  edges = new vis.DataSet([{"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "agenticmemory2026"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "awesomeselfevolution"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "evoquality2025"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "learningwhattoremember2026"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "llmselfimprove2022"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "memgpt2023"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "memorybank2023"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "memorymechanismsurvey2024"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "memoryofthought2023"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "principledriven2023"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "reflectivememory2025"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "reflexion2023"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "rest2023"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "restreact2023"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "seal2025selfadapting"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "selectivereflection2024"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "self2023languagefeedback"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "selfevolutionsurvey2024"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "selfrewarding2024"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "star2022"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "startreasoner2025"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "thinkinmemory2023"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "transformersquared2025"}, {"arrows": "to", "color": "#9ca3af", "from": "hat2026learning", "to": "vstar2024"}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "barnesHut": {
+            "avoidOverlap": 0,
+            "centralGravity": 0.3,
+            "damping": 0.09,
+            "gravitationalConstant": -80000,
+            "springConstant": 0.001,
+            "springLength": 250
+        },
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>

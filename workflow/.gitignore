@@ -1,0 +1,15 @@
+
+## ============================================================
+## Research workflow paper agent (workflow/)
+## ============================================================
+## Downloaded PDF sources are not tracked; rehydrate with:
+##   make -C workflow download
+doc/*.pdf
+doc/**/*.pdf
+## Local LLM / API credentials for the paper agent
+script/config.env
+script/.env
+## Python caches and uv environment inside the paper agent
+__pycache__/
+*.pyc
+.venv/

@@ -1,0 +1,25 @@
+citekey: startreasoner2025
+title: 'START: Self-taught Reasoner with Tools'
+authors: []
+year: 2025
+date: 2025-03
+venue: null
+institutions: []
+arxiv_id: '2503.04625'
+doi: null
+url: https://arxiv.org/abs/2503.04625
+pdf: startreasoner2025.pdf
+category:
+- self-improvement
+- reasoning
+- tool-use
+level: 2
+keywords: []
+summary: Hint-infer and Hint Rejection Sampling Fine-Tuning for reasoning LLMs with tool invocation.
+bibtex: "@article{startreasoner2025,\n  title={START: Self-taught Reasoner with Tools},\n  author={TBD},\n\
+  \  journal={arXiv preprint arXiv:2503.04625},\n  year={2025}\n}"
+cite_command: \cite{startreasoner2025}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Compared in Related Work; self-learning + fine-tuning akin to replay-based updates.

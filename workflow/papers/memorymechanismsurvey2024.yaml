@@ -1,0 +1,26 @@
+citekey: memorymechanismsurvey2024
+title: A Survey on the Memory Mechanism of Large Language Model based Agents
+authors: []
+year: 2024
+date: 2024-04
+venue: null
+institutions: []
+arxiv_id: '2404.13501'
+doi: null
+url: https://arxiv.org/abs/2404.13501
+pdf: memorymechanismsurvey2024.pdf
+category:
+- memory
+- survey
+level: 2
+keywords: []
+summary: Systematic review of memory design and evaluation in LLM agents, covering core module patterns
+  and open challenges.
+bibtex: "@article{memorymechanismsurvey2024,\n  title={A Survey on the Memory Mechanism of Large Language\
+  \ Model based Agents},\n  author={TBD},\n  journal={arXiv preprint arXiv:2404.13501},\n  year={2024}\n\
+  }"
+cite_command: \cite{memorymechanismsurvey2024}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Compared in Related Work; situates HAT's hippocampus-neocortex decomposition.

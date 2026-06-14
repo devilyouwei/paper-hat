@@ -1,0 +1,26 @@
+citekey: evoquality2025
+title: Self-Evolving Vision-Language Models for Image Quality Assessment via Voting and Ranking (EvoQuality)
+authors: []
+year: 2025
+date: 2025-09
+venue: null
+institutions: []
+arxiv_id: '2509.25787'
+doi: null
+url: https://arxiv.org/abs/2509.25787
+pdf: evoquality2025.pdf
+category:
+- self-supervised
+- vision-language
+level: 1
+keywords: []
+summary: Self-supervised fine-tuning of VLMs via pseudo-labels from pairwise voting and group relative
+  policy optimization.
+bibtex: "@article{evoquality2025,\n  title={Self-Evolving Vision-Language Models for Image Quality Assessment\
+  \ via Voting and Ranking (EvoQuality)},\n  author={TBD},\n  journal={arXiv preprint arXiv:2509.25787},\n\
+  \  year={2025}\n}"
+cite_command: \cite{evoquality2025}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Weakly related; domain-specific, self-consistency principle only.

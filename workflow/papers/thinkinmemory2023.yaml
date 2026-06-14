@@ -1,0 +1,25 @@
+citekey: thinkinmemory2023
+title: 'Think-in-Memory: Recalling and Post-thinking Enable LLMs with Long-Term Memory'
+authors: []
+year: 2023
+date: 2023-11
+venue: null
+institutions: []
+arxiv_id: '2311.08719'
+doi: null
+url: https://arxiv.org/abs/2311.08719
+pdf: thinkinmemory2023.pdf
+category:
+- memory
+level: 3
+keywords: []
+summary: Stores and updates intermediate thoughts as evolving memory with insert/forget/merge operations
+  and efficient retrieval.
+bibtex: "@article{thinkinmemory2023,\n  title={Think-in-Memory: Recalling and Post-thinking Enable LLMs\
+  \ with Long-Term Memory},\n  author={TBD},\n  journal={arXiv preprint arXiv:2311.08719},\n  year={2023}\n\
+  }"
+cite_command: \cite{thinkinmemory2023}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Likely baseline; closely related to HAT's trace abstraction and memory lifecycle.

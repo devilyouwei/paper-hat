@@ -1,0 +1,26 @@
+citekey: principledriven2023
+title: Principle-Driven Self-Alignment of Language Models from Scratch with Minimal Human Supervision
+authors: []
+year: 2023
+date: 2023-05
+venue: null
+institutions: []
+arxiv_id: '2305.03047'
+doi: null
+url: https://arxiv.org/abs/2305.03047
+pdf: principledriven2023.pdf
+category:
+- self-evolution
+- alignment
+level: 1
+keywords: []
+summary: Low-supervision self-alignment pipeline that synthesizes prompts, generates principle-guided
+  responses, and refines the base model on self-generated data.
+bibtex: "@article{principledriven2023,\n  title={Principle-Driven Self-Alignment of Language Models from\
+  \ Scratch with Minimal Human Supervision},\n  author={TBD},\n  journal={arXiv preprint arXiv:2305.03047},\n\
+  \  year={2023}\n}"
+cite_command: \cite{principledriven2023}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Weakly related; alignment focus rather than memory/continual learning.

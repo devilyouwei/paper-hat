@@ -1,0 +1,2 @@
+# PDF sources are downloaded here by `make download` and are gitignored.
+# This file keeps the directory present in a fresh clone.

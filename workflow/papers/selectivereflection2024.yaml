@@ -1,0 +1,26 @@
+citekey: selectivereflection2024
+title: 'Selective Reflection-Tuning: Student-Selected Data Recycling for LLM Instruction-Tuning'
+authors: []
+year: 2024
+date: 2024-02
+venue: null
+institutions: []
+arxiv_id: '2402.10110'
+doi: null
+url: https://arxiv.org/abs/2402.10110
+pdf: selectivereflection2024.pdf
+category:
+- data-selection
+- memory-curation
+level: 2
+keywords: []
+summary: Teacher-student collaboration for data refinement; teacher improves data quality and student
+  selects compatible examples.
+bibtex: "@article{selectivereflection2024,\n  title={Selective Reflection-Tuning: Student-Selected Data\
+  \ Recycling for LLM Instruction-Tuning},\n  author={TBD},\n  journal={arXiv preprint arXiv:2402.10110},\n\
+  \  year={2024}\n}"
+cite_command: \cite{selectivereflection2024}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Compared in Related Work; addresses data selection central to selective consolidation.

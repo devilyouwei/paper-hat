@@ -1,0 +1,24 @@
+citekey: selfrewarding2024
+title: Self-Rewarding Language Models
+authors: []
+year: 2024
+date: 2024-01
+venue: null
+institutions: []
+arxiv_id: '2401.10020'
+doi: null
+url: https://arxiv.org/abs/2401.10020
+pdf: selfrewarding2024.pdf
+category:
+- self-improvement
+- reward-model
+level: 2
+keywords: []
+summary: Uses the model itself as a reward provider (LLM-as-a-Judge) within iterative preference optimization.
+bibtex: "@article{selfrewarding2024,\n  title={Self-Rewarding Language Models},\n  author={TBD},\n  journal={arXiv\
+  \ preprint arXiv:2401.10020},\n  year={2024}\n}"
+cite_command: \cite{selfrewarding2024}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Relevant to HAT's future memory-importance scoring and autonomous quality evaluation.

@@ -1,0 +1,7 @@
+# Lightweight paper agent dependencies.
+# Primary workflow uses uv (see workflow/pyproject.toml):  cd workflow && make sync
+# This file is kept for plain-pip users:  pip install -r workflow/script/requirements.txt
+PyYAML>=6.0
+requests>=2.31
+pyvis>=0.3.2
+pypdf>=4.0

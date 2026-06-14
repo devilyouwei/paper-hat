@@ -1,0 +1,348 @@
+{
+  "root": "hat2026learning",
+  "nodes": [
+    {
+      "id": "hat2026learning",
+      "title": "HAT: Hippocampal Memory Consolidation for Continual Model Adaptation",
+      "level": 0,
+      "category": [
+        "ours"
+      ]
+    },
+    {
+      "id": "agenticmemory2026",
+      "title": "Agentic Memory: Learning Unified Long-Term and Short-Term Memory Management for LLM Agents",
+      "level": 3,
+      "category": [
+        "memory"
+      ]
+    },
+    {
+      "id": "awesomeselfevolution",
+      "title": "Awesome-Self-Evolution-of-LLM (Alibaba DAMO Reading List)",
+      "level": 1,
+      "category": [
+        "self-evolution",
+        "resource"
+      ]
+    },
+    {
+      "id": "evoquality2025",
+      "title": "Self-Evolving Vision-Language Models for Image Quality Assessment via Voting and Ranking (EvoQuality)",
+      "level": 1,
+      "category": [
+        "self-supervised",
+        "vision-language"
+      ]
+    },
+    {
+      "id": "learningwhattoremember2026",
+      "title": "Learning What to Remember: A Cognitively Grounded Multi-Factor Value Model for Agentic Memory",
+      "level": 3,
+      "category": [
+        "memory",
+        "memory-curation"
+      ]
+    },
+    {
+      "id": "llmselfimprove2022",
+      "title": "Large Language Models Can Self-Improve",
+      "level": 2,
+      "category": [
+        "self-improvement"
+      ]
+    },
+    {
+      "id": "memgpt2023",
+      "title": "MemGPT: Towards LLMs as Operating Systems",
+      "level": 3,
+      "category": [
+        "memory"
+      ]
+    },
+    {
+      "id": "memorybank2023",
+      "title": "MemoryBank: Enhancing Large Language Models with Long-Term Memory",
+      "level": 2,
+      "category": [
+        "memory"
+      ]
+    },
+    {
+      "id": "memorymechanismsurvey2024",
+      "title": "A Survey on the Memory Mechanism of Large Language Model based Agents",
+      "level": 2,
+      "category": [
+        "memory",
+        "survey"
+      ]
+    },
+    {
+      "id": "memoryofthought2023",
+      "title": "MoT: Memory-of-Thought Enables ChatGPT to Self-Improve",
+      "level": 2,
+      "category": [
+        "memory",
+        "self-improvement"
+      ]
+    },
+    {
+      "id": "principledriven2023",
+      "title": "Principle-Driven Self-Alignment of Language Models from Scratch with Minimal Human Supervision",
+      "level": 1,
+      "category": [
+        "self-evolution",
+        "alignment"
+      ]
+    },
+    {
+      "id": "reflectivememory2025",
+      "title": "In Prospect and Retrospect: Reflective Memory Management for Long-term Personalized Dialogue Agents",
+      "level": 2,
+      "category": [
+        "memory",
+        "personalization"
+      ]
+    },
+    {
+      "id": "reflexion2023",
+      "title": "Reflexion: Language Agents with Verbal Reinforcement Learning",
+      "level": 3,
+      "category": [
+        "memory",
+        "self-improvement"
+      ]
+    },
+    {
+      "id": "rest2023",
+      "title": "Reinforced Self-Training (ReST) for Language Modeling",
+      "level": 2,
+      "category": [
+        "self-improvement"
+      ]
+    },
+    {
+      "id": "restreact2023",
+      "title": "ReST meets ReAct: Self-Improvement for Multi-Step Reasoning LLM Agent",
+      "level": 2,
+      "category": [
+        "self-improvement",
+        "reasoning",
+        "tool-use"
+      ]
+    },
+    {
+      "id": "seal2025selfadapting",
+      "title": "Self-Adapting Language Models (SEAL)",
+      "level": 2,
+      "category": [
+        "self-evolution",
+        "self-adaptation"
+      ]
+    },
+    {
+      "id": "selectivereflection2024",
+      "title": "Selective Reflection-Tuning: Student-Selected Data Recycling for LLM Instruction-Tuning",
+      "level": 2,
+      "category": [
+        "data-selection",
+        "memory-curation"
+      ]
+    },
+    {
+      "id": "self2023languagefeedback",
+      "title": "SELF: Self-Evolution with Language Feedback",
+      "level": 2,
+      "category": [
+        "self-evolution",
+        "self-improvement"
+      ]
+    },
+    {
+      "id": "selfevolutionsurvey2024",
+      "title": "A Survey on Self-Evolution of Large Language Models",
+      "level": 2,
+      "category": [
+        "self-evolution",
+        "survey"
+      ]
+    },
+    {
+      "id": "selfrewarding2024",
+      "title": "Self-Rewarding Language Models",
+      "level": 2,
+      "category": [
+        "self-improvement",
+        "reward-model"
+      ]
+    },
+    {
+      "id": "star2022",
+      "title": "STaR: Bootstrapping Reasoning With Reasoning",
+      "level": 2,
+      "category": [
+        "self-improvement",
+        "reasoning"
+      ]
+    },
+    {
+      "id": "startreasoner2025",
+      "title": "START: Self-taught Reasoner with Tools",
+      "level": 2,
+      "category": [
+        "self-improvement",
+        "reasoning",
+        "tool-use"
+      ]
+    },
+    {
+      "id": "thinkinmemory2023",
+      "title": "Think-in-Memory: Recalling and Post-thinking Enable LLMs with Long-Term Memory",
+      "level": 3,
+      "category": [
+        "memory"
+      ]
+    },
+    {
+      "id": "transformersquared2025",
+      "title": "Transformer-Squared: Self-adaptive LLMs",
+      "level": 1,
+      "category": [
+        "self-evolution",
+        "self-adaptation"
+      ]
+    },
+    {
+      "id": "vstar2024",
+      "title": "V-STaR: Training Verifiers for Self-Taught Reasoners",
+      "level": 2,
+      "category": [
+        "self-improvement",
+        "reasoning",
+        "verification"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "hat2026learning",
+      "target": "agenticmemory2026",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "awesomeselfevolution",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "evoquality2025",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "learningwhattoremember2026",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "llmselfimprove2022",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "memgpt2023",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "memorybank2023",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "memorymechanismsurvey2024",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "memoryofthought2023",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "principledriven2023",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "reflectivememory2025",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "reflexion2023",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "rest2023",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "restreact2023",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "seal2025selfadapting",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "selectivereflection2024",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "self2023languagefeedback",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "selfevolutionsurvey2024",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "selfrewarding2024",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "star2022",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "startreasoner2025",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "thinkinmemory2023",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "transformersquared2025",
+      "kind": "root"
+    },
+    {
+      "source": "hat2026learning",
+      "target": "vstar2024",
+      "kind": "root"
+    }
+  ]
+}

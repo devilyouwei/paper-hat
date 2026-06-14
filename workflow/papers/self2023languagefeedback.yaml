@@ -1,0 +1,25 @@
+citekey: self2023languagefeedback
+title: 'SELF: Self-Evolution with Language Feedback'
+authors: []
+year: 2023
+date: 2023-10
+venue: null
+institutions: []
+arxiv_id: '2310.00533'
+doi: null
+url: https://arxiv.org/abs/2310.00533
+pdf: self2023languagefeedback.pdf
+category:
+- self-evolution
+- self-improvement
+level: 2
+keywords: []
+summary: Iterative self-evolution via self-feedback, self-refinement, and repeated fine-tuning on enhanced
+  model-generated data.
+bibtex: "@article{self2023languagefeedback,\n  title={SELF: Self-Evolution with Language Feedback},\n\
+  \  author={TBD},\n  journal={arXiv preprint arXiv:2310.00533},\n  year={2023}\n}"
+cite_command: \cite{self2023languagefeedback}
+relations:
+  cites: []
+  cited_by: []
+usage_note: Compared in Related Work; strongly related to HAT's closed-loop improvement.
