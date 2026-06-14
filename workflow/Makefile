@@ -12,7 +12,7 @@ RUN := uv run --
 
 .DEFAULT_GOAL := help
 
-.PHONY: help sync install index download enrich graph graph-nollm stats search clean
+.PHONY: help sync install index download enrich edit missing-bibtex graph graph-nollm stats search clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -31,6 +31,12 @@ download: ## Download all paper PDFs into doc/ (gitignored)
 
 enrich: ## Backfill metadata from Semantic Scholar
 	$(RUN) python $(SCRIPT)/enrich.py
+
+edit: ## Open a paper YAML for manual curation: make edit KEY=agenticmemory2026
+	$(RUN) python $(SCRIPT)/edit.py "$(KEY)"
+
+missing-bibtex: ## List papers missing manually curated BibTeX/cite_command
+	$(RUN) python $(SCRIPT)/edit.py --missing-bibtex
 
 graph: ## Build citation knowledge graph (uses LLM; needs config.env)
 	$(RUN) python $(SCRIPT)/graph.py

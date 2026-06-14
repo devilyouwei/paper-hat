@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -48,6 +49,8 @@ KNOWN_FIELDS = {
     "relations",      # dict {cites: [...], cited_by: [...]}
     "usage_note",     # str  how we use it (intro / compare / baseline)
 }
+
+BIBTEX_KEY_RE = re.compile(r"@\w+\s*\{\s*([^,\s]+)")
 
 
 @dataclass
@@ -91,6 +94,22 @@ def validate_paper(path: Path, data: dict[str, Any]) -> ValidationResult:
     relations = data.get("relations")
     if relations is not None and not isinstance(relations, dict):
         res.errors.append(f"{path.name}: 'relations' must be a mapping")
+
+    citekey = data.get("citekey")
+    bibtex = data.get("bibtex")
+    cite_command = data.get("cite_command")
+    if bibtex:
+        match = BIBTEX_KEY_RE.search(str(bibtex))
+        if not match:
+            res.warnings.append(f"{path.name}: 'bibtex' does not look like a BibTeX entry")
+        elif citekey and match.group(1) != citekey:
+            res.warnings.append(
+                f"{path.name}: BibTeX key '{match.group(1)}' does not match citekey '{citekey}'"
+            )
+    if cite_command and citekey and citekey not in str(cite_command):
+        res.warnings.append(f"{path.name}: cite_command does not contain citekey '{citekey}'")
+    if bool(bibtex) != bool(cite_command):
+        res.warnings.append(f"{path.name}: fill both 'bibtex' and 'cite_command', or leave both empty")
 
     for key in data:
         if key not in KNOWN_FIELDS:

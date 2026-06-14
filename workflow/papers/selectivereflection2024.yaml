@@ -16,10 +16,8 @@ level: 2
 keywords: []
 summary: Teacher-student collaboration for data refinement; teacher improves data quality and student
   selects compatible examples.
-bibtex: "@article{selectivereflection2024,\n  title={Selective Reflection-Tuning: Student-Selected Data\
-  \ Recycling for LLM Instruction-Tuning},\n  author={TBD},\n  journal={arXiv preprint arXiv:2402.10110},\n\
-  \  year={2024}\n}"
-cite_command: \cite{selectivereflection2024}
+bibtex: null
+cite_command: null
 relations:
   cites: []
   cited_by: []

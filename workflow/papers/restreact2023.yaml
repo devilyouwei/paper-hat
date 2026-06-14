@@ -16,9 +16,8 @@ category:
 level: 2
 keywords: []
 summary: Combines ReAct-style tool-using trajectories with ReST-like iterative improvement and self-distillation.
-bibtex: "@article{restreact2023,\n  title={ReST meets ReAct: Self-Improvement for Multi-Step Reasoning\
-  \ LLM Agent},\n  author={TBD},\n  journal={arXiv preprint arXiv:2312.10003},\n  year={2023}\n}"
-cite_command: \cite{restreact2023}
+bibtex: null
+cite_command: null
 relations:
   cites: []
   cited_by: []

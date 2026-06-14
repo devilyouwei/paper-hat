@@ -16,9 +16,8 @@ level: 2
 keywords: []
 summary: Enables LLMs to self-adapt by generating their own finetuning data and update directives, trained
   with RL using downstream performance as reward.
-bibtex: "@article{seal2025selfadapting,\n  title={Self-Adapting Language Models (SEAL)},\n  author={TBD},\n\
-  \  journal={arXiv preprint arXiv:2506.10943},\n  year={2025}\n}"
-cite_command: \cite{seal2025selfadapting}
+bibtex: null
+cite_command: null
 relations:
   cites: []
   cited_by: []

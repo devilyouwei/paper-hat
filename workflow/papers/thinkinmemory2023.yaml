@@ -15,10 +15,8 @@ level: 3
 keywords: []
 summary: Stores and updates intermediate thoughts as evolving memory with insert/forget/merge operations
   and efficient retrieval.
-bibtex: "@article{thinkinmemory2023,\n  title={Think-in-Memory: Recalling and Post-thinking Enable LLMs\
-  \ with Long-Term Memory},\n  author={TBD},\n  journal={arXiv preprint arXiv:2311.08719},\n  year={2023}\n\
-  }"
-cite_command: \cite{thinkinmemory2023}
+bibtex: null
+cite_command: null
 relations:
   cites: []
   cited_by: []

@@ -15,10 +15,8 @@ level: 3
 keywords: []
 summary: Unified memory policy treating store/retrieve/update/summarize/discard as learnable agent actions
   optimized with RL.
-bibtex: "@article{agenticmemory2026,\n  title={Agentic Memory: Learning Unified Long-Term and Short-Term\
-  \ Memory Management for LLM Agents},\n  author={TBD},\n  journal={arXiv preprint arXiv:2601.01885},\n\
-  \  year={2026}\n}"
-cite_command: \cite{agenticmemory2026}
+bibtex: null
+cite_command: null
 relations:
   cites: []
   cited_by: []

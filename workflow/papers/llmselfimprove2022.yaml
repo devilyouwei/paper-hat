@@ -14,9 +14,8 @@ category:
 level: 2
 keywords: []
 summary: Selects high-confidence rationale-augmented outputs from unlabeled data and fine-tunes on them.
-bibtex: "@article{llmselfimprove2022,\n  title={Large Language Models Can Self-Improve},\n  author={TBD},\n\
-  \  journal={arXiv preprint arXiv:2210.11610},\n  year={2022}\n}"
-cite_command: \cite{llmselfimprove2022}
+bibtex: null
+cite_command: null
 relations:
   cites: []
   cited_by: []

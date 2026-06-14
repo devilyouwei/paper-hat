@@ -16,9 +16,8 @@ level: 1
 keywords: []
 summary: Self-adaptation framework that adapts LLMs to unseen tasks in real time by selectively adjusting
   singular components of weight matrices. No memory or replay mechanism.
-bibtex: "@article{transformersquared2025,\n  title={Transformer-Squared: Self-adaptive LLMs},\n  author={TBD},\n\
-  \  journal={arXiv preprint arXiv:2501.06252},\n  year={2025}\n}"
-cite_command: \cite{transformersquared2025}
+bibtex: null
+cite_command: null
 relations:
   cites: []
   cited_by: []

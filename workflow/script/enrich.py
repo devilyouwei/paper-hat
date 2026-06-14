@@ -1,7 +1,8 @@
-"""Backfill paper metadata from Semantic Scholar (authors, venue, year, DOI, BibTeX).
+"""Backfill paper metadata from Semantic Scholar (authors, venue, year, DOI).
 
 Only fills fields that are currently empty/placeholder; never overwrites curated
-values such as ``level``, ``category``, ``summary``, or ``usage_note``.
+values such as ``level``, ``category``, ``summary``, ``usage_note``, ``bibtex``,
+or ``cite_command``.
 
     python workflow/script/enrich.py                  # enrich all
     python workflow/script/enrich.py --only star2022   # one paper
@@ -22,7 +23,7 @@ from common import PAPERS_DIR, load_env
 from paper_db import load_all
 
 SS_PAPER = "https://api.semanticscholar.org/graph/v1/paper/arXiv:{arxiv_id}"
-FIELDS = "title,year,venue,authors.name,externalIds,citationStyles,publicationVenue"
+FIELDS = "title,year,venue,authors.name,externalIds,publicationVenue"
 USER_AGENT = "hat-paper-agent/0.1 (research)"
 
 
@@ -66,17 +67,6 @@ def enrich_one(data: dict, meta: dict, overwrite: bool) -> bool:
     set_if("authors", authors)
     ext = meta.get("externalIds") or {}
     set_if("doi", ext.get("DOI"))
-
-    bib = (meta.get("citationStyles") or {}).get("bibtex")
-    if bib and (overwrite or is_empty(data.get("bibtex")) or "author={TBD}" in (data.get("bibtex") or "")):
-        # Re-key the bibtex to our citekey so \cite matches.
-        first_brace = bib.find("{")
-        first_comma = bib.find(",")
-        if first_brace != -1 and first_comma != -1:
-            bib = bib[: first_brace + 1] + data["citekey"] + bib[first_comma:]
-        if data.get("bibtex") != bib:
-            data["bibtex"] = bib
-            changed = True
 
     return changed
 

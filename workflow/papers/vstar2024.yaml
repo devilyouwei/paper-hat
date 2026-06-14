@@ -17,9 +17,8 @@ level: 2
 keywords: []
 summary: Extends STaR by training a verifier to judge solution correctness using both correct and incorrect
   solutions.
-bibtex: "@article{vstar2024,\n  title={V-STaR: Training Verifiers for Self-Taught Reasoners},\n  author={TBD},\n\
-  \  journal={arXiv preprint arXiv:2402.06457},\n  year={2024}\n}"
-cite_command: \cite{vstar2024}
+bibtex: null
+cite_command: null
 relations:
   cites: []
   cited_by: []

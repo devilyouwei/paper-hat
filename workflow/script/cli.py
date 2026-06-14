@@ -6,6 +6,7 @@
     python workflow/script/cli.py enrich            # backfill metadata via Semantic Scholar
     python workflow/script/cli.py graph             # build citation knowledge graph
     python workflow/script/cli.py stats             # quick overview by level/category
+    python workflow/script/cli.py edit <citekey>    # open/check manually curated paper YAML
 
 Each subcommand forwards remaining args to the underlying script.
 """
@@ -49,6 +50,7 @@ COMMANDS = {
     "download": lambda a: _run("download", a),
     "search": lambda a: _run("search", a),
     "enrich": lambda a: _run("enrich", a),
+    "edit": lambda a: _run("edit", a),
     "graph": lambda a: _run("graph", a),
     "stats": lambda a: stats(),
 }

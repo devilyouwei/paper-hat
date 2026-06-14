@@ -82,7 +82,8 @@ make index                   # validate YAML + (re)build index.json
 make stats                   # overview by level and category
 
 cp script/config.example.env script/config.env   # add LLM + Semantic Scholar keys
-make enrich                  # backfill authors/venue/year/bibtex
+make enrich                  # backfill metadata only (never writes bibtex/cite_command)
+make missing-bibtex          # list papers needing manual citation fields
 make graph                   # build the citation knowledge graph
 open graph/graph.html        # interactive graph (root = HAT)
 ```
@@ -99,14 +100,39 @@ python script/search.py "long-term memory for LLM agents"
 # Scaffold a YAML entry from an arXiv id, then edit level/category by hand
 python script/search.py --arxiv 2310.08560 --add --citekey memgpt2023
 
-make enrich      # fill metadata
-make download    # fetch its PDF
-make index       # revalidate + rebuild index
+make enrich                 # fill metadata (not bibtex/cite_command)
+make edit KEY=memgpt2023    # paste BibTeX/cite fields manually
+make download               # fetch its PDF
+make index                  # revalidate + rebuild index
 ```
 
 Each `papers/<citekey>.yaml` carries: `title, authors, year, date, venue,
 institutions, arxiv_id, doi, url, pdf, category[], level, keywords[], summary,
 bibtex, cite_command (\cite{citekey}), relations{cites,cited_by}, usage_note`.
+
+## Manual BibTeX and cite fields
+
+`bibtex` and `cite_command` are intentionally **manual fields**. Google Scholar
+does not provide an official public API, and scraping/proxying citation data adds
+cost and reliability risk. If Google Scholar BibTeX is preferred, copy it by hand
+from Google Scholar and paste it into the paper YAML.
+
+```bash
+make edit KEY=agenticmemory2026
+# paste:
+# bibtex: |
+#   @article{agenticmemory2026,
+#     ...
+#   }
+# cite_command: \cite{agenticmemory2026}
+
+uv run -- python script/edit.py agenticmemory2026 --validate-bibtex
+make missing-bibtex
+make index
+```
+
+`make enrich` never writes or overwrites `bibtex` / `cite_command`; it only fills
+metadata such as title, authors, year, venue, and DOI.
 
 ## Knowledge graph
 

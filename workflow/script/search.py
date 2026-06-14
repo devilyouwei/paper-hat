@@ -9,6 +9,7 @@ Examples::
     python workflow/script/search.py --arxiv 2404.14387 --add --citekey selfevolutionsurvey2024
 
 New entries default to level 1 / category [uncategorized] for human review.
+BibTeX and cite commands are intentionally left empty for manual curation.
 """
 
 from __future__ import annotations
@@ -125,7 +126,7 @@ def make_yaml(meta: dict, citekey: str) -> dict:
         "keywords": [],
         "summary": (meta.get("summary") or "")[:600],
         "bibtex": None,
-        "cite_command": f"\\cite{{{citekey}}}",
+        "cite_command": None,
         "relations": {"cites": [], "cited_by": []},
         "usage_note": "TODO: classify and grade after review.",
     }

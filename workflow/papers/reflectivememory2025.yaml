@@ -16,10 +16,8 @@ level: 2
 keywords: []
 summary: Reflective memory management with prospective summarization and retrospective retrieval refinement
   via online RL.
-bibtex: "@article{reflectivememory2025,\n  title={In Prospect and Retrospect: Reflective Memory Management\
-  \ for Long-term Personalized Dialogue Agents},\n  author={TBD},\n  journal={arXiv preprint arXiv:2503.08026},\n\
-  \  year={2025}\n}"
-cite_command: \cite{reflectivememory2025}
+bibtex: null
+cite_command: null
 relations:
   cites: []
   cited_by: []

@@ -16,9 +16,8 @@ category:
 level: 2
 keywords: []
 summary: Hint-infer and Hint Rejection Sampling Fine-Tuning for reasoning LLMs with tool invocation.
-bibtex: "@article{startreasoner2025,\n  title={START: Self-taught Reasoner with Tools},\n  author={TBD},\n\
-  \  journal={arXiv preprint arXiv:2503.04625},\n  year={2025}\n}"
-cite_command: \cite{startreasoner2025}
+bibtex: null
+cite_command: null
 relations:
   cites: []
   cited_by: []
